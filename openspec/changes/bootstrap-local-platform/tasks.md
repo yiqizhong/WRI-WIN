@@ -1,7 +1,7 @@
 ## 1. Repo and Contracts
 
-- [ ] 1.1 Create `apps/desktop`, `apps/daemon`, `packages/contracts`, `packages/agent-adapters`, `packages/tool-runtime`, and `packages/storage`.
-- [ ] 1.2 Add root development scripts to run desktop, daemon, typecheck, lint, and tests.
+- [x] 1.1 Create `apps/desktop`, `apps/daemon`, `packages/contracts`, `packages/agent-adapters`, `packages/tool-runtime`, and `packages/storage`.
+- [x] 1.2 Add root development scripts to run desktop, daemon, typecheck, lint, and tests.
 - [ ] 1.3 Define shared contract schemas for daemon health, structured errors, projects, sessions, agent capabilities, run events, tools, MCP servers, and permission requests.
 - [ ] 1.4 Add contract tests that validate success and failure payloads.
 
@@ -14,9 +14,9 @@
 
 ## 3. Desktop Shell
 
-- [ ] 3.1 Implement Electron desktop app shell with navigation, workspace area, settings entry, and daemon status display.
-- [ ] 3.2 Implement the desktop-to-daemon client using shared contracts.
-- [ ] 3.3 Add unavailable/degraded daemon states with user-readable recovery messages.
+- [x] 3.1 Implement Electron desktop app shell with navigation, workspace area, settings entry, and daemon status display.
+- [x] 3.2 Implement the desktop-to-daemon client using shared contracts.
+- [x] 3.3 Add unavailable/degraded daemon states with user-readable recovery messages.
 - [ ] 3.4 Route local folder selection and file operations through the daemon boundary.
 
 ## 4. Storage
