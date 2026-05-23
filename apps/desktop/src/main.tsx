@@ -75,6 +75,24 @@ function App() {
     void refreshDaemonStatus();
   }, []);
 
+  useEffect(() => {
+    if (daemonState.kind !== "connected" && daemonState.kind !== "degraded") {
+      return;
+    }
+
+    void (async () => {
+      try {
+        const list = await daemonClient.listProjects();
+        const active = list.projects.find((project) => project.id === list.activeProjectId);
+        if (active) {
+          setActiveProject(active);
+        }
+      } catch {
+        // Keep UI usable when project restore fails.
+      }
+    })();
+  }, [daemonClient, daemonState.kind]);
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="Primary">

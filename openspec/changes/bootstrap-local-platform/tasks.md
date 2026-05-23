@@ -21,7 +21,7 @@
 
 ## 4. Storage
 
-- [ ] 4.1 Implement local project metadata persistence.
+- [x] 4.1 Implement local project metadata persistence.
 - [ ] 4.2 Implement review session metadata persistence with source type, scope, timestamps, status, and related run IDs.
 - [ ] 4.3 Implement audit log persistence for permission decisions, agent run lifecycle events, and write-capable tool attempts.
 - [ ] 4.4 Add storage versioning and tests for restart/reopen behavior.

@@ -2,6 +2,7 @@ import { loadDaemonConfig } from "./config";
 import { createDaemonLogger } from "./logger";
 import { createRequestHandler } from "./router";
 import { createDaemonServer } from "./server";
+import { createDaemonState } from "./state";
 
 async function startDaemon() {
   const config = loadDaemonConfig();
@@ -12,7 +13,10 @@ async function startDaemon() {
     logLevel: config.logLevel
   });
 
-  const server = await createDaemonServer(config, logger, createRequestHandler(config));
+  const state = await createDaemonState();
+  logger.info("Platform store loaded", { dataDir: state.store.dataDir });
+
+  const server = await createDaemonServer(config, logger, createRequestHandler(config, state));
 
   const shutdown = async (signal: string) => {
     logger.info("Shutting down daemon", { signal });

@@ -8,7 +8,7 @@ import { handleFilesystemRequest } from "./routes/filesystem";
 import { handlePlatformRequest } from "./routes/platform";
 import { createDaemonState, type DaemonState } from "./state";
 
-export function createRequestHandler(config: DaemonConfig, state: DaemonState = createDaemonState()) {
+export function createRequestHandler(config: DaemonConfig, state: DaemonState) {
   return (request: IncomingMessage, response: ServerResponse) => {
     void routeRequest(request, response, config, state);
   };

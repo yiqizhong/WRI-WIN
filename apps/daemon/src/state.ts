@@ -13,59 +13,51 @@ import {
   createReviewSessionInputSchema,
   parsePermissionDecisionInput
 } from "@writer/contracts";
+import { PlatformStore } from "@writer/storage";
 
 export type DaemonState = {
-  projects: Project[];
-  activeProjectId: string | null;
-  sessions: ReviewSession[];
+  store: PlatformStore;
   permissionRequests: PermissionRequest[];
 };
 
-export function createDaemonState(): DaemonState {
+export async function createDaemonState(): Promise<DaemonState> {
+  const store = new PlatformStore();
+  await store.load();
+
   return {
-    projects: [],
-    activeProjectId: null,
-    sessions: [],
+    store,
     permissionRequests: []
   };
 }
 
 export function listProjects(state: DaemonState): ProjectList {
-  return {
-    projects: state.projects,
-    activeProjectId: state.activeProjectId
-  };
+  return state.store.listProjects();
 }
 
-export function createProject(state: DaemonState, input: unknown): Project {
+export async function createProject(state: DaemonState, input: unknown): Promise<Project> {
   const parsed = createProjectInputSchema.parse(input);
   const timestamp = new Date().toISOString();
-  const project: Project = {
+  const project = state.store.upsertProject({
     id: randomUUID(),
     name: parsed.name,
     rootPath: parsed.rootPath,
     createdAt: timestamp,
     updatedAt: timestamp
-  };
+  });
 
-  state.projects.push(project);
-  state.activeProjectId = project.id;
+  await state.store.save();
   return project;
 }
 
 export function listSessions(state: DaemonState, projectId: string | null): ReviewSessionList {
-  const sessions = projectId
-    ? state.sessions.filter((session) => session.projectId === projectId)
-    : state.sessions;
-
-  return { sessions };
+  return state.store.listSessions(projectId);
 }
 
-export function createSession(state: DaemonState, input: unknown): ReviewSession {
+export async function createSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
   const parsed = createReviewSessionInputSchema.parse(input);
   const timestamp = new Date().toISOString();
 
-  const session: ReviewSession = {
+  const session = state.store.upsertSession({
     id: randomUUID(),
     projectId: parsed.projectId,
     sourceType: parsed.sourceType,
@@ -74,9 +66,9 @@ export function createSession(state: DaemonState, input: unknown): ReviewSession
     agentRunIds: [],
     createdAt: timestamp,
     updatedAt: timestamp
-  };
+  });
 
-  state.sessions.push(session);
+  await state.store.save();
   return session;
 }
 

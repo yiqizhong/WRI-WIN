@@ -34,7 +34,7 @@ export async function handlePlatformRequest(
 
   if (request.method === "POST" && path === "/projects") {
     try {
-      const project = createProject(state, await readJsonBody(request));
+      const project = await createProject(state, await readJsonBody(request));
       sendJson(response, 201, project);
     } catch {
       invalidRequest(response, "Invalid project payload.", "Provide name and rootPath.");
@@ -50,7 +50,7 @@ export async function handlePlatformRequest(
 
   if (request.method === "POST" && path === "/sessions") {
     try {
-      const session = createSession(state, await readJsonBody(request));
+      const session = await createSession(state, await readJsonBody(request));
       sendJson(response, 201, session);
     } catch {
       invalidRequest(response, "Invalid session payload.", "Provide projectId and sourceType.");

@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@writer/contracts": "0.1.0"
+    "@writer/contracts": "0.1.0",
+    "@writer/storage": "0.1.0"
   }
 }

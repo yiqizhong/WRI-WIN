@@ -1,24 +1,30 @@
+import { mkdtemp } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
-import { createDaemonState, createProject, createSession, listProjects } from "./state";
+import { createProject, listProjects } from "./state";
 
 describe("daemon state", () => {
-  it("creates projects and sessions in memory", () => {
-    const state = createDaemonState();
+  it("creates projects and persists via PlatformStore", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "writer-daemon-state-"));
+    const store = new PlatformStore({ dataDir });
+    await store.load();
 
-    const project = createProject(state, {
+    const state = { store, permissionRequests: [] };
+
+    await createProject(state, {
       name: "Writer",
       rootPath: "/tmp/writer"
     });
 
-    const session = createSession(state, {
-      projectId: project.id,
-      sourceType: "figma",
-      scope: { fileKey: "abc" }
-    });
+    const reloadedStore = new PlatformStore({ dataDir });
+    await reloadedStore.load();
 
-    const projects = listProjects(state);
-    expect(projects.activeProjectId).toBe(project.id);
-    expect(session.projectId).toBe(project.id);
+    const projects = listProjects({ store: reloadedStore, permissionRequests: [] });
+    expect(projects.projects).toHaveLength(1);
+    expect(projects.activeProjectId).toBe(projects.projects[0]?.id);
   });
 });
