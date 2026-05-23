@@ -17,6 +17,7 @@ import {
 import type { ChangeStatus, ReviewChange } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
+import { hugHeight, row, rowBetween, stackFill, surfaceBody, surfaceFillHeight } from "./layout/writer-sizing";
 
 type ReviewQueuePanelProps = {
   client: DaemonClient;
@@ -117,11 +118,11 @@ export function ReviewQueuePanel({
   }
 
   return (
-    <Tile>
-      <Stack gap={5}>
-        <Stack gap={5} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+    <Tile className={surfaceFillHeight}>
+      <Stack gap={5} className={stackFill}>
+        <div className={rowBetween}>
           <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Review queue</h2>
-          <Stack gap={3} orientation="horizontal" style={{ alignItems: "flex-end", flexWrap: "wrap" }}>
+          <Stack gap={3} orientation="horizontal" className={`${row} ${hugHeight}`}>
             <Dropdown
               id="status-filter"
               titleText="Status"
@@ -140,7 +141,7 @@ export function ReviewQueuePanel({
               Approve filtered
             </Button>
           </Stack>
-        </Stack>
+        </div>
 
         {!sessionId ? (
           <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
@@ -151,6 +152,7 @@ export function ReviewQueuePanel({
             No items match this filter. Run an audit to generate proposals.
           </p>
         ) : (
+          <div className={surfaceBody}>
           <StructuredListWrapper>
             <StructuredListHead>
               <StructuredListRow head>
@@ -224,6 +226,7 @@ export function ReviewQueuePanel({
               ))}
             </StructuredListBody>
           </StructuredListWrapper>
+          </div>
         )}
       </Stack>
     </Tile>

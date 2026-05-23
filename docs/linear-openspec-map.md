@@ -55,6 +55,16 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 | Changelog | WRI-40 | `/review/changelog` |
 | Audit stub | WRI-5 | `POST /review/audit/run` |
 
+## IBM 2× Grid compliance (desktop)
+
+| Task | Linear issue | Notes |
+|------|--------------|-------|
+| Epic | [WRI-93](https://linear.app/uicb/issue/WRI-93) | IBM DL + Carbon 2× Grid across all UI |
+| Foundation | [WRI-94](https://linear.app/uicb/issue/WRI-94) | `writer-grid` gutter modes, column spans, breakpoints |
+| ProductChrome | [WRI-95](https://linear.app/uicb/issue/WRI-95) | Product & docs style model, max width, grid influencer |
+| Screens | [WRI-96](https://linear.app/uicb/issue/WRI-96) | Review, Sources, Agents, Settings |
+| Verify | [WRI-97](https://linear.app/uicb/issue/WRI-97) | typecheck + vitest |
+
 ## Batch 4 (M4 completion + desktop polish)
 
 | Deliverable | Issue | Notes |

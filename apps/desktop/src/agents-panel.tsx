@@ -1,8 +1,6 @@
 import { useRef, useState } from "react";
 import {
   Button,
-  Column,
-  Grid,
   InlineLoading,
   InlineNotification,
   RadioButton,
@@ -22,6 +20,22 @@ import {
   mcpConnectionStatusLabel,
   mcpConnectionStatusTagType
 } from "./connection-diagnostics";
+import {
+  WriterPageGrid,
+  WriterPageGridFull,
+  WriterPageGridHalf,
+  WriterPageStack
+} from "./layout/writer-grid";
+import {
+  classNames,
+  fillWidth,
+  hugHeight,
+  hugWidth,
+  row,
+  rowBetween,
+  rowEnd,
+  surface
+} from "./layout/writer-sizing";
 import { useWorkspace } from "./workspace-context";
 
 type AgentsPanelProps = {
@@ -257,10 +271,10 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
   }
 
   return (
-    <Stack gap={7}>
-      <Stack gap={5} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap", alignItems: "center" }}>
-        <Stack gap={2}>
-          <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)", maxWidth: "42rem" }}>
+    <WriterPageStack fill>
+      <div className={rowBetween}>
+        <Stack gap={2} className={hugHeight}>
+          <p className="writer-intro-copy" style={{ fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
             Choose an LLM provider and manage MCP integrations for local audits and Figma writeback.
           </p>
           {agentsRefreshing ? (
@@ -269,18 +283,19 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         </Stack>
         <Button
           kind="secondary"
+          className={hugWidth}
           disabled={!connected || agentsRefreshing}
           onClick={() => void refreshAgentDetection()}
         >
           {agentsRefreshing ? "Refreshing…" : "Refresh detection"}
         </Button>
-      </Stack>
+      </div>
 
       <AgentTestStatusBanner status={testStatus} onDismiss={() => setTestStatus(null)} />
 
-      <Grid style={{ paddingLeft: 0, paddingRight: 0, margin: 0, maxWidth: "100%" }}>
-        <Column sm={4} md={8} lg={8} style={{ paddingLeft: 0, paddingRight: "var(--cds-spacing-05)" }}>
-          <Stack gap={5}>
+      <WriterPageGrid gutterMode="narrow">
+        <WriterPageGridHalf>
+          <WriterPageStack>
             <header>
               <h2 id="llm-providers-heading" style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
                 LLM Providers
@@ -290,8 +305,10 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
               </p>
             </header>
 
-            <section aria-labelledby="llm-providers-heading">
-              <RadioButtonGroup
+            <WriterPageGrid gutterMode="wide">
+              <WriterPageGridFull>
+                <section aria-labelledby="llm-providers-heading">
+                  <RadioButtonGroup
                 legendText="Active provider"
                 name="writer-active-adapter"
                 orientation="vertical"
@@ -308,36 +325,26 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                     const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
 
                     return (
-                      <Tile key={adapter.id} style={adapterTileStyle(isSelected)}>
+                      <Tile
+                        key={adapter.id}
+                        className={classNames(surface, fillWidth)}
+                        style={adapterTileStyle(isSelected)}
+                      >
                         <Stack gap={4}>
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "flex-start",
-                              gap: "var(--cds-spacing-04)"
-                            }}
-                          >
+                          <div className={rowBetween}>
                             <RadioButton
                               id={`radio-${adapter.id}`}
                               labelText={adapter.displayName}
                               value={adapter.id}
                               disabled={!canSelect}
                             />
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "var(--cds-spacing-02)",
-                                flexWrap: "wrap",
-                                alignItems: "center"
-                              }}
-                            >
+                            <div className={classNames(row, hugHeight)}>
                               {label ? (
-                                <Tag type="gray" size="sm" style={{ margin: 0 }}>
+                                <Tag type="gray" size="sm" className={hugWidth} style={{ margin: 0 }}>
                                   {label}
                                 </Tag>
                               ) : null}
-                              <Tag type={status.type} size="sm" style={{ margin: 0 }}>
+                              <Tag type={status.type} size="sm" className={hugWidth} style={{ margin: 0 }}>
                                 {status.label}
                               </Tag>
                             </div>
@@ -392,10 +399,11 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                             </Stack>
                           ) : null}
 
-                          <div style={{ display: "flex", justifyContent: "flex-end", paddingLeft: "var(--cds-spacing-06)" }}>
+                          <div className={classNames(rowEnd, hugHeight)} style={{ paddingLeft: "var(--cds-spacing-06)" }}>
                             <Button
                               kind="tertiary"
                               size="md"
+                              className={hugWidth}
                               disabled={
                                 status.label === "Loading" || !adapter.available || busyAdapterId === adapter.id
                               }
@@ -409,13 +417,15 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                     );
                   })}
                 </Stack>
-              </RadioButtonGroup>
-            </section>
-          </Stack>
-        </Column>
+                  </RadioButtonGroup>
+                </section>
+              </WriterPageGridFull>
+            </WriterPageGrid>
+          </WriterPageStack>
+        </WriterPageGridHalf>
 
-        <Column sm={4} md={8} lg={8} style={{ paddingRight: 0, paddingLeft: "var(--cds-spacing-05)" }}>
-          <Stack gap={5}>
+        <WriterPageGridHalf>
+          <WriterPageStack>
             <header>
               <h2 id="mcp-servers-heading" style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
                 MCP Servers
@@ -428,7 +438,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
             <section aria-labelledby="mcp-servers-heading">
               <Stack gap={5}>
                 {mcpLoadState === "loading" && mcpServers.length === 0 ? (
-                  <Tile style={{ padding: "var(--cds-spacing-05)", textAlign: "center", borderRadius: "4px" }}>
+                  <Tile className={classNames(surface, fillWidth)} style={{ padding: "var(--cds-spacing-05)", textAlign: "center", borderRadius: "4px" }}>
                     <InlineLoading description="Loading MCP servers…" status="active" />
                   </Tile>
                 ) : null}
@@ -441,6 +451,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                   return (
                     <Tile
                       key={server.id}
+                      className={classNames(surface, fillWidth)}
                       style={{
                         border: "1px solid var(--cds-border-subtle)",
                         background: "var(--cds-layer-01)",
@@ -449,14 +460,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                       }}
                     >
                       <Stack gap={4}>
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: "var(--cds-spacing-04)"
-                          }}
-                        >
+                        <div className={rowBetween}>
                           <Toggle
                             id={`mcp-${server.id}`}
                             labelText={server.name}
@@ -465,7 +469,9 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                             toggled={server.enabled}
                             onToggle={(enabled) => void toggleMcp(server.id, enabled)}
                           />
-                          <Tag type={statusTagType}>{statusLabel}</Tag>
+                          <Tag type={statusTagType} className={hugWidth}>
+                            {statusLabel}
+                          </Tag>
                         </div>
 
                         <Stack gap={3}>
@@ -487,7 +493,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                               Discovered tools
                             </span>
                             {server.tools && server.tools.length > 0 ? (
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--cds-spacing-02)" }}>
+                              <div className={classNames(row, hugHeight)}>
                                 {server.tools.map((tool) => (
                                   <code
                                     key={tool.name}
@@ -514,15 +520,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                         </Stack>
 
                         {server.id === "figma" ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "flex-end",
-                              flexWrap: "wrap",
-                              gap: "var(--cds-spacing-03)",
-                              paddingBlockStart: "var(--cds-spacing-02)"
-                            }}
-                          >
+                          <div className={classNames(rowEnd, hugHeight)} style={{ paddingBlockStart: "var(--cds-spacing-02)" }}>
                             {figmaAuthPending && busyMcpId === server.id ? (
                               <Button kind="ghost" size="md" onClick={cancelFigmaAuth}>
                                 Cancel sign-in
@@ -554,9 +552,9 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                 })}
               </Stack>
             </section>
-          </Stack>
-        </Column>
-      </Grid>
-    </Stack>
+          </WriterPageStack>
+        </WriterPageGridHalf>
+      </WriterPageGrid>
+    </WriterPageStack>
   );
 }

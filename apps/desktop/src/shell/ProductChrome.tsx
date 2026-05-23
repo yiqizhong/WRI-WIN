@@ -11,6 +11,8 @@ import {
 } from "@carbon/react";
 import { FolderOpen, Renew } from "@carbon/icons-react";
 
+import { WriterPageGrid, WriterPageGridFull } from "../layout/writer-grid";
+import { hugWidth } from "../layout/writer-sizing";
 import { NAV_ITEMS } from "./nav-items";
 
 export type DaemonFooterProps = {
@@ -86,25 +88,25 @@ export function ProductChrome({
       </SideNav>
 
       <Stack gap={7} className="writer-product-chrome__main" style={{ padding: "var(--cds-spacing-06)" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            gap: "var(--cds-spacing-05)"
-          }}
-        >
-          <h1 style={{ margin: 0, fontWeight: 300, fontSize: "1.75rem", lineHeight: 1.25 }}>{pageTitle}</h1>
-          <Button
-            kind="primary"
-            renderIcon={FolderOpen}
-            disabled={openProjectDisabled}
-            onClick={onOpenProject}
-          >
-            {openProjectLoading ? "Opening…" : "Open project"}
-          </Button>
+        <div className="writer-product-chrome__content">
+          <WriterPageGrid gutterMode="narrow">
+            <WriterPageGridFull>
+              <div className="writer-page-header">
+                <h1 style={{ margin: 0, fontWeight: 300, fontSize: "1.75rem", lineHeight: 1.25 }}>{pageTitle}</h1>
+                <Button
+                  kind="primary"
+                  className={hugWidth}
+                  renderIcon={FolderOpen}
+                  disabled={openProjectDisabled}
+                  onClick={onOpenProject}
+                >
+                  {openProjectLoading ? "Opening…" : "Open project"}
+                </Button>
+              </div>
+            </WriterPageGridFull>
+          </WriterPageGrid>
+          {children}
         </div>
-        {children}
       </Stack>
     </div>
   );

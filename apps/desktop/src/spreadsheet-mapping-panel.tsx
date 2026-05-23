@@ -1,6 +1,8 @@
 import type { SpreadsheetMappingInput, SpreadsheetParseResult } from "@writer/contracts";
 import { Dropdown, Stack, Tile } from "@carbon/react";
 
+import { fillWidth, hugHeight, row, surface } from "./layout/writer-sizing";
+
 type SpreadsheetMappingPanelProps = {
   parsed: SpreadsheetParseResult | null;
   mapping: SpreadsheetMappingInput | null;
@@ -45,16 +47,16 @@ export function SpreadsheetMappingPanel({ parsed, mapping, onMappingChange }: Sp
   }
 
   return (
-    <Tile style={{ background: "var(--cds-layer-02)" }}>
+    <Tile className={`${surface} ${fillWidth}`} style={{ background: "var(--cds-layer-02)" }}>
       <Stack gap={5}>
         <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Column mapping</h2>
         <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
           Confirm which columns hold source copy, suggestions, status, and notes before running audit.
         </p>
-        <Stack gap={5} orientation="horizontal" style={{ flexWrap: "wrap" }}>
+        <Stack gap={5} orientation="horizontal" className={`${row} ${hugHeight}`}>
           {ROLES.map((role) => (
+            <div key={role} className={hugHeight}>
             <Dropdown
-              key={role}
               id={`mapping-${role}`}
               titleText={role}
               label={selectedItem(role).label}
@@ -68,6 +70,7 @@ export function SpreadsheetMappingPanel({ parsed, mapping, onMappingChange }: Sp
               }}
               size="md"
             />
+            </div>
           ))}
         </Stack>
       </Stack>

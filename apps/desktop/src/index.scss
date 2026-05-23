@@ -104,6 +104,37 @@ html[data-platform='win32'] .seed-shell {
   min-width: 0;
 }
 
+// IBM 2× grid — Product & docs style model (left-aligned, max width at max breakpoint).
+.writer-product-chrome__content {
+  inline-size: 100%;
+  max-inline-size: 99rem; // 1584px — Overview max breakpoint
+}
+
+// Page grids: Carbon handles wide (32px), narrow (16px), condensed (1px) gutters.
+.writer-page-grid {
+  padding-inline: 0;
+  margin-inline: 0;
+  max-inline-size: 100%;
+}
+
+.writer-page-grid > .cds--col {
+  // 16px column padding per IBM breakpoint table (2x mini units).
+  padding-inline: var(--cds-spacing-05);
+}
+
+// Condensed mode: subtle borders on tiles so 1px gutters read clearly (Usage tab).
+.writer-page-grid.cds--css-grid--condensed .cds--tile {
+  border: 1px solid var(--cds-border-subtle-01);
+}
+
+.writer-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--cds-spacing-05);
+  flex-wrap: wrap;
+}
+
 .writer-product-chrome .cds--side-nav {
   display: flex;
   flex-direction: column;
@@ -133,4 +164,141 @@ html[data-platform='win32'] .seed-shell {
   padding: var(--cds-spacing-05);
   background: var(--cds-layer-01);
   border: 1px solid var(--cds-border-subtle-01);
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+// --- Fill / Hug (Figma auto-layout semantics) ---
+
+.writer-fill-w {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.writer-fill-h {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  box-sizing: border-box;
+}
+
+.writer-hug-w {
+  inline-size: fit-content;
+  max-inline-size: 100%;
+}
+
+.writer-hug-h {
+  flex: 0 0 auto;
+  block-size: auto;
+}
+
+.writer-grid-cell {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  min-inline-size: 0;
+  box-sizing: border-box;
+}
+
+.writer-grid-cell--fill-h {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.writer-page-grid--equal-rows > .cds--col {
+  display: flex;
+  flex-direction: column;
+}
+
+.writer-surface {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.writer-surface--fill-h {
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.writer-surface__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow: auto;
+}
+
+.writer-stack-fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  inline-size: 100%;
+}
+
+.writer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-05);
+  align-items: flex-end;
+  inline-size: 100%;
+  flex: 0 0 auto;
+}
+
+.writer-row--between {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.writer-row--end {
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.writer-chat-scroll {
+  flex: 1 1 auto;
+  min-block-size: 12rem;
+  overflow-y: auto;
+  padding: var(--cds-spacing-04);
+  background: var(--cds-layer-02);
+  border: 1px solid var(--cds-border-subtle-01);
+  box-sizing: border-box;
+}
+
+.writer-chat-bubble {
+  align-self: flex-start;
+  max-inline-size: 85%;
+  inline-size: fit-content;
+}
+
+.writer-chat-bubble--end {
+  align-self: flex-end;
+}
+
+.writer-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-03);
+  align-items: flex-end;
+  inline-size: 100%;
+  flex: 0 0 auto;
+}
+
+.writer-composer-row .writer-composer-input {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+.writer-composer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-02);
+  flex: 0 0 auto;
+}
+
+.writer-intro-copy {
+  margin: 0;
+  max-inline-size: 42rem;
 }

@@ -13,6 +13,15 @@ import type { AgentRunEvent, PasteTextConversation, PasteTextMessage, Project } 
 
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
+import {
+  chatBubble,
+  chatBubbleEnd,
+  hugHeight,
+  hugWidth,
+  rowBetween,
+  stackFill,
+  surfaceFillHeight
+} from "./layout/writer-sizing";
 
 type PasteTextChatPanelProps = {
   client: DaemonClient;
@@ -251,21 +260,21 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
   }
 
   return (
-    <Tile style={{ display: "flex", flexDirection: "column", minHeight: 420 }}>
-      <Stack gap={5} style={{ flex: 1 }}>
-        <Stack gap={3} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-          <Stack gap={2}>
+    <Tile className={surfaceFillHeight}>
+      <Stack gap={5} className={stackFill}>
+        <div className={rowBetween}>
+          <Stack gap={2} className={hugHeight}>
             <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Paste text rewrite</h2>
             <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
               Chat-style copy rewrite. Set UI background, paste copy or attach a file, then copy the suggestion.
             </p>
           </Stack>
           {conversation ? (
-            <Button kind="ghost" size="sm" onClick={startNewConversation}>
+            <Button kind="ghost" size="sm" className={hugWidth} onClick={startNewConversation}>
               New conversation
             </Button>
           ) : null}
-        </Stack>
+        </div>
 
         {!activeProject ? (
           <InlineNotification
@@ -282,7 +291,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             <Button
               kind="ghost"
               size="sm"
-              style={{ alignSelf: "flex-start", margin: 0 }}
+              className={hugWidth}
               onClick={() => setShowBackground((value) => !value)}
               disabled={Boolean(conversation?.messages.length)}
             >
@@ -317,21 +326,12 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             helperText="Row to rewrite when sending a message (0-based)."
             value={rowIndex}
             onChange={(event) => setRowIndex(event.target.value)}
-            style={{ maxWidth: 200 }}
+            className={hugWidth}
+            style={{ maxWidth: "12.5rem" }}
           />
         ) : null}
 
-        <div
-          style={{
-            flex: 1,
-            minHeight: 200,
-            maxHeight: 360,
-            overflowY: "auto",
-            padding: "var(--cds-spacing-04)",
-            background: "var(--cds-layer-02)",
-            border: "1px solid var(--cds-border-subtle)"
-          }}
-        >
+        <div className="writer-chat-scroll">
           {conversation?.messages.length ? (
             <Stack gap={4}>
               {conversation.messages.map((message) => {
@@ -346,10 +346,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                   <Stack
                     key={message.id}
                     gap={2}
-                    style={{
-                      alignSelf: isAssistant ? "flex-start" : "flex-end",
-                      maxWidth: "85%"
-                    }}
+                    className={isAssistant ? chatBubble : chatBubbleEnd}
                   >
                     <span
                       style={{
@@ -381,8 +378,8 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                       <Button
                         kind="ghost"
                         size="sm"
+                        className={hugWidth}
                         renderIcon={Copy}
-                        style={{ alignSelf: "flex-start" }}
                         onClick={() => void copySuggestion(message)}
                       >
                         {copiedId === message.id ? "Copied" : "Copy suggestion"}
@@ -404,16 +401,16 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
           <InlineNotification kind="error" lowContrast title="Rewrite failed" subtitle={error} onClose={() => setError(null)} />
         ) : null}
 
-        <Stack gap={3} orientation="horizontal" style={{ alignItems: "flex-end" }}>
+        <div className="writer-composer-row">
           <TextArea
             id="paste-text-composer"
+            className="writer-composer-input"
             labelText="Copy to rewrite"
             placeholder="Paste UX copy and press Send…"
             rows={3}
             value={draftText}
             onChange={(event) => setDraftText(event.target.value)}
             disabled={!activeProject || !daemonConnected || sending || pendingRewrite}
-            style={{ flex: 1 }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
@@ -421,7 +418,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
               }
             }}
           />
-          <Stack gap={2}>
+          <div className="writer-composer-actions">
             <IconButton
               kind="ghost"
               label="Attach file"
@@ -437,8 +434,8 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             >
               {sending ? "Sending…" : "Send"}
             </Button>
-          </Stack>
-        </Stack>
+          </div>
+        </div>
       </Stack>
     </Tile>
   );
