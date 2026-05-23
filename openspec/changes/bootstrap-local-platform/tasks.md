@@ -9,7 +9,7 @@
 
 - [x] 2.1 Implement daemon startup with configuration loading and local logging.
 - [x] 2.2 Implement health/status endpoint with version and capability summary.
-- [ ] 2.3 Implement structured error handling for invalid requests, missing subprocesses, unavailable services, and permission denial.
+- [x] 2.3 Implement structured error handling for invalid requests, missing subprocesses, unavailable services, and permission denial.
 - [ ] 2.4 Add daemon API routes for project metadata, session metadata, agent listing, tool listing, MCP status, and permission decisions.
 
 ## 3. Desktop Shell
