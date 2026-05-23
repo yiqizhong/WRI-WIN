@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   RadioButton,
@@ -8,11 +8,13 @@ import {
   Tile,
   Toggle
 } from "@carbon/react";
-import { isLlmProviderAdapterId, type AgentAdapter, type McpServer } from "@writer/contracts";
+import type { AgentAdapter } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
+import { isAdapterStatusLoading } from "./agents-runtime";
 import { AgentTestStatusBanner, type AgentTestStatus } from "./agent-test-status";
 import { formatConnectionDiagnostic, summarizeMcpTools } from "./connection-diagnostics";
+import { useWorkspace } from "./workspace-context";
 
 type AgentsPanelProps = {
   client: DaemonClient;
@@ -32,50 +34,37 @@ function runtimeLabel(adapter: AgentAdapter): string | null {
   return null;
 }
 
+function availabilityTag(
+  adapter: AgentAdapter,
+  loadState: ReturnType<typeof useWorkspace>["agentsLoadState"],
+  refreshing: boolean
+) {
+  if (isAdapterStatusLoading(adapter, loadState, refreshing)) {
+    return { type: "gray" as const, label: "Loading" };
+  }
+
+  return adapter.available
+    ? { type: "green" as const, label: "available" }
+    : { type: "red" as const, label: "unavailable" };
+}
+
 export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) {
-  const [adapters, setAdapters] = useState<AgentAdapter[]>([]);
-  const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
-  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const workspace = useWorkspace();
+  const {
+    llmAdapters,
+    activeAdapterId,
+    agentsLoadState,
+    agentsRefreshing,
+    mcpServers,
+    mcpLoadState,
+    setActiveLlmAdapter,
+    refreshAgentDetection,
+    replaceMcpServers
+  } = workspace;
+
   const [busyAdapterId, setBusyAdapterId] = useState<string | null>(null);
   const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<AgentTestStatus | null>(null);
-
-  useEffect(() => {
-    if (!connected) {
-      return;
-    }
-
-    void refreshDetection();
-    void (async () => {
-      try {
-        const mcpList = await client.listMcpServers();
-        setMcpServers(mcpList.servers);
-      } catch {
-        setMcpServers([]);
-      }
-    })();
-  }, [client, connected]);
-
-  async function refreshDetection() {
-    try {
-      const agentList = await client.refreshAgents();
-      setAdapters(agentList.adapters);
-      setActiveAdapterId(agentList.activeAdapterId);
-      onMessage("Agent detection refreshed.");
-    } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not refresh agents.");
-    }
-  }
-
-  async function selectAdapter(adapterId: string) {
-    try {
-      const result = await client.setActiveAdapter(adapterId);
-      setActiveAdapterId(result.activeAdapterId);
-      onMessage(`Active adapter: ${result.activeAdapterId}`);
-    } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not set adapter.");
-    }
-  }
 
   async function testConnection(adapterId: string) {
     setBusyAdapterId(adapterId);
@@ -113,7 +102,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
   async function toggleMcp(serverId: string, enabled: boolean) {
     try {
       const result = await client.setMcpServerEnabled(serverId, enabled);
-      setMcpServers(result.servers);
+      replaceMcpServers(result.servers);
       onMessage(`${serverId} ${enabled ? "enabled" : "disabled"}.`);
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Could not update MCP server.");
@@ -146,7 +135,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         for (let attempt = 0; attempt < 60; attempt += 1) {
           await new Promise((resolve) => setTimeout(resolve, 2_000));
           const refreshed = await client.listMcpServers();
-          setMcpServers(refreshed.servers);
+          replaceMcpServers(refreshed.servers);
           const figma = refreshed.servers.find((server) => server.id === "figma");
           if (figma?.status === "connected") {
             setTestStatus({ kind: "success", text: "Figma MCP connected." });
@@ -170,7 +159,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
 
       if (result.ok && result.status === "connected") {
         const refreshed = await client.listMcpServers();
-        setMcpServers(refreshed.servers);
+        replaceMcpServers(refreshed.servers);
         setTestStatus({ kind: "success", text: "Figma MCP connected." });
         onMessage("Figma MCP connected.");
         return;
@@ -212,14 +201,21 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     }
   }
 
-  const llmAdapters = adapters.filter((adapter) => isLlmProviderAdapterId(adapter.id));
-
   return (
     <Stack gap={7}>
       <Stack gap={5} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Agents and MCP</h2>
-        <Button kind="secondary" disabled={!connected} onClick={() => void refreshDetection()}>
-          Refresh detection
+        <Stack gap={2}>
+          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Agents and MCP</h2>
+          {agentsRefreshing ? (
+            <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>Refreshing detection…</p>
+          ) : null}
+        </Stack>
+        <Button
+          kind="secondary"
+          disabled={!connected || agentsRefreshing}
+          onClick={() => void refreshAgentDetection()}
+        >
+          {agentsRefreshing ? "Refreshing…" : "Refresh detection"}
         </Button>
       </Stack>
 
@@ -232,61 +228,75 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
             <RadioButtonGroup
               legendText="Active provider"
               name="writer-active-adapter"
+              orientation="vertical"
               valueSelected={activeAdapterId ?? undefined}
-              onChange={(value) => void selectAdapter(String(value))}
+              onChange={(value) => void setActiveLlmAdapter(String(value))}
             >
               {llmAdapters.map((adapter) => {
-                const label = runtimeLabel(adapter);
+                const status = availabilityTag(adapter, agentsLoadState, agentsRefreshing);
 
                 return (
-                  <Stack gap={3} key={adapter.id} style={{ marginBlockEnd: "var(--cds-spacing-05)" }}>
-                    <RadioButton labelText={adapter.displayName} value={adapter.id} disabled={!adapter.available} />
-                    <Stack gap={2} orientation="horizontal">
-                      {label ? <Tag type="gray">{label}</Tag> : null}
-                      <Tag type={adapter.available ? "green" : "red"}>
-                        {adapter.available ? "available" : "unavailable"}
-                      </Tag>
-                    </Stack>
-                    {adapter.setupMessage ? (
-                      <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-                        {adapter.setupMessage}
-                      </p>
-                    ) : null}
-                    {formatConnectionDiagnostic(adapter.diagnostic) ? (
-                      <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-                        {formatConnectionDiagnostic(adapter.diagnostic)}
-                      </p>
-                    ) : null}
-                    {adapter.executablePath ? (
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: "0.75rem",
-                          color: "var(--cds-text-secondary)",
-                          wordBreak: "break-all"
-                        }}
-                      >
-                        {adapter.executablePath}
-                      </p>
-                    ) : null}
-                    <Button
-                      kind="secondary"
-                      size="sm"
-                      disabled={!adapter.available || busyAdapterId === adapter.id}
-                      onClick={() => void testConnection(adapter.id)}
-                    >
-                      {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
-                    </Button>
-                  </Stack>
+                  <RadioButton
+                    key={adapter.id}
+                    labelText={adapter.displayName}
+                    value={adapter.id}
+                    disabled={status.label === "Loading" || (!adapter.available && agentsLoadState === "ready")}
+                  />
                 );
               })}
             </RadioButtonGroup>
+            {llmAdapters.map((adapter) => {
+              const label = runtimeLabel(adapter);
+              const status = availabilityTag(adapter, agentsLoadState, agentsRefreshing);
+
+              return (
+                <Stack gap={3} key={`${adapter.id}-details`} style={{ marginBlockEnd: "var(--cds-spacing-05)" }}>
+                  <Stack gap={2} orientation="horizontal">
+                    {label ? <Tag type="gray">{label}</Tag> : null}
+                    <Tag type={status.type}>{status.label}</Tag>
+                  </Stack>
+                  {adapter.setupMessage ? (
+                    <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+                      {adapter.setupMessage}
+                    </p>
+                  ) : null}
+                  {formatConnectionDiagnostic(adapter.diagnostic) ? (
+                    <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+                      {formatConnectionDiagnostic(adapter.diagnostic)}
+                    </p>
+                  ) : null}
+                  {adapter.executablePath ? (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "0.75rem",
+                        color: "var(--cds-text-secondary)",
+                        wordBreak: "break-all"
+                      }}
+                    >
+                      {adapter.executablePath}
+                    </p>
+                  ) : null}
+                  <Button
+                    kind="secondary"
+                    size="sm"
+                    disabled={status.label === "Loading" || !adapter.available || busyAdapterId === adapter.id}
+                    onClick={() => void testConnection(adapter.id)}
+                  >
+                    {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
+                  </Button>
+                </Stack>
+              );
+            })}
           </Stack>
         </Tile>
 
         <Tile style={{ flex: 1, minWidth: 280 }}>
           <Stack gap={5}>
             <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600 }}>MCP servers</h3>
+            {mcpLoadState === "loading" && mcpServers.length === 0 ? (
+              <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>Loading…</p>
+            ) : null}
             {mcpServers.map((server) => (
               <Stack gap={3} key={server.id} style={{ marginBlockEnd: "var(--cds-spacing-06)" }}>
                 <Stack gap={3} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>

@@ -1,6 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import type { ChangeStatus, Project, SpreadsheetMappingInput, SpreadsheetParseResult } from "@writer/contracts";
+import type { ChangeStatus, Project, SpreadsheetMappingInput, SpreadsheetParseResult, AgentAdapter, McpServer } from "@writer/contracts";
+
+import {
+  applyAgentAdapterList,
+  LLM_PROVIDER_PLACEHOLDERS,
+  type AgentsLoadState
+} from "./agents-runtime";
 
 import { checkDaemonHealth, getDaemonStatusView, type DaemonConnectionState } from "./daemon-status";
 import { createDaemonClient, DaemonClientError, type DaemonClient, type ReviewQueue } from "./daemon-client";
@@ -42,6 +48,15 @@ export type WorkspaceContextValue = {
   startFigmaSession: () => Promise<void>;
   startPastedTextReview: () => Promise<void>;
   openProject: () => Promise<void>;
+  llmAdapters: AgentAdapter[];
+  activeAdapterId: string | null;
+  agentsLoadState: AgentsLoadState;
+  agentsRefreshing: boolean;
+  mcpServers: McpServer[];
+  mcpLoadState: AgentsLoadState;
+  setActiveLlmAdapter: (adapterId: string) => Promise<void>;
+  refreshAgentDetection: () => Promise<void>;
+  replaceMcpServers: (servers: McpServer[]) => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -69,6 +84,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [parsedSpreadsheet, setParsedSpreadsheet] = useState<SpreadsheetParseResult | null>(null);
   const [spreadsheetMapping, setSpreadsheetMapping] = useState<SpreadsheetMappingInput | null>(null);
   const [parsedFigmaScope, setParsedFigmaScope] = useState<string | null>(null);
+  const [llmAdapters, setLlmAdapters] = useState<AgentAdapter[]>(LLM_PROVIDER_PLACEHOLDERS);
+  const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
+  const [agentsLoadState, setAgentsLoadState] = useState<AgentsLoadState>("idle");
+  const [agentsRefreshing, setAgentsRefreshing] = useState(false);
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpLoadState, setMcpLoadState] = useState<AgentsLoadState>("idle");
 
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
@@ -339,6 +360,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function setActiveLlmAdapter(adapterId: string) {
+    const result = await daemonClient.setActiveAdapter(adapterId);
+    setLlmAdapters((current) => applyAgentAdapterList(current, result).adapters);
+    setActiveAdapterId(result.activeAdapterId);
+    setWorkflowMessage(`Active adapter: ${result.activeAdapterId ?? adapterId}`);
+  }
+
+  async function refreshAgentDetection() {
+    setAgentsRefreshing(true);
+    try {
+      const agentList = await daemonClient.refreshAgents();
+      setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
+      setActiveAdapterId(agentList.activeAdapterId);
+      setAgentsLoadState("ready");
+      setWorkflowMessage("Agent detection refreshed.");
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not refresh agents.");
+    } finally {
+      setAgentsRefreshing(false);
+    }
+  }
+
+  function replaceMcpServers(servers: McpServer[]) {
+    setMcpServers(servers);
+    setMcpLoadState("ready");
+  }
+
   useEffect(() => {
     void refreshDaemonStatus();
   }, []);
@@ -360,6 +408,48 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         // Keep UI usable when project restore fails.
       }
     })();
+  }, [daemonClient, daemonConnected]);
+
+  const agentsRuntimeLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!daemonConnected || agentsRuntimeLoadedRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+
+    setAgentsLoadState((state) => (state === "ready" ? state : "loading"));
+    setMcpLoadState((state) => (state === "ready" ? state : "loading"));
+
+    void (async () => {
+      try {
+        const [agentList, mcpList] = await Promise.all([
+          daemonClient.listAgents(),
+          daemonClient.listMcpServers()
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
+        setActiveAdapterId(agentList.activeAdapterId);
+        setMcpServers(mcpList.servers);
+        setAgentsLoadState("ready");
+        setMcpLoadState("ready");
+        agentsRuntimeLoadedRef.current = true;
+      } catch {
+        if (!cancelled) {
+          setAgentsLoadState("ready");
+          setMcpLoadState("ready");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [daemonClient, daemonConnected]);
 
   useEffect(() => {
@@ -402,7 +492,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     connectFigma,
     startFigmaSession,
     startPastedTextReview,
-    openProject
+    openProject,
+    llmAdapters,
+    activeAdapterId,
+    agentsLoadState,
+    agentsRefreshing,
+    mcpServers,
+    mcpLoadState,
+    setActiveLlmAdapter,
+    refreshAgentDetection,
+    replaceMcpServers
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

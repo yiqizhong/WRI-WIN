@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
-import { getAgentAdapterList, smokeAgentAdapter, startAgentRun } from "./agents";
+import { getAgentAdapterList, setActiveAdapter, smokeAgentAdapter, startAgentRun } from "./agents";
 import { createProject, createSession } from "./state";
 import type { DaemonState } from "./state";
 
@@ -42,6 +42,17 @@ describe("agent discovery and runs", () => {
     expect(list.adapters.some((adapter) => adapter.id === "codex")).toBe(false);
     expect(list.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
     expect(list.activeAdapterId).toBeTruthy();
+  });
+
+  it("persists active adapter across reload", async () => {
+    const state = await createTestState();
+    await setActiveAdapter(state, { adapterId: "devin" });
+
+    const reloadedStore = new PlatformStore({ dataDir: state.store.dataDir });
+    await reloadedStore.load();
+    const list = await getAgentAdapterList({ ...state, store: reloadedStore });
+
+    expect(list.activeAdapterId).toBe("devin");
   });
 
   it("rejects smoke for unknown adapter", async () => {
