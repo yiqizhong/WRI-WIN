@@ -28,7 +28,7 @@
 
 ## 5. Agent Adapter Runtime
 
-- [ ] 5.1 Define the agent adapter interface for detect, capability report, run, stream, cancel, and error normalization.
+- [x] 5.1 Define the agent adapter interface for detect, capability report, run, stream, cancel, and error normalization.
 - [ ] 5.2 Implement local agent discovery and daemon endpoint for listing adapters.
 - [ ] 5.3 Implement one working local CLI adapter that can run a simple UX copy review prompt.
 - [ ] 5.4 Normalize agent run events and persist run lifecycle metadata.
