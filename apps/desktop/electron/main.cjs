@@ -38,6 +38,19 @@ ipcMain.handle("writer:pick-project-folder", async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle("writer:pick-spreadsheet-file", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "Spreadsheets", extensions: ["csv", "xlsx", "xls"] }]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
+
 app.whenReady().then(() => {
   createWindow();
 

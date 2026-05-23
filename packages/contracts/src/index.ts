@@ -160,3 +160,25 @@ export type { DesignContext } from "./design-context";
 
 export { parseReportArtifact, reportArtifactSchema } from "./report-artifact";
 export type { ReportArtifact } from "./report-artifact";
+
+export {
+  glossaryTermSchema,
+  projectGuidanceSchema,
+  updateProjectGuidanceInputSchema
+} from "./project-guidance";
+export type { GlossaryTerm, ProjectGuidance, UpdateProjectGuidanceInput } from "./project-guidance";
+
+export {
+  parseSpreadsheetParseResult,
+  spreadsheetColumnRoleSchema,
+  spreadsheetMappingInputSchema,
+  spreadsheetParseResultSchema
+} from "./spreadsheet";
+export type {
+  SpreadsheetColumnRole,
+  SpreadsheetMappingInput,
+  SpreadsheetParseResult
+} from "./spreadsheet";
+
+export { parseWritebackResult, writebackResultSchema } from "./writeback";
+export type { WritebackItemResult, WritebackResult } from "./writeback";

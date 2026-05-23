@@ -12,6 +12,17 @@ import {
   parseFigmaUrlInput,
   transitionReviewChange
 } from "../review";
+import {
+  bulkTransitionChanges,
+  exportReportJson,
+  exportReportMarkdown,
+  getSessionChangelog,
+  listReviewQueue,
+  parseSpreadsheet,
+  runFigmaWriteback,
+  runSessionAudit,
+  updateProjectGuidance
+} from "../review-queue";
 import type { DaemonState } from "../state";
 import { invalidRequest, notFound } from "../errors";
 
@@ -104,6 +115,130 @@ export async function handleReviewRequest(
   if (request.method === "GET" && path === "/review/changes") {
     const sessionId = getQueryParam(request.url, "sessionId");
     sendJson(response, 200, listReviewChanges(state, sessionId));
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/review/queue") {
+    const sessionId = getQueryParam(request.url, "sessionId");
+
+    if (!sessionId) {
+      invalidRequest(response, "Missing sessionId query parameter.");
+      return true;
+    }
+
+    sendJson(response, 200, listReviewQueue(state, sessionId));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/review/audit/run") {
+    try {
+      sendJson(response, 200, await runSessionAudit(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid audit run payload.", "Provide sessionId.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/review/changes/bulk") {
+    try {
+      sendJson(response, 200, await bulkTransitionChanges(state, await readJsonBody(request)));
+    } catch (error) {
+      invalidRequest(response, "Invalid bulk transition payload.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/figma/writeback") {
+    try {
+      sendJson(response, 200, await runFigmaWriteback(state, await readJsonBody(request)));
+    } catch {
+      invalidRequest(response, "Invalid writeback payload.", "Provide sessionId and changeIds.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/spreadsheet/parse") {
+    try {
+      sendJson(response, 200, await parseSpreadsheet(state, await readJsonBody(request)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to parse spreadsheet.";
+      invalidRequest(response, message);
+    }
+    return true;
+  }
+
+  if (request.method === "PATCH" && path === "/projects/guidance") {
+    try {
+      sendJson(response, 200, await updateProjectGuidance(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Project not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid project guidance payload.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/review/changelog") {
+    const sessionId = getQueryParam(request.url, "sessionId");
+
+    if (!sessionId) {
+      invalidRequest(response, "Missing sessionId.");
+      return true;
+    }
+
+    sendJson(response, 200, getSessionChangelog(state, sessionId));
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/review/export/markdown") {
+    const sessionId = getQueryParam(request.url, "sessionId");
+
+    if (!sessionId) {
+      invalidRequest(response, "Missing sessionId.");
+      return true;
+    }
+
+    try {
+      const markdown = exportReportMarkdown(buildReportArtifact(state, sessionId));
+      response.writeHead(200, { "content-type": "text/markdown; charset=utf-8" });
+      response.end(markdown);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Unable to export markdown.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/review/export/json") {
+    const sessionId = getQueryParam(request.url, "sessionId");
+
+    if (!sessionId) {
+      invalidRequest(response, "Missing sessionId.");
+      return true;
+    }
+
+    try {
+      sendJson(response, 200, JSON.parse(exportReportJson(buildReportArtifact(state, sessionId))));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Unable to export JSON.");
+    }
     return true;
   }
 

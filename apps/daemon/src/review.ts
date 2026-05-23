@@ -168,6 +168,8 @@ export function buildReportArtifact(state: DaemonState, sessionId: string): Repo
   }
 
   const changes = state.store.listReviewChanges(sessionId);
+  const findings = state.store.listFindings(sessionId);
+  const rewrites = state.store.listRewrites(sessionId);
   const applied = changes.filter((change) => change.status === "applied").length;
   const failed = changes.filter((change) => change.status === "failed").length;
   const skipped = changes.filter((change) => change.status === "skipped").length;
@@ -179,8 +181,8 @@ export function buildReportArtifact(state: DaemonState, sessionId: string): Repo
     sourceType: session.sourceType,
     scope: session.scope,
     generatedAt: new Date().toISOString(),
-    findings: [],
-    rewrites: [],
+    findings,
+    rewrites,
     changes,
     writebackSummary: { applied, failed, skipped }
   };

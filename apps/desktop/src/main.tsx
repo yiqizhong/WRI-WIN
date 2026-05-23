@@ -17,8 +17,9 @@ import {
   getDaemonStatusView,
   type DaemonConnectionState
 } from "./daemon-status";
-import { createDaemonClient, DaemonClientError } from "./daemon-client";
-import type { Project } from "@writer/contracts";
+import { createDaemonClient, DaemonClientError, type ReviewQueue } from "./daemon-client";
+import { ReviewQueuePanel } from "./review-queue-panel";
+import type { ChangeStatus, Project } from "@writer/contracts";
 import "./styles.css";
 
 const navItems = [
@@ -36,8 +37,101 @@ function App() {
   const [figmaUrl, setFigmaUrl] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [reviewQueue, setReviewQueue] = useState<ReviewQueue | null>(null);
+  const [statusFilter, setStatusFilter] = useState<ChangeStatus | "all">("proposed");
+  const [brandVoice, setBrandVoice] = useState("");
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
+
+  async function refreshQueue() {
+    if (!activeSessionId) {
+      return;
+    }
+
+    try {
+      const queue = await daemonClient.getReviewQueue(activeSessionId);
+      setReviewQueue(queue);
+    } catch {
+      setReviewQueue(null);
+    }
+  }
+
+  async function runAudit() {
+    if (!activeSessionId) {
+      return;
+    }
+
+    try {
+      const result = await daemonClient.runAudit(activeSessionId);
+      setReviewQueue(result);
+      setWorkflowMessage(`Audit generated ${result.changes.length} proposed changes.`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Audit run failed.");
+    }
+  }
+
+  async function saveBrandVoice() {
+    if (!activeProject) {
+      return;
+    }
+
+    try {
+      const project = await daemonClient.updateProjectGuidance({
+        projectId: activeProject.id,
+        brandVoice: brandVoice.trim() || undefined
+      });
+      setActiveProject(project);
+      setWorkflowMessage("Brand voice saved for this project.");
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not save brand voice.");
+    }
+  }
+
+  async function importSpreadsheet() {
+    if (!activeProject) {
+      return;
+    }
+
+    const filePath = await window.writerDesktop.pickSpreadsheetFile();
+
+    if (!filePath) {
+      return;
+    }
+
+    try {
+      const parsed = await daemonClient.parseSpreadsheet(filePath);
+      const session = await daemonClient.createSession({
+        projectId: activeProject.id,
+        sourceType: "spreadsheet",
+        scope: { fileName: parsed.fileName, rows: parsed.rows, mapping: parsed.suggestedMapping }
+      });
+      setActiveSessionId(session.id);
+      setWorkflowMessage(`Imported ${parsed.rows.length} rows from ${parsed.fileName}.`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Spreadsheet import failed.");
+    }
+  }
+
+  async function exportSession(format: "markdown" | "json") {
+    if (!activeSessionId) {
+      return;
+    }
+
+    try {
+      if (format === "markdown") {
+        const markdown = await daemonClient.exportMarkdown(activeSessionId);
+        await navigator.clipboard.writeText(markdown);
+        setWorkflowMessage("Markdown report copied to clipboard.");
+      } else {
+        const json = await daemonClient.exportJson(activeSessionId);
+        await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+        setWorkflowMessage("JSON report copied to clipboard.");
+      }
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Export failed.");
+    }
+  }
 
   async function refreshDaemonStatus() {
     setDaemonState({ kind: "checking" });
@@ -73,7 +167,8 @@ function App() {
         projectId: activeProject.id,
         text: pastedText.trim()
       });
-      setWorkflowMessage(`Pasted text session created (${session.id.slice(0, 8)}…).`);
+      setActiveSessionId(session.id);
+      setWorkflowMessage(`Pasted text session created (${session.id.slice(0, 8)}…). Run audit to populate the queue.`);
     } catch (error) {
       const message =
         error instanceof DaemonClientError
@@ -128,6 +223,7 @@ function App() {
         const active = list.projects.find((project) => project.id === list.activeProjectId);
         if (active) {
           setActiveProject(active);
+          setBrandVoice(active.brandVoice ?? "");
         }
       } catch {
         // Keep UI usable when project restore fails.
@@ -260,27 +356,63 @@ function App() {
               value={pastedText}
               onChange={(event) => setPastedText(event.target.value)}
             />
-            <button
-              className="secondary-action"
-              disabled={!activeProject || !pastedText.trim()}
-              onClick={() => void startPastedTextReview()}
-            >
-              <MessageSquareText aria-hidden="true" size={18} />
-              <span>Start pasted text session</span>
-            </button>
+            <div className="inline-actions">
+              <button
+                className="secondary-action"
+                disabled={!activeProject || !pastedText.trim()}
+                onClick={() => void startPastedTextReview()}
+              >
+                <MessageSquareText aria-hidden="true" size={18} />
+                <span>Start pasted text session</span>
+              </button>
+              <button className="secondary-action" disabled={!activeProject} onClick={() => void importSpreadsheet()}>
+                <FileText aria-hidden="true" size={18} />
+                <span>Import CSV/XLSX</span>
+              </button>
+            </div>
           </div>
         </section>
+
+        <div className="review-toolbar">
+          <button className="secondary-action" disabled={!activeSessionId} onClick={() => void runAudit()}>
+            Run audit (stub)
+          </button>
+          <button className="secondary-action" disabled={!activeSessionId} onClick={() => void exportSession("markdown")}>
+            Export Markdown
+          </button>
+          <button className="secondary-action" disabled={!activeSessionId} onClick={() => void exportSession("json")}>
+            Export JSON
+          </button>
+        </div>
+
+        <ReviewQueuePanel
+          client={daemonClient}
+          sessionId={activeSessionId}
+          queue={reviewQueue}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          onQueueUpdated={() => void refreshQueue()}
+          onMessage={setWorkflowMessage}
+        />
 
         <section className="settings-strip">
           <div>
             <p className="eyebrow">Settings</p>
             <h2>Platform setup</h2>
           </div>
-          <div className="settings-list">
-            <span>Daemon</span>
-            <span>Agents</span>
-            <span>MCP</span>
-            <span>Exports</span>
+          <div className="guidance-form">
+            <label>
+              Brand voice
+              <textarea
+                rows={3}
+                placeholder="Friendly, direct, no jargon…"
+                value={brandVoice}
+                onChange={(event) => setBrandVoice(event.target.value)}
+              />
+            </label>
+            <button className="secondary-action" disabled={!activeProject} onClick={() => void saveBrandVoice()}>
+              Save guidance
+            </button>
           </div>
         </section>
       </section>

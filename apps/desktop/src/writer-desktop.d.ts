@@ -5,6 +5,7 @@ declare global {
     writerDesktop: {
       platform: string;
       pickProjectFolder: () => Promise<string | null>;
+      pickSpreadsheetFile: () => Promise<string | null>;
     };
   }
 }

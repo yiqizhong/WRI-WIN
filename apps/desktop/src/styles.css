@@ -299,3 +299,119 @@ h2 {
   font: inherit;
   resize: vertical;
 }
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.review-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.review-queue-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-queue-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.review-queue-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #676258;
+}
+
+.filter-label select {
+  padding: 8px 10px;
+  border: 1px solid #cfc9bc;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.queue-item {
+  padding: 14px;
+  border: 1px solid #dedbd2;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.queue-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.status-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  text-transform: capitalize;
+  background: #eeece5;
+}
+
+.copy-label {
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.queue-rationale {
+  color: #676258;
+  font-size: 13px;
+}
+
+.queue-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.queue-empty {
+  color: #676258;
+  font-size: 14px;
+}
+
+.guidance-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(520px, 100%);
+}
+
+.guidance-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cfc9bc;
+  border-radius: 10px;
+  font: inherit;
+}

@@ -34,7 +34,8 @@ npm run dev:desktop
 - `apps/desktop` — Electron UI (no privileged local operations in renderer)
 - `apps/daemon` — Private local API, agents, tools, MCP, permissions, storage
 - `packages/contracts` — Shared Zod schemas
-- `packages/review-core` — Figma URL parsing, context assembly, approval state machine
+- `packages/review-core` — Figma URL parsing, context assembly, approval state machine, stub audit
+- `packages/spreadsheet` — CSV/XLSX parsing and column role detection
 - `packages/agent-adapters` — Local CLI agent adapters
 - `packages/tool-runtime` — Tool registry and risk metadata
 - `packages/storage` — `~/.writer/platform-store.json` persistence
@@ -50,6 +51,11 @@ See [docs/architecture/local-platform-architecture.md](docs/architecture/local-p
 - `POST /figma/parse-url` — parse Figma design URLs into review scope
 - `POST /figma/extract` — stub text-node extraction for bootstrap
 - `POST /sessions/pasted-text` — Light Edit pasted-text session
+- `POST /review/audit/run` — Generate stub findings and queue items
+- `GET /review/queue` — Review queue for desktop UI
+- `POST /review/changes/bulk` — Bulk approve/reject/skip
+- `POST /spreadsheet/parse` — Parse CSV/XLSX from local path
+- `GET /review/export/markdown` / `GET /review/export/json` — Session exports
 - `GET /mcp/smoke/figma/read` — Figma MCP read smoke
 
 ## Figma MCP manual smoke

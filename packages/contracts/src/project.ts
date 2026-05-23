@@ -1,9 +1,13 @@
 import { z } from "zod";
 
+import { glossaryTermSchema } from "./project-guidance";
+
 export const projectSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   rootPath: z.string().min(1),
+  brandVoice: z.string().optional(),
+  glossary: z.array(glossaryTermSchema).optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 });

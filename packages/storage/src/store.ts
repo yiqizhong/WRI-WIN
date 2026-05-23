@@ -14,6 +14,8 @@ import {
   type ReviewChange,
   type ReviewSession,
   type ReviewSessionList,
+  type RewriteCandidate,
+  type UxCopyFinding,
   agentRunEventSchema,
   agentRunSchema,
   auditLogListSchema,
@@ -22,7 +24,9 @@ import {
   projectSchema,
   reviewChangeSchema,
   reviewSessionListSchema,
-  reviewSessionSchema
+  reviewSessionSchema,
+  rewriteCandidateSchema,
+  uxCopyFindingSchema
 } from "@writer/contracts";
 
 export const STORAGE_VERSION = 1;
@@ -37,6 +41,8 @@ export type PlatformStoreSnapshot = {
   agentRunEvents: AgentRunEvent[];
   activeAdapterId: string | null;
   reviewChanges: ReviewChange[];
+  findings: UxCopyFinding[];
+  rewrites: RewriteCandidate[];
 };
 
 export type PlatformStoreOptions = {
@@ -65,7 +71,9 @@ export class PlatformStore {
       agentRuns: [],
       agentRunEvents: [],
       activeAdapterId: null,
-      reviewChanges: []
+      reviewChanges: [],
+      findings: [],
+      rewrites: []
     };
   }
 
@@ -92,7 +100,9 @@ export class PlatformStore {
         agentRuns: (parsed.agentRuns ?? []).map((run) => agentRunSchema.parse(run)),
         agentRunEvents: (parsed.agentRunEvents ?? []).map((event) => agentRunEventSchema.parse(event)),
         activeAdapterId: parsed.activeAdapterId ?? null,
-        reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change))
+        reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change)),
+        findings: (parsed.findings ?? []).map((finding) => uxCopyFindingSchema.parse(finding)),
+        rewrites: (parsed.rewrites ?? []).map((rewrite) => rewriteCandidateSchema.parse(rewrite))
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -224,5 +234,43 @@ export class PlatformStore {
     return sessionId
       ? this.snapshot.reviewChanges.filter((change) => change.sessionId === sessionId)
       : this.snapshot.reviewChanges;
+  }
+
+  upsertFinding(finding: UxCopyFinding): UxCopyFinding {
+    const validated = uxCopyFindingSchema.parse(finding);
+    const index = this.snapshot.findings.findIndex((item) => item.id === validated.id);
+
+    if (index === -1) {
+      this.snapshot.findings.push(validated);
+    } else {
+      this.snapshot.findings[index] = validated;
+    }
+
+    return validated;
+  }
+
+  listFindings(sessionId: string | null): UxCopyFinding[] {
+    return sessionId
+      ? this.snapshot.findings.filter((finding) => finding.sessionId === sessionId)
+      : this.snapshot.findings;
+  }
+
+  upsertRewrite(rewrite: RewriteCandidate): RewriteCandidate {
+    const validated = rewriteCandidateSchema.parse(rewrite);
+    const index = this.snapshot.rewrites.findIndex((item) => item.id === validated.id);
+
+    if (index === -1) {
+      this.snapshot.rewrites.push(validated);
+    } else {
+      this.snapshot.rewrites[index] = validated;
+    }
+
+    return validated;
+  }
+
+  listRewrites(sessionId: string | null): RewriteCandidate[] {
+    return sessionId
+      ? this.snapshot.rewrites.filter((rewrite) => rewrite.sessionId === sessionId)
+      : this.snapshot.rewrites;
   }
 }

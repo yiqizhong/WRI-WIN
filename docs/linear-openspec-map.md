@@ -40,6 +40,21 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 | Pasted text | WRI-33 | `POST /sessions/pasted-text` + desktop UI |
 | Design context | WRI-23 | `captureDesignContext` in extract response |
 
+## M2–M4 slice (batch 3)
+
+| Area | Linear issue | Notes |
+|------|--------------|-------|
+| Review queue UI | WRI-30 | Desktop queue + daemon `/review/queue` |
+| Bulk approval | WRI-31 | `POST /review/changes/bulk` |
+| Brand voice | WRI-27 | `PATCH /projects/guidance` |
+| Severity | WRI-28 | `@writer/review-core` severity helpers |
+| Figma writeback | WRI-24 | `POST /figma/writeback` bootstrap |
+| Spreadsheet parse | WRI-34 | `@writer/spreadsheet` + `POST /spreadsheet/parse` |
+| Column mapping | WRI-35 | Header role detection + desktop import |
+| MD/JSON export | WRI-38 | `/review/export/markdown` and `/json` |
+| Changelog | WRI-40 | `/review/changelog` |
+| Audit stub | WRI-5 | `POST /review/audit/run` |
+
 **Parent:** WRI-1 — Platform Foundation (epic for M1)
 
 **Milestone:** M0 = WRI-41 · M1 = WRI-1 subtree

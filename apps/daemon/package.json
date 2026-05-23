@@ -12,6 +12,7 @@
     "@writer/agent-adapters": "0.1.0",
     "@writer/contracts": "0.1.0",
     "@writer/review-core": "0.1.0",
+    "@writer/spreadsheet": "0.1.0",
     "@writer/storage": "0.1.0",
     "@writer/tool-runtime": "0.1.0",
     "zod": "^4.1.13"

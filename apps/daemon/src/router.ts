@@ -21,11 +21,16 @@ async function routeRequest(
   config: DaemonConfig,
   state: DaemonState
 ) {
-  if (request.method !== "GET" && request.method !== "POST" && request.method !== "DELETE") {
+  if (
+    request.method !== "GET" &&
+    request.method !== "POST" &&
+    request.method !== "DELETE" &&
+    request.method !== "PATCH"
+  ) {
     invalidRequest(
       response,
       `Method ${request.method ?? "UNKNOWN"} is not supported.`,
-      "Use GET, POST, or DELETE for daemon APIs."
+      "Use GET, POST, PATCH, or DELETE for daemon APIs."
     );
     return;
   }
