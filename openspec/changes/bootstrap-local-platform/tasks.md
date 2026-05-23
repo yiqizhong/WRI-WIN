@@ -2,7 +2,7 @@
 
 - [x] 1.1 Create `apps/desktop`, `apps/daemon`, `packages/contracts`, `packages/agent-adapters`, `packages/tool-runtime`, and `packages/storage`.
 - [x] 1.2 Add root development scripts to run desktop, daemon, typecheck, lint, and tests.
-- [ ] 1.3 Define shared contract schemas for daemon health, structured errors, projects, sessions, agent capabilities, run events, tools, MCP servers, and permission requests.
+- [x] 1.3 Define shared contract schemas for daemon health, structured errors, projects, sessions, agent capabilities, run events, tools, MCP servers, and permission requests.
 - [ ] 1.4 Add contract tests that validate success and failure payloads.
 
 ## 2. Local Daemon
