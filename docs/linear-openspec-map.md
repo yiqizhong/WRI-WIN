@@ -139,3 +139,5 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 | 4.1 | WRI-83 | Verify typecheck + Playwright |
 
 **Verify:** `verify.md` + `artifacts/verify/*.png` · smoke: `apps/desktop/scripts/smoke-ui.sh`
+
+- Commit: `20b30dd` — Carbon UI shell with routed screens (WRI-72 epic closed)
