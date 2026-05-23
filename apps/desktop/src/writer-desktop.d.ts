@@ -7,6 +7,7 @@ declare global {
       openExternal: (url: string) => Promise<boolean>;
       pickProjectFolder: () => Promise<string | null>;
       pickSpreadsheetFile: () => Promise<string | null>;
+      pickPasteTextAttachment: () => Promise<string | null>;
       pickSaveFile: (options: {
         defaultPath?: string;
         filters?: Array<{ name: string; extensions: string[] }>;

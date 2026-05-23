@@ -16,6 +16,7 @@ import {
   type ReviewSessionList,
   type RewriteCandidate,
   type UxCopyFinding,
+  type PasteTextConversation,
   agentRunEventSchema,
   agentRunSchema,
   auditLogListSchema,
@@ -26,7 +27,8 @@ import {
   reviewSessionListSchema,
   reviewSessionSchema,
   rewriteCandidateSchema,
-  uxCopyFindingSchema
+  uxCopyFindingSchema,
+  pasteTextConversationSchema
 } from "@writer/contracts";
 
 export const STORAGE_VERSION = 1;
@@ -43,6 +45,7 @@ export type PlatformStoreSnapshot = {
   reviewChanges: ReviewChange[];
   findings: UxCopyFinding[];
   rewrites: RewriteCandidate[];
+  pasteTextConversations: PasteTextConversation[];
 };
 
 export type PlatformStoreOptions = {
@@ -73,7 +76,8 @@ export class PlatformStore {
       activeAdapterId: null,
       reviewChanges: [],
       findings: [],
-      rewrites: []
+      rewrites: [],
+      pasteTextConversations: []
     };
   }
 
@@ -103,7 +107,10 @@ export class PlatformStore {
           parsed.activeAdapterId === "byok" ? null : (parsed.activeAdapterId ?? null),
         reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change)),
         findings: (parsed.findings ?? []).map((finding) => uxCopyFindingSchema.parse(finding)),
-        rewrites: (parsed.rewrites ?? []).map((rewrite) => rewriteCandidateSchema.parse(rewrite))
+        rewrites: (parsed.rewrites ?? []).map((rewrite) => rewriteCandidateSchema.parse(rewrite)),
+        pasteTextConversations: (parsed.pasteTextConversations ?? []).map((conversation) =>
+          pasteTextConversationSchema.parse(conversation)
+        )
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -273,5 +280,28 @@ export class PlatformStore {
     return sessionId
       ? this.snapshot.rewrites.filter((rewrite) => rewrite.sessionId === sessionId)
       : this.snapshot.rewrites;
+  }
+
+  upsertPasteTextConversation(conversation: PasteTextConversation): PasteTextConversation {
+    const validated = pasteTextConversationSchema.parse(conversation);
+    const index = this.snapshot.pasteTextConversations.findIndex((item) => item.id === validated.id);
+
+    if (index === -1) {
+      this.snapshot.pasteTextConversations.push(validated);
+    } else {
+      this.snapshot.pasteTextConversations[index] = validated;
+    }
+
+    return validated;
+  }
+
+  getPasteTextConversation(conversationId: string): PasteTextConversation | undefined {
+    return this.snapshot.pasteTextConversations.find((item) => item.id === conversationId);
+  }
+
+  listPasteTextConversations(projectId: string | null): PasteTextConversation[] {
+    return projectId
+      ? this.snapshot.pasteTextConversations.filter((conversation) => conversation.projectId === projectId)
+      : this.snapshot.pasteTextConversations;
   }
 }

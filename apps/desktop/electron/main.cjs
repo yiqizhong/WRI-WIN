@@ -57,6 +57,21 @@ ipcMain.handle("writer:pick-spreadsheet-file", async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle("writer:pick-paste-text-attachment", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [
+      { name: "Paste text attachments", extensions: ["csv", "xlsx", "xls", "txt", "md"] }
+    ]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  return result.filePaths[0];
+});
+
 ipcMain.handle("writer:pick-save-file", async (_event, options = {}) => {
   const result = await dialog.showSaveDialog({
     defaultPath: options.defaultPath,

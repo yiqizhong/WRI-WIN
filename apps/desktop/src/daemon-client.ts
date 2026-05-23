@@ -7,6 +7,8 @@ import {
   parseMcpServerList,
   parseMcpSmokeResult,
   parseParsedFigmaUrl,
+  parsePasteTextConversation,
+  parsePasteTextMessageResult,
   parseProject,
   parseProjectList,
   parseReviewSession,
@@ -14,6 +16,8 @@ import {
   type ChangeStatus,
   type DirectoryListing,
   type ParsedFigmaUrl,
+  type PasteTextConversation,
+  type PasteTextMessageResult,
   type Project,
   type ProjectList,
   type ReviewChange,
@@ -306,9 +310,57 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         }
       );
       return request(baseUrl, "/mcp/servers", undefined, parseMcpServerList);
-    }
+    },
+
+    attachPasteTextFile: (input: { conversationId: string; filePath: string }) =>
+      request(
+        baseUrl,
+        "/paste-text/attachments",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        (payload) => parsePasteTextConversation((payload as { conversation: unknown }).conversation),
+        60_000
+      ) as Promise<PasteTextConversation>,
+
+    createPasteTextConversation: (input: { projectId: string; backgroundContext?: string }) =>
+      request(
+        baseUrl,
+        "/paste-text/conversations",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        (payload) => parsePasteTextConversation((payload as { conversation: unknown }).conversation),
+        60_000
+      ) as Promise<PasteTextConversation>,
+
+    getPasteTextConversation: (conversationId: string) =>
+      request(
+        baseUrl,
+        `/paste-text/conversations/${encodeURIComponent(conversationId)}`,
+        undefined,
+        (payload) => parsePasteTextConversation((payload as { conversation: unknown }).conversation),
+        60_000
+      ) as Promise<PasteTextConversation>,
+
+    sendPasteTextMessage: (conversationId: string, input: { text: string; rowIndex?: number }) =>
+      request(
+        baseUrl,
+        `/paste-text/conversations/${encodeURIComponent(conversationId)}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parsePasteTextMessageResult,
+        120_000
+      ) as Promise<PasteTextMessageResult>
   };
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { DirectoryListing, ParsedFigmaUrl, Project, ProjectList, ReviewSession, SpreadsheetParseResult };
+export type { DirectoryListing, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };

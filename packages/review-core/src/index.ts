@@ -10,3 +10,11 @@ export { captureDesignContext } from "./design-context";
 export { extractFigmaTextNodes } from "./figma-extract";
 export { runStubAudit, type AuditStubInput, type AuditStubResult } from "./audit-stub";
 export { classifySeverity, formatRationale, isLowConfidence } from "./severity";
+export {
+  buildCopywriterPrompt,
+  extractSuggestedTextFromAgentEvents,
+  parseCopywriterResponse,
+  type CopywriterMessage,
+  type CopywriterPrompt,
+  type CopywriterSkillInput
+} from "./copywriter-skill";

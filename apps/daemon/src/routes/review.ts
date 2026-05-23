@@ -13,6 +13,12 @@ import {
   parseFigmaUrlInput,
   transitionReviewChange
 } from "../review";
+import {
+  createPasteTextConversation,
+  getPasteTextConversation,
+  sendPasteTextMessage,
+  attachPasteTextFile
+} from "../paste-text";
 import { exportSpreadsheetSession, renderReportHtml } from "../export";
 import {
   bulkTransitionChanges,
@@ -309,6 +315,70 @@ export async function handleReviewRequest(
       }
 
       invalidRequest(response, "Unable to build report.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/paste-text/conversations") {
+    try {
+      const conversation = await createPasteTextConversation(state, await readJsonBody(request));
+      await state.store.save();
+      sendJson(response, 201, { conversation });
+    } catch {
+      invalidRequest(response, "Invalid paste-text conversation payload.", "Provide projectId.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/paste-text/attachments") {
+    try {
+      const conversation = await attachPasteTextFile(state, await readJsonBody(request));
+      sendJson(response, 200, { conversation });
+    } catch (error) {
+      invalidRequest(
+        response,
+        error instanceof Error ? error.message : "Unable to attach file.",
+        "Provide conversationId and a supported filePath."
+      );
+    }
+    return true;
+  }
+
+  const pasteTextConversationMatch = path?.match(/^\/paste-text\/conversations\/([^/]+)$/);
+  if (pasteTextConversationMatch && request.method === "GET") {
+    const conversationId = decodeURIComponent(pasteTextConversationMatch[1]!);
+
+    try {
+      sendJson(response, 200, { conversation: getPasteTextConversation(state, conversationId) });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Paste text conversation not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Unable to load conversation.");
+    }
+    return true;
+  }
+
+  const pasteTextMessageMatch = path?.match(/^\/paste-text\/conversations\/([^/]+)\/messages$/);
+  if (pasteTextMessageMatch && request.method === "POST") {
+    const conversationId = decodeURIComponent(pasteTextMessageMatch[1]!);
+
+    try {
+      const result = await sendPasteTextMessage(state, conversationId, await readJsonBody(request));
+      sendJson(response, 200, result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Paste text conversation not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(
+        response,
+        error instanceof Error ? error.message : "Unable to send paste-text message.",
+        "Provide text and ensure an agent adapter is available."
+      );
     }
     return true;
   }

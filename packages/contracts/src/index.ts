@@ -205,3 +205,30 @@ export type {
 
 export { parseWritebackResult, writebackResultSchema } from "./writeback";
 export type { WritebackItemResult, WritebackResult } from "./writeback";
+
+export {
+  attachPasteTextFileInputSchema,
+  createPasteTextConversationInputSchema,
+  parsePasteTextConversation,
+  parsePasteTextMessageResult,
+  pasteTextAttachmentSchema,
+  pasteTextConversationListSchema,
+  pasteTextConversationSchema,
+  pasteTextInputModeSchema,
+  pasteTextMessageResultSchema,
+  pasteTextMessageRoleSchema,
+  pasteTextMessageSchema,
+  sendPasteTextMessageInputSchema
+} from "./paste-text";
+export type {
+  AttachPasteTextFileInput,
+  CreatePasteTextConversationInput,
+  PasteTextAttachment,
+  PasteTextConversation,
+  PasteTextConversationList,
+  PasteTextInputMode,
+  PasteTextMessage,
+  PasteTextMessageResult,
+  PasteTextMessageRole,
+  SendPasteTextMessageInput
+} from "./paste-text";

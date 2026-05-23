@@ -143,3 +143,16 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 - Commit: `20b30dd` — Carbon UI shell with routed screens (WRI-72 epic closed)
 - Follow-up: `482433c` — SideNav in-flow layout (no content overlap)
 - Follow-up: `de83d6b` — Agents runtime cached in workspace (providers stay visible; no per-visit reload)
+
+## paste-text-chat-rewrite (OpenSpec: `openspec/changes/paste-text-chat-rewrite/`)
+
+**Epic:** [WRI-84](https://linear.app/uicb/issue/WRI-84) — Paste Text Chat Rewrite
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.6 | WRI-85 | Backend API + agent orchestration + daemon client |
+| 2.1–2.4 | WRI-86 | Copywriter Skill system prompt |
+| 3.1–3.5 | WRI-87 | Spreadsheet/file attachments |
+| 4.1–4.6 | WRI-88 | Chat UI on Sources (no new section) |
+
+**Suggested order:** WRI-85 → WRI-86 → WRI-87 → WRI-88 → close WRI-84
