@@ -1,5 +1,6 @@
 import { loadDaemonConfig } from "./config";
 import { createDaemonLogger } from "./logger";
+import { createRequestHandler } from "./router";
 import { createDaemonServer } from "./server";
 
 async function startDaemon() {
@@ -11,10 +12,7 @@ async function startDaemon() {
     logLevel: config.logLevel
   });
 
-  const server = await createDaemonServer(config, logger, (_request, response) => {
-    response.writeHead(404, { "content-type": "application/json" });
-    response.end(JSON.stringify({ error: "not_found" }));
-  });
+  const server = await createDaemonServer(config, logger, createRequestHandler(config));
 
   const shutdown = async (signal: string) => {
     logger.info("Shutting down daemon", { signal });

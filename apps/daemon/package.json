@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "@writer/contracts": "0.1.0"
