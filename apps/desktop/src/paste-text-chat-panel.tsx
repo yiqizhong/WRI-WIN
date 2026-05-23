@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   IconButton,
@@ -9,7 +9,7 @@ import {
   Tile
 } from "@carbon/react";
 import { Attachment, Copy } from "@carbon/icons-react";
-import type { PasteTextConversation, PasteTextMessage, Project } from "@writer/contracts";
+import type { AgentRunEvent, PasteTextConversation, PasteTextMessage, Project } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
@@ -20,12 +20,45 @@ type PasteTextChatPanelProps = {
   daemonConnected: boolean;
 };
 
-function messagePreview(message: PasteTextMessage): string {
+const TERMINAL_RUN_STATUSES = new Set(["completed", "failed", "canceled"]);
+
+function streamingTextFromEvents(events: AgentRunEvent[]): string {
+  const textEvents = events.filter(
+    (event) => event.type === "text" && event.payload?.streamFinal !== true
+  );
+  const hasDeltas = textEvents.some((event) => event.payload?.streamDelta === true);
+
+  return textEvents
+    .map((event) => String(event.payload?.text ?? ""))
+    .filter(Boolean)
+    .join(hasDeltas ? "" : "\n");
+}
+
+function messagePreview(message: PasteTextMessage, streamingText?: string | null): string {
+  if (message.status === "pending") {
+    if (streamingText) {
+      return streamingText;
+    }
+
+    return "Rewriting…";
+  }
+
+  if (message.status === "failed") {
+    return message.errorMessage ?? message.text;
+  }
+
   if (message.role === "assistant") {
     return message.suggestedText ?? message.text;
   }
 
   return message.text;
+}
+
+function hasPendingAssistant(conversation: PasteTextConversation | null): boolean {
+  return (
+    conversation?.messages.some((message) => message.role === "assistant" && message.status === "pending") ??
+    false
+  );
 }
 
 export function PasteTextChatPanel({ client, activeProject, daemonConnected }: PasteTextChatPanelProps) {
@@ -38,20 +71,90 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
   const [attaching, setAttaching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const pendingAssistant = useMemo(
+    () => conversation?.messages.find((message) => message.role === "assistant" && message.status === "pending"),
+    [conversation?.messages]
+  );
 
   const isStructured = conversation?.inputMode === "structured_file";
   const attachment = conversation?.attachment;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation?.messages.length, sending]);
+  }, [conversation?.messages.length, sending, streamingText]);
 
   useEffect(() => {
     setConversation(null);
     setDraftText("");
     setError(null);
+    setStreamingText(null);
   }, [activeProject?.id]);
+
+  useEffect(() => {
+    if (!conversation?.id || !pendingAssistant) {
+      setStreamingText(null);
+      return;
+    }
+
+    let cancelled = false;
+    const messageId = pendingAssistant.id;
+    let runId = pendingAssistant.agentRunId;
+
+    const poll = async () => {
+      try {
+        const fresh = await client.getPasteTextConversation(conversation.id);
+        if (cancelled) {
+          return;
+        }
+
+        const assistant = fresh.messages.find((message) => message.id === messageId);
+
+        if (!assistant || assistant.status !== "pending") {
+          setConversation(fresh);
+          setStreamingText(null);
+          return;
+        }
+
+        if (!runId && assistant.agentRunId) {
+          runId = assistant.agentRunId;
+          setConversation(fresh);
+        }
+
+        if (!runId) {
+          return;
+        }
+
+        const detail = await client.getAgentRun(runId);
+        if (cancelled) {
+          return;
+        }
+
+        const text = streamingTextFromEvents(detail.events);
+        setStreamingText(text || null);
+
+        if (TERMINAL_RUN_STATUSES.has(detail.run.status)) {
+          const completed = await client.getPasteTextConversation(conversation.id);
+          if (!cancelled) {
+            setConversation(completed);
+            setStreamingText(null);
+          }
+        }
+      } catch {
+        // Keep polling; fall back to conversation refresh on the next tick.
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), 250);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [client, conversation?.id, pendingAssistant?.id, pendingAssistant?.agentRunId]);
 
   const ensureConversation = useCallback(async (): Promise<PasteTextConversation> => {
     if (conversation) {
@@ -70,6 +173,8 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
     return created;
   }, [activeProject, backgroundContext, client, conversation]);
 
+  const pendingRewrite = hasPendingAssistant(conversation);
+
   async function handleSend() {
     const text = draftText.trim();
     if (!text || !daemonConnected || !activeProject) {
@@ -78,6 +183,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
 
     setSending(true);
     setError(null);
+    setStreamingText(null);
 
     try {
       const current = await ensureConversation();
@@ -141,6 +247,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
     setError(null);
     setShowBackground(true);
     setRowIndex("0");
+    setStreamingText(null);
   }
 
   return (
@@ -229,7 +336,11 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             <Stack gap={4}>
               {conversation.messages.map((message) => {
                 const isAssistant = message.role === "assistant";
-                const body = messagePreview(message);
+                const isPending = message.status === "pending";
+                const isFailed = message.status === "failed";
+                const showStream = isPending && message.id === pendingAssistant?.id;
+                const body = messagePreview(message, showStream ? streamingText : null);
+                const showCursor = showStream && Boolean(streamingText);
 
                 return (
                   <Stack
@@ -248,22 +359,25 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                         letterSpacing: "0.32px"
                       }}
                     >
-                      {isAssistant ? "Suggestion" : "You"}
+                      {isAssistant ? (isPending ? "Rewriting" : isFailed ? "Failed" : "Suggestion") : "You"}
                     </span>
                     <div
                       style={{
                         padding: "var(--cds-spacing-04)",
                         background: isAssistant ? "var(--cds-layer-01)" : "var(--cds-layer-accent)",
-                        border: "1px solid var(--cds-border-subtle)",
+                        border: isFailed ? "1px solid var(--cds-support-error)" : "1px solid var(--cds-border-subtle)",
                         borderRadius: 4,
                         whiteSpace: "pre-wrap",
                         fontSize: "0.875rem",
-                        lineHeight: 1.5
+                        lineHeight: 1.5,
+                        fontStyle: isPending && !streamingText ? "italic" : "normal",
+                        color: isFailed ? "var(--cds-support-error)" : undefined
                       }}
                     >
                       {body}
+                      {showCursor ? "▍" : null}
                     </div>
-                    {isAssistant ? (
+                    {isAssistant && !isPending && !isFailed ? (
                       <Button
                         kind="ghost"
                         size="sm"
@@ -277,9 +391,6 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                   </Stack>
                 );
               })}
-              {sending ? (
-                <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>Rewriting…</p>
-              ) : null}
               <div ref={messagesEndRef} />
             </Stack>
           ) : (
@@ -301,7 +412,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             rows={3}
             value={draftText}
             onChange={(event) => setDraftText(event.target.value)}
-            disabled={!activeProject || !daemonConnected || sending}
+            disabled={!activeProject || !daemonConnected || sending || pendingRewrite}
             style={{ flex: 1 }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -315,13 +426,13 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
               kind="ghost"
               label="Attach file"
               onClick={() => void handleAttach()}
-              disabled={!activeProject || !daemonConnected || attaching || sending}
+              disabled={!activeProject || !daemonConnected || attaching || sending || pendingRewrite}
             >
               <Attachment />
             </IconButton>
             <Button
               kind="primary"
-              disabled={!activeProject || !daemonConnected || sending || !draftText.trim()}
+              disabled={!activeProject || !daemonConnected || sending || pendingRewrite || !draftText.trim()}
               onClick={() => void handleSend()}
             >
               {sending ? "Sending…" : "Send"}

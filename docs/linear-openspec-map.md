@@ -156,3 +156,15 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 | 4.1–4.6 | WRI-88 | Chat UI on Sources (no new section) |
 
 **Suggested order:** WRI-85 → WRI-86 → WRI-87 → WRI-88 → close WRI-84
+
+## paste-text-send-latency (OpenSpec: `openspec/changes/paste-text-send-latency/`)
+
+**Epic:** [WRI-89](https://linear.app/uicb/issue/WRI-89) — Paste Text send latency and async UX
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| Diagnosis | WRI-90 | Sync LLM block on send — not connection latency |
+| Async API | WRI-91 | Pending message + background agent run |
+| Optimistic UI | WRI-92 | Poll conversation until rewrite completes |
+
+**Suggested order:** WRI-90 → WRI-91 → WRI-92 → close WRI-89

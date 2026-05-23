@@ -1,6 +1,7 @@
 import {
   isApiError,
   parseAgentAdapterList,
+  parseAgentRunResult,
   parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
@@ -13,6 +14,7 @@ import {
   parseProjectList,
   parseReviewSession,
   parseSpreadsheetParseResult,
+  type AgentRunResult,
   type ChangeStatus,
   type DirectoryListing,
   type ParsedFigmaUrl,
@@ -277,6 +279,9 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseAgentAdapterList
       ),
 
+    getAgentRun: (runId: string) =>
+      request(baseUrl, `/agents/runs/${runId}`, undefined, parseAgentRunResult) as Promise<AgentRunResult>,
+
     listMcpServers: () => request(baseUrl, "/mcp/servers", undefined, parseMcpServerList),
 
     smokeFigmaRead: () => request(baseUrl, "/mcp/smoke/figma/read", undefined, parseMcpSmokeResult, 90_000),
@@ -363,4 +368,4 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { DirectoryListing, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };
+export type { AgentRunResult, DirectoryListing, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };

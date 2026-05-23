@@ -62,7 +62,8 @@ describe("paste-text conversations", () => {
 
     const result = await sendPasteTextMessage(state, conversation.id, {
       text: "Click here to save your stuff",
-      adapterId: "echo"
+      adapterId: "echo",
+      sync: true
     });
 
     expect(result.userMessage.text).toBe("Click here to save your stuff");
@@ -97,9 +98,41 @@ describe("paste-text conversations", () => {
     const result = await sendPasteTextMessage(state, conversation.id, {
       text: "Click here",
       rowIndex: 0,
-      adapterId: "echo"
+      adapterId: "echo",
+      sync: true
     });
 
     expect(result.assistantMessage.suggestedText).toBeTruthy();
+  });
+
+  it("returns immediately with pending assistant message when async", async () => {
+    const state = await createTestState();
+    const project = await createProject(state, { name: "Demo", rootPath: "/tmp/demo" });
+
+    const conversation = await createPasteTextConversation(state, {
+      projectId: project.id
+    });
+
+    const result = await sendPasteTextMessage(state, conversation.id, {
+      text: "Click here",
+      adapterId: "echo"
+    });
+
+    expect(result.assistantMessage.status).toBe("pending");
+    expect(result.assistantMessage.agentRunId).toBeTruthy();
+    expect(result.conversation.messages).toHaveLength(2);
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const withRun = getPasteTextConversation(state, conversation.id);
+    const pendingAssistant = withRun.messages.find((message) => message.role === "assistant");
+    expect(pendingAssistant?.agentRunId).toBeTruthy();
+
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+
+    const reloaded = getPasteTextConversation(state, conversation.id);
+    const assistant = reloaded.messages.find((message) => message.role === "assistant");
+    expect(assistant?.status).toBe("complete");
+    expect(assistant?.suggestedText).toBeTruthy();
   });
 });

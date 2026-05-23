@@ -61,6 +61,7 @@ export class PlatformStore {
   readonly filePath: string;
 
   private snapshot: PlatformStoreSnapshot;
+  private saveChain: Promise<void> = Promise.resolve();
 
   constructor(options: PlatformStoreOptions = {}) {
     this.dataDir = options.dataDir ?? getDefaultDataDir();
@@ -123,6 +124,12 @@ export class PlatformStore {
   }
 
   async save(): Promise<void> {
+    const next = this.saveChain.then(() => this.writeSnapshotToDisk());
+    this.saveChain = next.catch(() => undefined);
+    return next;
+  }
+
+  private async writeSnapshotToDisk(): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
 
     const payload = JSON.stringify(this.snapshot, null, 2);

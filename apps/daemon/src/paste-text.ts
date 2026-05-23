@@ -15,7 +15,7 @@ import {
 import { buildCopywriterPrompt, extractSuggestedTextFromAgentEvents } from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 
-import { startAgentRun } from "./agents";
+import { launchAgentRun, type AgentRunResult } from "./agents";
 import type { DaemonState } from "./state";
 import { createSession } from "./state";
 
@@ -165,6 +165,84 @@ export function getPasteTextConversation(state: DaemonState, conversationId: str
   return conversation;
 }
 
+type RewriteJob = {
+  conversationId: string;
+  assistantMessageId: string;
+  sessionId: string;
+  prompt: string;
+  adapterId?: string;
+};
+
+async function updateAssistantMessage(
+  state: DaemonState,
+  job: RewriteJob,
+  patch: Pick<PasteTextMessage, "status" | "text" | "suggestedText" | "errorMessage" | "agentRunId">
+): Promise<void> {
+  const conversation = getPasteTextConversation(state, job.conversationId);
+  const messages = conversation.messages.map((message) =>
+    message.id === job.assistantMessageId ? { ...message, ...patch } : message
+  );
+
+  state.store.upsertPasteTextConversation({
+    ...conversation,
+    messages,
+    updatedAt: nowIso()
+  });
+  await state.store.save();
+}
+
+async function startPasteTextRewrite(
+  state: DaemonState,
+  job: RewriteJob
+): Promise<{ completion: Promise<AgentRunResult> }> {
+  const { run, completion } = await launchAgentRun(state, {
+    sessionId: job.sessionId,
+    prompt: job.prompt,
+    adapterId: job.adapterId
+  });
+
+  await updateAssistantMessage(state, job, {
+    status: "pending",
+    text: "Rewriting…",
+    agentRunId: run.id
+  });
+
+  return { completion };
+}
+
+async function finishPasteTextRewrite(
+  state: DaemonState,
+  job: RewriteJob,
+  completion: Promise<AgentRunResult>
+): Promise<void> {
+  try {
+    const runResult = await completion;
+    const suggestedText = extractSuggestedTextFromAgentEvents(runResult.events);
+
+    if (!suggestedText.trim()) {
+      throw new Error("Agent returned empty rewrite");
+    }
+
+    await updateAssistantMessage(state, job, {
+      status: "complete",
+      text: suggestedText,
+      suggestedText
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Rewrite failed";
+    await updateAssistantMessage(state, job, {
+      status: "failed",
+      text: message,
+      errorMessage: message
+    });
+  }
+}
+
+async function runPasteTextRewrite(state: DaemonState, job: RewriteJob): Promise<void> {
+  const { completion } = await startPasteTextRewrite(state, job);
+  await finishPasteTextRewrite(state, job, completion);
+}
+
 export async function sendPasteTextMessage(
   state: DaemonState,
   conversationId: string,
@@ -182,7 +260,13 @@ export async function sendPasteTextMessage(
     createdAt: nowIso()
   };
 
-  const priorMessages = [...conversation.messages, userMessage];
+  const assistantMessage: PasteTextMessage = {
+    id: randomUUID(),
+    role: "assistant",
+    text: "Rewriting…",
+    status: "pending",
+    createdAt: nowIso()
+  };
 
   let rowContext: string | undefined;
   if (parsed.rowIndex !== undefined && conversation.attachment?.mimeKind === "spreadsheet") {
@@ -203,38 +287,43 @@ export async function sendPasteTextMessage(
     rowContext
   });
 
-  const runResult = await startAgentRun(state, {
-    sessionId: conversation.sessionId!,
-    prompt: prompt.full,
-    adapterId: parsed.adapterId
-  });
-
-  const suggestedText = extractSuggestedTextFromAgentEvents(runResult.events);
-
-  if (!suggestedText.trim()) {
-    throw new Error("Agent returned empty rewrite");
-  }
-
-  const assistantMessage: PasteTextMessage = {
-    id: randomUUID(),
-    role: "assistant",
-    text: suggestedText,
-    suggestedText,
-    createdAt: nowIso()
-  };
-
   const updated: PasteTextConversation = {
     ...conversation,
-    messages: [...priorMessages, assistantMessage],
+    messages: [...conversation.messages, userMessage, assistantMessage],
     updatedAt: nowIso()
   };
 
   const saved = state.store.upsertPasteTextConversation(updated);
   await state.store.save();
 
+  const job: RewriteJob = {
+    conversationId: saved.id,
+    assistantMessageId: assistantMessage.id,
+    sessionId: saved.sessionId!,
+    prompt: prompt.full,
+    adapterId: parsed.adapterId
+  };
+
+  if (parsed.sync) {
+    await runPasteTextRewrite(state, job);
+    const reloaded = getPasteTextConversation(state, conversationId);
+    const reloadedAssistant = reloaded.messages.find((message) => message.id === assistantMessage.id)!;
+    return {
+      conversation: reloaded,
+      userMessage,
+      assistantMessage: reloadedAssistant
+    };
+  }
+
+  const { completion } = await startPasteTextRewrite(state, job);
+  void finishPasteTextRewrite(state, job, completion);
+
+  const reloaded = getPasteTextConversation(state, conversationId);
+  const reloadedAssistant = reloaded.messages.find((message) => message.id === assistantMessage.id)!;
+
   return {
-    conversation: saved,
+    conversation: reloaded,
     userMessage,
-    assistantMessage
+    assistantMessage: reloadedAssistant
   };
 }

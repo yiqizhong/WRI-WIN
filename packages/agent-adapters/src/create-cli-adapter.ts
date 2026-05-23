@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentAdapter, AgentRun, AgentRunEvent, ConnectionDiagnostic } from "@writer/contracts";
 
 import { commandExists, runCliCommand, spawnCliStream, type CliRunResult } from "./cli-runner";
+import { parseCursorAgentStreamLine } from "./stream-json";
 import type { AgentAdapterImplementation, AgentDetectionResult, AgentRunHandle, AgentRunRequest } from "./types";
 
 export type AgentAuthState = "ready" | "needs_auth" | "unknown";
@@ -21,6 +22,8 @@ export type CliAdapterConfig = {
   probeAuth?: (executable: string) => Promise<AgentAuthState>;
   runTimeoutMs?: number;
   smokeTimeoutMs?: number;
+  /** Parse Cursor-style `stream-json` stdout lines into incremental text events. */
+  streamJson?: boolean;
 };
 
 const DEFAULT_RUN_TIMEOUT_MS = 120_000;
@@ -189,6 +192,24 @@ async function runCliAdapter(config: CliAdapterConfig, request: AgentRunRequest)
       for await (const line of stream.lines) {
         if (cancelled) {
           break;
+        }
+
+        if (config.streamJson) {
+          const parsed = parseCursorAgentStreamLine(line);
+
+          if (parsed?.kind === "delta") {
+            chunks.push(parsed.text);
+            yield textEvent(runId, parsed.text, { streamDelta: true });
+            continue;
+          }
+
+          if (parsed?.kind === "final") {
+            chunks.push(parsed.text);
+            yield textEvent(runId, parsed.text, { streamFinal: true });
+            continue;
+          }
+
+          continue;
         }
 
         chunks.push(line);
@@ -411,13 +432,13 @@ function failedRunHandle(adapterId: string, request: AgentRunRequest, message: s
   return { run, events: events(), cancel: async () => undefined };
 }
 
-function textEvent(runId: string, text: string): AgentRunEvent {
+function textEvent(runId: string, text: string, meta: Record<string, unknown> = {}): AgentRunEvent {
   return {
     id: `evt-${randomUUID()}`,
     runId,
     type: "text",
     timestamp: new Date().toISOString(),
-    payload: { text }
+    payload: { text, ...meta }
   };
 }
 

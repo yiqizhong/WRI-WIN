@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult } from "@writer/contracts";
+import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult, AgentAdapter } from "@writer/contracts";
 import { isLlmProviderAdapterId } from "@writer/contracts";
 import {
   createDefaultAgentRegistry,
@@ -31,6 +31,11 @@ const smokeAdapterInputSchema = z.object({
 export type AgentRunResult = {
   run: AgentRun;
   events: AgentRunEvent[];
+};
+
+export type AgentRunLaunch = {
+  run: AgentRun;
+  completion: Promise<AgentRunResult>;
 };
 
 type ActiveRun = {
@@ -70,6 +75,32 @@ export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdap
   }
 
   return { adapters, activeAdapterId: activeAdapterId ?? null };
+}
+
+async function resolveAdapterForRun(
+  state: DaemonState,
+  preferredAdapterId?: string
+): Promise<{ adapterId: string; adapter: AgentAdapter }> {
+  const storedActive = state.store.getActiveAdapterId();
+  const adapterId = preferredAdapterId ?? storedActive;
+
+  if (!adapterId) {
+    throw new Error("No agent adapter selected");
+  }
+
+  const impl = getRegistry().get(adapterId);
+
+  if (!impl) {
+    throw new Error(`Agent adapter not registered: ${adapterId}`);
+  }
+
+  const adapter = (await impl.detect()).adapter;
+
+  if (!adapter.available) {
+    throw new Error(`Agent adapter unavailable: ${adapterId}`);
+  }
+
+  return { adapterId, adapter };
 }
 
 export async function refreshAgentDetection(state: DaemonState): Promise<AgentAdapterList> {
@@ -129,7 +160,7 @@ export async function setActiveAdapter(state: DaemonState, input: unknown): Prom
   return getAgentAdapterList(state);
 }
 
-export async function startAgentRun(state: DaemonState, input: unknown): Promise<AgentRunResult> {
+export async function launchAgentRun(state: DaemonState, input: unknown): Promise<AgentRunLaunch> {
   const parsed = createAgentRunInputSchema.parse(input);
   const sessions = state.store.listSessions(null);
 
@@ -137,25 +168,7 @@ export async function startAgentRun(state: DaemonState, input: unknown): Promise
     throw new Error("Session not found");
   }
 
-  const list = await getAgentAdapterList(state);
-  const adapterId = parsed.adapterId ?? list.activeAdapterId;
-  let adapter = list.adapters.find((item) => item.id === adapterId);
-
-  if (!adapter && adapterId) {
-    const impl = getRegistry().get(adapterId);
-    if (impl) {
-      adapter = (await impl.detect()).adapter;
-    }
-  }
-
-  if (!adapterId || !adapter) {
-    throw new Error("No agent adapter selected");
-  }
-
-  if (!adapter.available) {
-    throw new Error(`Agent adapter unavailable: ${adapterId}`);
-  }
-
+  const { adapterId } = await resolveAdapterForRun(state, parsed.adapterId);
   const impl = getRegistry().get(adapterId);
 
   if (!impl) {
@@ -173,26 +186,47 @@ export async function startAgentRun(state: DaemonState, input: unknown): Promise
   state.store.upsertAgentRun(run);
   linkRunToSession(state, run);
   await recordRunLifecycle(state, run, "started");
-
-  const events: AgentRunEvent[] = [];
-
-  for await (const event of handle.events) {
-    const normalized: AgentRunEvent = {
-      ...event,
-      id: event.id || `evt-${randomUUID()}`,
-      runId: run.id,
-      timestamp: event.timestamp || new Date().toISOString()
-    };
-    events.push(normalized);
-    state.store.appendAgentRunEvent(normalized);
-  }
-
-  state.store.upsertAgentRun(handle.run);
-  state.activeRuns.delete(run.id);
-  await recordRunLifecycle(state, handle.run, handle.run.status);
   await state.store.save();
 
-  return { run: state.store.getAgentRun(run.id) ?? handle.run, events };
+  return {
+    run,
+    completion: consumeAgentRun(state, run.id, handle)
+  };
+}
+
+export async function startAgentRun(state: DaemonState, input: unknown): Promise<AgentRunResult> {
+  const launch = await launchAgentRun(state, input);
+  return launch.completion;
+}
+
+async function consumeAgentRun(
+  state: DaemonState,
+  runId: string,
+  handle: AgentRunHandle
+): Promise<AgentRunResult> {
+  const run = handle.run;
+  const events: AgentRunEvent[] = [];
+
+  try {
+    for await (const event of handle.events) {
+      const normalized: AgentRunEvent = {
+        ...event,
+        id: event.id || `evt-${randomUUID()}`,
+        runId,
+        timestamp: event.timestamp || new Date().toISOString()
+      };
+      events.push(normalized);
+      state.store.appendAgentRunEvent(normalized);
+    }
+
+    state.store.upsertAgentRun(handle.run);
+    await recordRunLifecycle(state, handle.run, handle.run.status);
+    await state.store.save();
+
+    return { run: state.store.getAgentRun(runId) ?? handle.run, events };
+  } finally {
+    state.activeRuns.delete(runId);
+  }
 }
 
 export async function cancelAgentRun(state: DaemonState, runId: string): Promise<AgentRun> {

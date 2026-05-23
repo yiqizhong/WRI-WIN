@@ -55,6 +55,7 @@ export {
   agentCapabilitySchema,
   agentRunEventSchema,
   agentRunEventTypeSchema,
+  agentRunResultSchema,
   agentRunSchema,
   agentRunStatusSchema,
   agentSmokeResultSchema,
@@ -63,6 +64,7 @@ export {
   parseAgentAdapterList,
   parseAgentRun,
   parseAgentRunEvent,
+  parseAgentRunResult,
   parseAgentSmokeResult
 } from "./agent";
 export type {
@@ -74,6 +76,7 @@ export type {
   AgentRun,
   AgentRunEvent,
   AgentRunEventType,
+  AgentRunResult,
   AgentRunStatus,
   AgentSmokeResult,
   LlmProviderAdapterId
@@ -218,6 +221,7 @@ export {
   pasteTextMessageResultSchema,
   pasteTextMessageRoleSchema,
   pasteTextMessageSchema,
+  pasteTextMessageStatusSchema,
   sendPasteTextMessageInputSchema
 } from "./paste-text";
 export type {
@@ -230,5 +234,6 @@ export type {
   PasteTextMessage,
   PasteTextMessageResult,
   PasteTextMessageRole,
+  PasteTextMessageStatus,
   SendPasteTextMessageInput
 } from "./paste-text";

@@ -90,10 +90,27 @@ export function parseCopywriterResponse(raw: string): { suggestedText: string; r
 export function extractSuggestedTextFromAgentEvents(
   events: Array<{ type: string; payload?: Record<string, unknown> }>
 ): string {
-  const textParts = events
-    .filter((event) => event.type === "text")
-    .map((event) => String(event.payload?.text ?? ""))
-    .filter(Boolean);
+  const finalEvent = events.find((event) => event.type === "text" && event.payload?.streamFinal === true);
 
-  return parseCopywriterResponse(textParts.join("\n")).suggestedText;
+  if (finalEvent) {
+    return parseCopywriterResponse(String(finalEvent.payload?.text ?? "")).suggestedText;
+  }
+
+  return parseCopywriterResponse(accumulateAgentRunDisplayText(events)).suggestedText;
+}
+
+export function accumulateAgentRunDisplayText(
+  events: Array<{ type: string; payload?: Record<string, unknown> }>
+): string {
+  const textEvents = events.filter(
+    (event) => event.type === "text" && event.payload?.streamFinal !== true
+  );
+
+  const hasDeltas = textEvents.some((event) => event.payload?.streamDelta === true);
+  const separator = hasDeltas ? "" : "\n";
+
+  return textEvents
+    .map((event) => String(event.payload?.text ?? ""))
+    .filter(Boolean)
+    .join(separator);
 }

@@ -4,11 +4,16 @@ export const pasteTextInputModeSchema = z.enum(["plain_text", "structured_file"]
 
 export const pasteTextMessageRoleSchema = z.enum(["user", "assistant"]);
 
+export const pasteTextMessageStatusSchema = z.enum(["pending", "complete", "failed"]);
+
 export const pasteTextMessageSchema = z.object({
   id: z.string().min(1),
   role: pasteTextMessageRoleSchema,
   text: z.string(),
   suggestedText: z.string().optional(),
+  status: pasteTextMessageStatusSchema.optional(),
+  errorMessage: z.string().optional(),
+  agentRunId: z.string().min(1).optional(),
   rowIndex: z.number().int().nonnegative().optional(),
   createdAt: z.iso.datetime()
 });
@@ -43,7 +48,9 @@ export const createPasteTextConversationInputSchema = z.object({
 export const sendPasteTextMessageInputSchema = z.object({
   text: z.string().min(1),
   rowIndex: z.number().int().nonnegative().optional(),
-  adapterId: z.string().min(1).optional()
+  adapterId: z.string().min(1).optional(),
+  /** Test and debug only — await LLM rewrite before HTTP response. */
+  sync: z.boolean().optional()
 });
 
 export const attachPasteTextFileInputSchema = z.object({
@@ -63,6 +70,7 @@ export const pasteTextConversationListSchema = z.object({
 
 export type PasteTextInputMode = z.infer<typeof pasteTextInputModeSchema>;
 export type PasteTextMessageRole = z.infer<typeof pasteTextMessageRoleSchema>;
+export type PasteTextMessageStatus = z.infer<typeof pasteTextMessageStatusSchema>;
 export type PasteTextMessage = z.infer<typeof pasteTextMessageSchema>;
 export type PasteTextAttachment = z.infer<typeof pasteTextAttachmentSchema>;
 export type PasteTextConversation = z.infer<typeof pasteTextConversationSchema>;

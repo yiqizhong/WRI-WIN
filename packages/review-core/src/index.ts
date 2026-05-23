@@ -13,6 +13,7 @@ export { classifySeverity, formatRationale, isLowConfidence } from "./severity";
 export {
   buildCopywriterPrompt,
   extractSuggestedTextFromAgentEvents,
+  accumulateAgentRunDisplayText,
   parseCopywriterResponse,
   type CopywriterMessage,
   type CopywriterPrompt,

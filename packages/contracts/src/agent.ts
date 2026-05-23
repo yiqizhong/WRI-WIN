@@ -71,6 +71,11 @@ export const agentRunSchema = z.object({
   endedAt: z.iso.datetime().optional()
 });
 
+export const agentRunResultSchema = z.object({
+  run: agentRunSchema,
+  events: z.array(agentRunEventSchema)
+});
+
 export const agentSmokeResultSchema = z.object({
   ok: z.boolean(),
   adapterId: z.string().min(1),
@@ -89,6 +94,7 @@ export type AgentRunStatus = z.infer<typeof agentRunStatusSchema>;
 export type AgentRunEventType = z.infer<typeof agentRunEventTypeSchema>;
 export type AgentRunEvent = z.infer<typeof agentRunEventSchema>;
 export type AgentRun = z.infer<typeof agentRunSchema>;
+export type AgentRunResult = z.infer<typeof agentRunResultSchema>;
 export type AgentSmokeResult = z.infer<typeof agentSmokeResultSchema>;
 
 export function parseAgentAdapterList(payload: unknown): AgentAdapterList {
@@ -97,6 +103,10 @@ export function parseAgentAdapterList(payload: unknown): AgentAdapterList {
 
 export function parseAgentRun(payload: unknown): AgentRun {
   return agentRunSchema.parse(payload);
+}
+
+export function parseAgentRunResult(payload: unknown): AgentRunResult {
+  return agentRunResultSchema.parse(payload);
 }
 
 export function parseAgentRunEvent(payload: unknown): AgentRunEvent {
