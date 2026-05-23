@@ -2,11 +2,17 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { randomUUID } from "node:crypto";
+
 import {
+  type AuditLogEntry,
+  type AuditLogList,
   type Project,
   type ProjectList,
   type ReviewSession,
   type ReviewSessionList,
+  auditLogListSchema,
+  auditLogEntrySchema,
   projectListSchema,
   projectSchema,
   reviewSessionListSchema,
@@ -20,6 +26,7 @@ export type PlatformStoreSnapshot = {
   projects: Project[];
   activeProjectId: string | null;
   sessions: ReviewSession[];
+  auditLog: AuditLogEntry[];
 };
 
 export type PlatformStoreOptions = {
@@ -43,7 +50,8 @@ export class PlatformStore {
       version: STORAGE_VERSION,
       projects: [],
       activeProjectId: null,
-      sessions: []
+      sessions: [],
+      auditLog: []
     };
   }
 
@@ -63,7 +71,10 @@ export class PlatformStore {
         activeProjectId: parsed.activeProjectId ?? null,
         sessions: reviewSessionListSchema.parse({
           sessions: parsed.sessions ?? []
-        }).sessions
+        }).sessions,
+        auditLog: auditLogListSchema.parse({
+          entries: parsed.auditLog ?? []
+        }).entries
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -124,5 +135,18 @@ export class PlatformStore {
     }
 
     return validated;
+  }
+
+  appendAuditEntry(entry: Omit<AuditLogEntry, "id"> & { id?: string }): AuditLogEntry {
+    const validated = auditLogEntrySchema.parse({
+      id: entry.id ?? randomUUID(),
+      ...entry
+    });
+    this.snapshot.auditLog.push(validated);
+    return validated;
+  }
+
+  listAuditLog(): AuditLogList {
+    return { entries: this.snapshot.auditLog };
   }
 }

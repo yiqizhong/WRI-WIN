@@ -80,7 +80,7 @@ export async function handlePlatformRequest(
 
   if (request.method === "POST" && path === "/permissions/decisions") {
     try {
-      const decision = decidePermission(state, await readJsonBody(request));
+      const decision = await decidePermission(state, await readJsonBody(request));
       sendJson(response, 200, decision);
     } catch (error) {
       if (error instanceof Error && error.message === "Permission request not found") {

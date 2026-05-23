@@ -117,7 +117,7 @@ export function listPermissionRequests(state: DaemonState): PermissionRequest[] 
   return state.permissionRequests;
 }
 
-export function decidePermission(state: DaemonState, input: unknown): PermissionRequest {
+export async function decidePermission(state: DaemonState, input: unknown): Promise<PermissionRequest> {
   const parsed = parsePermissionDecisionInput(input);
   const request = state.permissionRequests.find((item) => item.id === parsed.requestId);
 
@@ -128,5 +128,21 @@ export function decidePermission(state: DaemonState, input: unknown): Permission
   request.decision = parsed.decision;
   request.decidedAt = new Date().toISOString();
   request.decidedBy = "user";
+
+  state.store.appendAuditEntry({
+    type: "permission_decision",
+    timestamp: request.decidedAt,
+    actor: "user",
+    summary: `${parsed.decision} ${request.toolName}`,
+    details: {
+      requestId: request.id,
+      toolId: request.toolId,
+      risk: request.risk,
+      sessionId: request.sessionId,
+      runId: request.runId
+    }
+  });
+  await state.store.save();
+
   return request;
 }

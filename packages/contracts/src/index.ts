@@ -1,4 +1,11 @@
 export {
+  auditLogEntrySchema,
+  auditLogEntryTypeSchema,
+  auditLogListSchema
+} from "./audit-log";
+export type { AuditLogEntry, AuditLogEntryType, AuditLogList } from "./audit-log";
+
+export {
   apiErrorCodeSchema,
   apiErrorSchema,
   isApiError,
