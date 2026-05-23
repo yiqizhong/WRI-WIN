@@ -5,6 +5,15 @@ alwaysApply: true
 
 # Linear sync (required)
 
+## Issues-first workflow
+
+Before implementing any OpenSpec change or feature plan:
+
+1. Create a **parent epic** and **child issues** in Linear (project: **Figma UX Copy Review v1**, team: **WRI**) mapped to `tasks.md` rows.
+2. Record mappings in `docs/linear-openspec-map.md`.
+3. Execute work **issue-by-issue** (one commit per batch of related issues unless user asks otherwise).
+4. Do **not** start coding until Linear issues exist for the change (unless user explicitly waives this).
+
 When implementing `openspec/changes/*/tasks.md`:
 
 1. Complete one task → check `- [x]` in `tasks.md` → **one git commit**.

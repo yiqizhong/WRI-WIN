@@ -18,6 +18,8 @@ import {
   cancelAgentRun,
   getAgentAdapterList,
   getAgentRunDetail,
+  refreshAgentDetection,
+  smokeAgentAdapter,
   setActiveAdapter,
   startAgentRun,
   type AgentRunResult
@@ -89,6 +91,8 @@ export async function createSession(state: DaemonState, input: unknown): Promise
 
 export {
   getAgentAdapterList,
+  refreshAgentDetection,
+  smokeAgentAdapter,
   setActiveAdapter,
   startAgentRun,
   cancelAgentRun,

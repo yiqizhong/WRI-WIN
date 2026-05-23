@@ -9,6 +9,8 @@ import {
   decidePermission,
   executeTool,
   getAgentAdapterList,
+  refreshAgentDetection,
+  smokeAgentAdapter,
   getAgentRunDetail,
   getMcpServerList,
   getToolList,
@@ -75,6 +77,25 @@ export async function handlePlatformRequest(
 
   if (request.method === "GET" && path === "/agents") {
     sendJson(response, 200, await getAgentAdapterList(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/agents/detect") {
+    sendJson(response, 200, await refreshAgentDetection(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/agents/smoke") {
+    try {
+      sendJson(response, 200, await smokeAgentAdapter(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Unknown")) {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid smoke payload.", "Provide adapterId.");
+    }
     return true;
   }
 

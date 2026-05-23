@@ -528,7 +528,11 @@ function App() {
 
         <ChangelogPanel client={daemonClient} sessionId={activeSessionId} />
 
-        <AgentsPanel client={daemonClient} connected={daemonState.kind === "connected" || daemonState.kind === "degraded"} />
+        <AgentsPanel
+          client={daemonClient}
+          connected={daemonState.kind === "connected" || daemonState.kind === "degraded"}
+          onMessage={setWorkflowMessage}
+        />
 
         <section className="settings-strip">
           <div>

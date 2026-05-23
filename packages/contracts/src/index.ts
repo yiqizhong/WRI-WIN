@@ -51,6 +51,8 @@ export {
 export type {
   AgentAdapter,
   AgentAdapterList,
+  AgentAuthState,
+  AgentRuntimeKind,
   AgentCapability,
   AgentRun,
   AgentRunEvent,

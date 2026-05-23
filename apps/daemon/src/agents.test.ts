@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
-import { getAgentAdapterList, startAgentRun } from "./agents";
+import { getAgentAdapterList, smokeAgentAdapter, startAgentRun } from "./agents";
 import { createProject, createSession } from "./state";
 import type { DaemonState } from "./state";
 
@@ -38,7 +38,17 @@ describe("agent discovery and runs", () => {
 
     expect(echo).toBeDefined();
     expect(echo?.available).toBe(true);
-    expect(list.activeAdapterId).toBe("echo");
+    expect(list.adapters.some((adapter) => adapter.id === "claude-code")).toBe(true);
+    expect(list.adapters.some((adapter) => adapter.id === "devin")).toBe(true);
+    expect(list.activeAdapterId).toBeTruthy();
+  });
+
+  it("rejects smoke for unknown adapter", async () => {
+    const state = await createTestState();
+
+    await expect(smokeAgentAdapter(state, { adapterId: "unknown-adapter" })).rejects.toThrow(
+      /Unknown or unsupported/
+    );
   });
 
   it("runs echo adapter and persists events", async () => {

@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type { AgentAdapterList, AgentRun, AgentRunEvent } from "@writer/contracts";
-import { createDefaultAgentRegistry, type AgentAdapterRegistry, type AgentRunHandle } from "@writer/agent-adapters";
+import {
+  createDefaultAgentRegistry,
+  detectCliAdapter,
+  getCliAdapterConfig,
+  smokeCliAdapter,
+  type AgentAdapterRegistry,
+  type AgentRunHandle
+} from "@writer/agent-adapters";
 
 import type { DaemonState } from "./state";
 
@@ -14,6 +21,10 @@ const createAgentRunInputSchema = z.object({
 
 const setActiveAdapterInputSchema = z.object({
   adapterId: z.string().min(1).nullable()
+});
+
+const smokeAdapterInputSchema = z.object({
+  adapterId: z.string().min(1)
 });
 
 export type AgentRunResult = {
@@ -39,7 +50,10 @@ export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdap
   const registry = getRegistry();
   const adapters = await Promise.all(registry.list().map((impl) => impl.detect().then((result) => result.adapter)));
   const storedActive = state.store.getActiveAdapterId();
-  const fallback = adapters.find((adapter) => adapter.available)?.id ?? null;
+  const fallback =
+    adapters.find((adapter) => adapter.available && adapter.id !== "echo")?.id ??
+    adapters.find((adapter) => adapter.available)?.id ??
+    null;
   const activeAdapterId = storedActive ?? fallback;
 
   if (!storedActive && activeAdapterId) {
@@ -48,6 +62,49 @@ export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdap
   }
 
   return { adapters, activeAdapterId };
+}
+
+export async function refreshAgentDetection(state: DaemonState): Promise<AgentAdapterList> {
+  return getAgentAdapterList(state);
+}
+
+export async function smokeAgentAdapter(state: DaemonState, input: unknown) {
+  const parsed = smokeAdapterInputSchema.parse(input);
+  const config = getCliAdapterConfig(parsed.adapterId);
+
+  if (!config) {
+    throw new Error(`Unknown or unsupported adapter: ${parsed.adapterId}`);
+  }
+
+  const detection = await detectCliAdapter(config);
+
+  if (!detection.adapter.available || !detection.adapter.executablePath) {
+    return {
+      ok: false,
+      adapterId: parsed.adapterId,
+      adapter: detection.adapter,
+      message: detection.adapter.setupMessage ?? "Adapter is not available."
+    };
+  }
+
+  const smoke = await smokeCliAdapter(config, detection.adapter.executablePath);
+
+  state.store.appendAuditEntry({
+    type: "tool_attempt",
+    timestamp: new Date().toISOString(),
+    actor: "user",
+    summary: `Agent smoke ${parsed.adapterId}: ${smoke.ok ? "ok" : "failed"}`,
+    details: { adapterId: parsed.adapterId, ok: smoke.ok, message: smoke.message }
+  });
+  await state.store.save();
+
+  return {
+    ok: smoke.ok,
+    adapterId: parsed.adapterId,
+    adapter: detection.adapter,
+    output: smoke.output,
+    message: smoke.message
+  };
 }
 
 export async function setActiveAdapter(state: DaemonState, input: unknown): Promise<AgentAdapterList> {

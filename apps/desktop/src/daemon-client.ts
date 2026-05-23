@@ -230,6 +230,25 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     listAgents: () => request(baseUrl, "/agents", undefined, parseAgentAdapterList),
 
+    refreshAgents: () =>
+      request(
+        baseUrl,
+        "/agents/detect",
+        { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+        parseAgentAdapterList
+      ),
+
+    smokeAgent: (adapterId: string) =>
+      request<{ ok: boolean; adapterId: string; output?: string; message?: string }>(
+        baseUrl,
+        "/agents/smoke",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ adapterId })
+        }
+      ),
+
     setActiveAdapter: (adapterId: string) =>
       request(
         baseUrl,

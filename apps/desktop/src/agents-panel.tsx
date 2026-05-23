@@ -1,43 +1,94 @@
 import { useEffect, useState } from "react";
 
+import type { AgentAdapter } from "@writer/contracts";
+
 import type { DaemonClient } from "./daemon-client";
 
 type AgentsPanelProps = {
   client: DaemonClient;
   connected: boolean;
+  onMessage: (message: string) => void;
 };
 
-export function AgentsPanel({ client, connected }: AgentsPanelProps) {
-  const [adapters, setAdapters] = useState<Array<{ id: string; displayName: string; available: boolean }>>([]);
+function runtimeLabel(adapter: AgentAdapter): string | null {
+  if (adapter.runtimeKind === "hybrid") {
+    return "Cloud-backed";
+  }
+
+  if (adapter.runtimeKind === "local") {
+    return "Local CLI";
+  }
+
+  return null;
+}
+
+export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) {
+  const [adapters, setAdapters] = useState<AgentAdapter[]>([]);
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<Array<{ id: string; name: string; enabled: boolean }>>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [busyAdapterId, setBusyAdapterId] = useState<string | null>(null);
+
+  async function loadAgents() {
+    try {
+      const agentList = await client.listAgents();
+      setAdapters(agentList.adapters);
+      setActiveAdapterId(agentList.activeAdapterId);
+    } catch {
+      setAdapters([]);
+    }
+  }
 
   useEffect(() => {
     if (!connected) {
       return;
     }
 
+    void loadAgents();
     void (async () => {
       try {
-        const [agentList, mcpList] = await Promise.all([client.listAgents(), client.listMcpServers()]);
-        setAdapters(agentList.adapters);
-        setActiveAdapterId(agentList.activeAdapterId);
+        const mcpList = await client.listMcpServers();
         setMcpServers(mcpList.servers);
       } catch {
-        setAdapters([]);
         setMcpServers([]);
       }
     })();
   }, [client, connected]);
 
+  async function refreshDetection() {
+    try {
+      const agentList = await client.refreshAgents();
+      setAdapters(agentList.adapters);
+      setActiveAdapterId(agentList.activeAdapterId);
+      onMessage("Agent detection refreshed.");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not refresh agents.");
+    }
+  }
+
   async function selectAdapter(adapterId: string) {
     try {
       const result = await client.setActiveAdapter(adapterId);
       setActiveAdapterId(result.activeAdapterId);
-      setMessage(`Active adapter: ${result.activeAdapterId}`);
+      onMessage(`Active adapter: ${result.activeAdapterId}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not set adapter.");
+      onMessage(error instanceof Error ? error.message : "Could not set adapter.");
+    }
+  }
+
+  async function testConnection(adapterId: string) {
+    setBusyAdapterId(adapterId);
+
+    try {
+      const result = await client.smokeAgent(adapterId);
+      if (result.ok) {
+        onMessage(`${adapterId} connection OK${result.output ? `: ${result.output.slice(0, 80)}` : ""}.`);
+      } else {
+        onMessage(result.message ?? `${adapterId} smoke test failed.`);
+      }
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Smoke test failed.");
+    } finally {
+      setBusyAdapterId(null);
     }
   }
 
@@ -45,34 +96,65 @@ export function AgentsPanel({ client, connected }: AgentsPanelProps) {
     try {
       const result = await client.setMcpServerEnabled(serverId, enabled);
       setMcpServers(result.servers);
-      setMessage(`${serverId} ${enabled ? "enabled" : "disabled"}.`);
+      onMessage(`${serverId} ${enabled ? "enabled" : "disabled"}.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not update MCP server.");
+      onMessage(error instanceof Error ? error.message : "Could not update MCP server.");
     }
   }
 
   return (
     <section className="panel agents-panel">
-      <p className="eyebrow">Runtime</p>
-      <h2>Agents and MCP</h2>
-      {message ? <p className="project-banner">{message}</p> : null}
+      <div className="agents-panel-header">
+        <div>
+          <p className="eyebrow">Runtime</p>
+          <h2>Agents and MCP</h2>
+        </div>
+        <button className="secondary-action" disabled={!connected} onClick={() => void refreshDetection()}>
+          Refresh detection
+        </button>
+      </div>
 
       <div className="agents-grid">
         <div>
-          <h3>Agent adapters</h3>
-          <ul className="settings-list">
-            {adapters.map((adapter) => (
-              <li key={adapter.id}>
-                <button
-                  className={adapter.id === activeAdapterId ? "secondary-action active-chip" : "secondary-action"}
-                  disabled={!adapter.available}
-                  onClick={() => void selectAdapter(adapter.id)}
-                >
-                  {adapter.displayName}
-                  {!adapter.available ? " (unavailable)" : ""}
-                </button>
-              </li>
-            ))}
+          <h3>LLM providers</h3>
+          <ul className="settings-list agent-card-list">
+            {adapters
+              .filter((adapter) => adapter.id !== "echo")
+              .map((adapter) => {
+                const label = runtimeLabel(adapter);
+
+                return (
+                  <li key={adapter.id} className="agent-card">
+                    <div className="agent-card-head">
+                      <strong>{adapter.displayName}</strong>
+                      {label ? <span className="runtime-badge">{label}</span> : null}
+                      <span className={adapter.available ? "status-pill status-approved" : "status-pill status-rejected"}>
+                        {adapter.available ? "available" : "unavailable"}
+                      </span>
+                    </div>
+                    {adapter.setupMessage ? <p className="agent-setup">{adapter.setupMessage}</p> : null}
+                    {adapter.executablePath ? (
+                      <p className="agent-path">{adapter.executablePath}</p>
+                    ) : null}
+                    <div className="agent-card-actions">
+                      <button
+                        className={adapter.id === activeAdapterId ? "secondary-action active-chip" : "secondary-action"}
+                        disabled={!adapter.available}
+                        onClick={() => void selectAdapter(adapter.id)}
+                      >
+                        Use adapter
+                      </button>
+                      <button
+                        className="secondary-action"
+                        disabled={!adapter.available || busyAdapterId === adapter.id}
+                        onClick={() => void testConnection(adapter.id)}
+                      >
+                        {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
           </ul>
         </div>
 

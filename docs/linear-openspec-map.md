@@ -74,6 +74,27 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 
 **Milestone:** M0 = WRI-41 · M1 = WRI-1 subtree
 
+## local-llm-provider-adapters (OpenSpec: `openspec/changes/local-llm-provider-adapters/`)
+
+**Epic:** [WRI-48](https://linear.app/uicb/issue/WRI-48) — Local LLM providers (Cursor, Codex, Claude, Devin)
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.3 | WRI-49 | CLI runner + contracts + registry |
+| 2.1 | WRI-51 | Claude Code adapter |
+| 2.2 | WRI-50 | Codex adapter |
+| 2.3 | WRI-52 | Cursor Agent adapter |
+| 2.4 | WRI-53 | Devin hybrid adapter |
+| 2.5 | WRI-54 | Adapter fixture tests |
+| 3.1–3.2 | WRI-55 | `/agents/detect`, `/agents/smoke` |
+| 3.3–3.4 | WRI-56 | Integration tests + README |
+| 4.1–4.3 | WRI-57 | Desktop connection UX |
+| 5.1–5.2 | WRI-58 | Verification + CI green |
+
+**Suggested order:** WRI-49 → WRI-50/51/52/53 (parallel) → WRI-54 → WRI-55 → WRI-56 → WRI-57 → WRI-58 → close WRI-48
+
+**Decision:** User chose **A** — all four providers; Devin = hybrid (cloud-backed label).
+
 ## Comment template
 
 ```markdown

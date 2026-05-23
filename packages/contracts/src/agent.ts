@@ -6,12 +6,18 @@ export const agentCapabilitySchema = z.object({
   enabled: z.boolean()
 });
 
+export const agentRuntimeKindSchema = z.enum(["local", "hybrid"]);
+
+export const agentAuthStateSchema = z.enum(["ready", "needs_auth", "unknown"]);
+
 export const agentAdapterSchema = z.object({
   id: z.string().min(1),
   displayName: z.string().min(1),
   available: z.boolean(),
   executablePath: z.string().min(1).optional(),
   setupMessage: z.string().optional(),
+  runtimeKind: agentRuntimeKindSchema.optional(),
+  authState: agentAuthStateSchema.optional(),
   capabilities: z.array(agentCapabilitySchema)
 });
 
@@ -55,6 +61,8 @@ export const agentRunSchema = z.object({
 });
 
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
+export type AgentRuntimeKind = z.infer<typeof agentRuntimeKindSchema>;
+export type AgentAuthState = z.infer<typeof agentAuthStateSchema>;
 export type AgentAdapter = z.infer<typeof agentAdapterSchema>;
 export type AgentAdapterList = z.infer<typeof agentAdapterListSchema>;
 export type AgentRunStatus = z.infer<typeof agentRunStatusSchema>;

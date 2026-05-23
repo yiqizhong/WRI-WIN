@@ -9,8 +9,22 @@ import { handlePlatformRequest } from "./routes/platform";
 import { handleReviewRequest } from "./routes/review";
 import { createDaemonState, type DaemonState } from "./state";
 
+function applyDevCors(response: ServerResponse): void {
+  response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5173");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  response.setHeader("Access-Control-Allow-Headers", "content-type");
+}
+
 export function createRequestHandler(config: DaemonConfig, state: DaemonState) {
   return (request: IncomingMessage, response: ServerResponse) => {
+    applyDevCors(response);
+
+    if (request.method === "OPTIONS") {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+
     void routeRequest(request, response, config, state);
   };
 }
@@ -25,7 +39,8 @@ async function routeRequest(
     request.method !== "GET" &&
     request.method !== "POST" &&
     request.method !== "DELETE" &&
-    request.method !== "PATCH"
+    request.method !== "PATCH" &&
+    request.method !== "OPTIONS"
   ) {
     invalidRequest(
       response,

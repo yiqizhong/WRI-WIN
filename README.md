@@ -58,6 +58,28 @@ See [docs/architecture/local-platform-architecture.md](docs/architecture/local-p
 - `GET /review/export/markdown` / `GET /review/export/json` — Session exports
 - `GET /mcp/smoke/figma/read` — Figma MCP read smoke
 
+## Local LLM providers
+
+Writer can route review prompts through locally installed agent CLIs (daemon-spawned only):
+
+| Provider | Adapter ID | Install | Notes |
+|----------|------------|---------|-------|
+| Claude Code | `claude-code` | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Uses `claude -p` with write tools disallowed for review |
+| Codex | `codex` | `npm i -g @openai/codex` | Uses `codex exec`; repair vendor binary if `ENOENT` |
+| Cursor Agent | `cursor-agent` | Cursor CLI | Uses `cursor agent -p -f` (trusts project dir) |
+| Devin | `devin` | [Devin for Terminal](https://cli.devin.ai/docs) | Hybrid: local CLI, cloud inference; run `/login` first |
+
+**Desktop:** Agents panel → **Refresh detection** → **Test connection** → **Use adapter**.
+
+**API:**
+
+- `GET /agents` — list adapters + active id
+- `POST /agents/detect` — refresh detection
+- `POST /agents/smoke` — `{ "adapterId": "devin" }` short probe
+- `POST /agents/runs` — run review prompt
+
+Set `WRITER_AGENT_STUBS=1` to register echo only (tests/CI without CLIs).
+
 ## Figma MCP manual smoke
 
 ```bash

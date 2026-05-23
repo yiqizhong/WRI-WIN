@@ -13,6 +13,8 @@ describe("agent contract", () => {
           displayName: "Codex",
           available: true,
           executablePath: "/usr/local/bin/codex",
+          runtimeKind: "hybrid",
+          authState: "ready",
           capabilities: [{ id: "review", label: "UX copy review", enabled: true }]
         }
       ],
@@ -20,6 +22,7 @@ describe("agent contract", () => {
     });
 
     expect(list.adapters[0]?.available).toBe(true);
+    expect(list.adapters[0]?.runtimeKind).toBe("hybrid");
   });
 
   it("accepts normalized run events", () => {
