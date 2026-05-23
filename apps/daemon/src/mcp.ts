@@ -78,11 +78,12 @@ export function smokeFigmaRead(state: DaemonState): { ok: boolean; configured: b
 
 export async function smokeFigmaWrite(
   state: DaemonState,
-  input: { sessionId: string; permissionRequestId?: string }
+  input: { sessionId: string; permissionRequestId?: string; changeId?: string }
 ): Promise<{ ok: boolean; permissionRequestId?: string; result?: unknown }> {
   const execution = await executeTool(state, {
     toolId: "figma.write",
     sessionId: input.sessionId,
+    changeId: input.changeId,
     args: { action: "smoke_write_text" }
   });
 

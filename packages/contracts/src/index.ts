@@ -115,3 +115,48 @@ export {
   toolSchema
 } from "./tool";
 export type { Tool, ToolList, ToolRiskLevel } from "./tool";
+
+export {
+  changeStatusSchema,
+  changeTransitionInputSchema,
+  parseChangeTransitionInput,
+  parseReviewChange,
+  reviewChangeListSchema,
+  reviewChangeSchema
+} from "./review-change";
+export type { ChangeStatus, ChangeTransitionInput, ReviewChange, ReviewChangeList } from "./review-change";
+
+export {
+  issueSeveritySchema,
+  issueTypeSchema,
+  parseUxCopyFinding,
+  uxCopyFindingListSchema,
+  uxCopyFindingSchema
+} from "./finding";
+export type { IssueSeverity, IssueType, UxCopyFinding, UxCopyFindingList } from "./finding";
+
+export {
+  parseRewriteCandidate,
+  rewriteCandidateListSchema,
+  rewriteCandidateSchema
+} from "./rewrite-candidate";
+export type { RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
+
+export {
+  figmaReviewScopeSchema,
+  figmaScopeKindSchema,
+  parseFigmaReviewScope,
+  parseParsedFigmaUrl,
+  parsedFigmaUrlSchema,
+  parseFigmaUrlInputSchema
+} from "./figma-scope";
+export type { FigmaReviewScope, FigmaScopeKind, ParsedFigmaUrl } from "./figma-scope";
+
+export { figmaTextExtractionSchema, figmaTextNodeSchema, parseFigmaTextExtraction } from "./figma-text-node";
+export type { FigmaTextExtraction, FigmaTextNode } from "./figma-text-node";
+
+export { designContextSchema, designContextNodeSchema, parseDesignContext } from "./design-context";
+export type { DesignContext } from "./design-context";
+
+export { parseReportArtifact, reportArtifactSchema } from "./report-artifact";
+export type { ReportArtifact } from "./report-artifact";

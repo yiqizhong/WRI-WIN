@@ -271,3 +271,31 @@ h2 {
 .project-error {
   color: #8f3d2c;
 }
+
+.figma-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.figma-connect input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cfc9bc;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+}
+
+.paste-input {
+  width: 100%;
+  max-width: 520px;
+  padding: 12px;
+  border: 1px solid #cfc9bc;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  resize: vertical;
+}

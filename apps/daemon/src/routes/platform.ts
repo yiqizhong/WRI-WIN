@@ -197,7 +197,11 @@ export async function handlePlatformRequest(
 
   if (request.method === "POST" && path === "/mcp/smoke/figma/write") {
     try {
-      const body = (await readJsonBody(request)) as { sessionId?: string; permissionRequestId?: string };
+      const body = (await readJsonBody(request)) as {
+        sessionId?: string;
+        permissionRequestId?: string;
+        changeId?: string;
+      };
 
       if (!body.sessionId) {
         invalidRequest(response, "Missing sessionId for Figma write smoke.");
@@ -206,7 +210,8 @@ export async function handlePlatformRequest(
 
       const result = await smokeFigmaWrite(state, {
         sessionId: body.sessionId,
-        permissionRequestId: body.permissionRequestId
+        permissionRequestId: body.permissionRequestId,
+        changeId: body.changeId
       });
 
       if (!result.ok) {

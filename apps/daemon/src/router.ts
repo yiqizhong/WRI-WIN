@@ -6,6 +6,7 @@ import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
 import { handleFilesystemRequest } from "./routes/filesystem";
 import { handlePlatformRequest } from "./routes/platform";
+import { handleReviewRequest } from "./routes/review";
 import { createDaemonState, type DaemonState } from "./state";
 
 export function createRequestHandler(config: DaemonConfig, state: DaemonState) {
@@ -43,6 +44,10 @@ async function routeRequest(
   }
 
   if (await handlePlatformRequest(request, response, state)) {
+    return;
+  }
+
+  if (await handleReviewRequest(request, response, state)) {
     return;
   }
 

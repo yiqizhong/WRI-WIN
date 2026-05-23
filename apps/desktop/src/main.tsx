@@ -33,12 +33,54 @@ function App() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [isOpeningProject, setIsOpeningProject] = useState(false);
+  const [figmaUrl, setFigmaUrl] = useState("");
+  const [pastedText, setPastedText] = useState("");
+  const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
 
   async function refreshDaemonStatus() {
     setDaemonState({ kind: "checking" });
     setDaemonState(await checkDaemonHealth());
+  }
+
+  async function connectFigma() {
+    if (!figmaUrl.trim()) {
+      return;
+    }
+
+    setWorkflowMessage(null);
+
+    try {
+      const parsed = await daemonClient.parseFigmaUrl(figmaUrl.trim());
+      setWorkflowMessage(`Figma scope ready: ${parsed.suggestedScope.kind} (${parsed.fileKey})`);
+    } catch (error) {
+      const message =
+        error instanceof DaemonClientError ? error.message : "Could not parse the Figma URL.";
+      setWorkflowMessage(message);
+    }
+  }
+
+  async function startPastedTextReview() {
+    if (!activeProject || !pastedText.trim()) {
+      return;
+    }
+
+    setWorkflowMessage(null);
+
+    try {
+      const session = await daemonClient.createPastedTextSession({
+        projectId: activeProject.id,
+        text: pastedText.trim()
+      });
+      setWorkflowMessage(`Pasted text session created (${session.id.slice(0, 8)}…).`);
+    } catch (error) {
+      const message =
+        error instanceof DaemonClientError
+          ? error.message
+          : "Could not create a pasted text review session.";
+      setWorkflowMessage(message);
+    }
   }
 
   async function openProject() {
@@ -162,6 +204,8 @@ function App() {
           </p>
         ) : null}
 
+        {workflowMessage ? <p className="project-banner">{workflowMessage}</p> : null}
+
         <section className="work-grid" aria-label="Workspace overview">
           <div className="panel hero-panel">
             <div>
@@ -172,10 +216,19 @@ function App() {
                 anything is written back.
               </p>
             </div>
-            <button className="secondary-action">
-              <FileText aria-hidden="true" size={18} />
-              <span>Connect Figma</span>
-            </button>
+            <div className="figma-connect">
+              <input
+                type="url"
+                placeholder="https://www.figma.com/design/..."
+                value={figmaUrl}
+                onChange={(event) => setFigmaUrl(event.target.value)}
+                aria-label="Figma file URL"
+              />
+              <button className="secondary-action" onClick={() => void connectFigma()}>
+                <FileText aria-hidden="true" size={18} />
+                <span>Connect Figma</span>
+              </button>
+            </div>
           </div>
 
           <div className="panel compact-panel">
@@ -192,6 +245,29 @@ function App() {
               <h2>Agent adapter</h2>
               <p>Local CLI detection and run streaming will appear here once the daemon is active.</p>
             </div>
+          </div>
+
+          <div className="panel hero-panel">
+            <div>
+              <p className="eyebrow">Light edit</p>
+              <h2>Pasted text review</h2>
+              <p>Paste copy to start a non-Figma review session through the daemon.</p>
+            </div>
+            <textarea
+              className="paste-input"
+              rows={4}
+              placeholder="Paste UX copy to review…"
+              value={pastedText}
+              onChange={(event) => setPastedText(event.target.value)}
+            />
+            <button
+              className="secondary-action"
+              disabled={!activeProject || !pastedText.trim()}
+              onClick={() => void startPastedTextReview()}
+            >
+              <MessageSquareText aria-hidden="true" size={18} />
+              <span>Start pasted text session</span>
+            </button>
           </div>
         </section>
 

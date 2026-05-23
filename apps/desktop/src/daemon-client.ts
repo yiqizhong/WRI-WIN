@@ -2,11 +2,15 @@ import {
   isApiError,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseParsedFigmaUrl,
   parseProject,
   parseProjectList,
+  parseReviewSession,
   type DirectoryListing,
+  type ParsedFigmaUrl,
   type Project,
-  type ProjectList
+  type ProjectList,
+  type ReviewSession
 } from "@writer/contracts";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:47631";
@@ -69,9 +73,33 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify({ path: folderPath })
         },
         parseDirectoryListing
+      ),
+
+    parseFigmaUrl: (url: string) =>
+      request(
+        baseUrl,
+        "/figma/parse-url",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url })
+        },
+        parseParsedFigmaUrl
+      ),
+
+    createPastedTextSession: (input: { projectId: string; text: string }) =>
+      request(
+        baseUrl,
+        "/sessions/pasted-text",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseReviewSession
       )
   };
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { DirectoryListing, Project, ProjectList };
+export type { DirectoryListing, ParsedFigmaUrl, Project, ProjectList, ReviewSession };

@@ -5,11 +5,13 @@ import type { PermissionRequest, ToolList } from "@writer/contracts";
 import { createDefaultToolRegistry } from "@writer/tool-runtime";
 
 import type { DaemonState } from "./state";
+import { requireApprovedChangeId } from "./review";
 
 const executeToolInputSchema = z.object({
   toolId: z.string().min(1),
   sessionId: z.string().min(1).optional(),
   runId: z.string().min(1).optional(),
+  changeId: z.string().min(1).optional(),
   args: z.record(z.string(), z.unknown()).optional()
 });
 
@@ -76,6 +78,15 @@ export async function executeTool(state: DaemonState, input: unknown): Promise<T
 
   if (!tool) {
     throw new Error("Tool not found");
+  }
+
+  if (tool.id === "figma.write") {
+    try {
+      requireApprovedChangeId(state, parsed.changeId, parsed.sessionId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Write requires approved change ID.";
+      return { ok: false, toolId: tool.id, output: { message } };
+    }
   }
 
   if (toolRegistry.requiresPermission(tool.risk)) {

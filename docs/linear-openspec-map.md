@@ -29,7 +29,16 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 | 4.1–4.4 | WRI-12 | Disk persistence + restart |
 | 5.1–5.5 | WRI-2 | Agent adapter runtime |
 | 6.1–6.5 | WRI-3 | Tool + MCP runtime |
-| 7.1–7.4 | WRI-1 or new sub-issue | Verification / docs — comment on WRI-1 if no child |
+| 7.1–7.4 | WRI-1 | Verification, integration smoke, Figma MCP script, README |
+| M2 schemas | WRI-25 | Finding + rewrite candidate contracts |
+| Figma URL | WRI-21 | `POST /figma/parse-url` + `@writer/review-core` |
+| Figma extract | WRI-22 | `POST /figma/extract` stub extraction |
+| Context assembler | WRI-26 | `POST /review/context` + review-core |
+| Approval SM | WRI-29 | `POST /review/changes/transition` |
+| Change ID gate | WRI-32 | `figma.write` requires approved changeId |
+| Report schema | WRI-37 | `GET /review/reports/:sessionId` |
+| Pasted text | WRI-33 | `POST /sessions/pasted-text` + desktop UI |
+| Design context | WRI-23 | `captureDesignContext` in extract response |
 
 **Parent:** WRI-1 — Platform Foundation (epic for M1)
 

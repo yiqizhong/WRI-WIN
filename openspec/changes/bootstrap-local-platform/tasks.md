@@ -44,7 +44,7 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Add unit tests for contracts, daemon errors, storage, adapter event normalization, tool risk classification, and permission checks.
-- [ ] 7.2 Add an integration smoke test that starts daemon, connects desktop client, lists capabilities, and runs a simple agent prompt.
-- [ ] 7.3 Add a Figma MCP smoke test path that can be run manually with credentials/configuration.
-- [ ] 7.4 Update local documentation with setup steps, architecture boundaries, and known limitations.
+- [x] 7.1 Add unit tests for contracts, daemon errors, storage, adapter event normalization, tool risk classification, and permission checks.
+- [x] 7.2 Add an integration smoke test that starts daemon, connects desktop client, lists capabilities, and runs a simple agent prompt.
+- [x] 7.3 Add a Figma MCP smoke test path that can be run manually with credentials/configuration.
+- [x] 7.4 Update local documentation with setup steps, architecture boundaries, and known limitations.

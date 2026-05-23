@@ -11,6 +11,7 @@ import {
   type AuditLogList,
   type Project,
   type ProjectList,
+  type ReviewChange,
   type ReviewSession,
   type ReviewSessionList,
   agentRunEventSchema,
@@ -19,6 +20,7 @@ import {
   auditLogEntrySchema,
   projectListSchema,
   projectSchema,
+  reviewChangeSchema,
   reviewSessionListSchema,
   reviewSessionSchema
 } from "@writer/contracts";
@@ -34,6 +36,7 @@ export type PlatformStoreSnapshot = {
   agentRuns: AgentRun[];
   agentRunEvents: AgentRunEvent[];
   activeAdapterId: string | null;
+  reviewChanges: ReviewChange[];
 };
 
 export type PlatformStoreOptions = {
@@ -61,7 +64,8 @@ export class PlatformStore {
       auditLog: [],
       agentRuns: [],
       agentRunEvents: [],
-      activeAdapterId: null
+      activeAdapterId: null,
+      reviewChanges: []
     };
   }
 
@@ -87,7 +91,8 @@ export class PlatformStore {
         }).entries,
         agentRuns: (parsed.agentRuns ?? []).map((run) => agentRunSchema.parse(run)),
         agentRunEvents: (parsed.agentRunEvents ?? []).map((event) => agentRunEventSchema.parse(event)),
-        activeAdapterId: parsed.activeAdapterId ?? null
+        activeAdapterId: parsed.activeAdapterId ?? null,
+        reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change))
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -196,5 +201,28 @@ export class PlatformStore {
 
   listAgentRunEvents(runId: string): AgentRunEvent[] {
     return this.snapshot.agentRunEvents.filter((event) => event.runId === runId);
+  }
+
+  upsertReviewChange(change: ReviewChange): ReviewChange {
+    const validated = reviewChangeSchema.parse(change);
+    const index = this.snapshot.reviewChanges.findIndex((item) => item.id === validated.id);
+
+    if (index === -1) {
+      this.snapshot.reviewChanges.push(validated);
+    } else {
+      this.snapshot.reviewChanges[index] = validated;
+    }
+
+    return validated;
+  }
+
+  getReviewChange(changeId: string): ReviewChange | undefined {
+    return this.snapshot.reviewChanges.find((item) => item.id === changeId);
+  }
+
+  listReviewChanges(sessionId: string | null): ReviewChange[] {
+    return sessionId
+      ? this.snapshot.reviewChanges.filter((change) => change.sessionId === sessionId)
+      : this.snapshot.reviewChanges;
   }
 }
