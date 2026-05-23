@@ -56,6 +56,11 @@ export function extractFigmaNodes(input: unknown) {
   return { extraction, designContext };
 }
 
+const figmaSessionInputSchema = z.object({
+  projectId: z.string().min(1),
+  url: z.string().url()
+});
+
 export async function createPastedTextSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
   const parsed = pastedTextInputSchema.parse(input);
 
@@ -65,6 +70,22 @@ export async function createPastedTextSession(state: DaemonState, input: unknown
     scope: {
       text: parsed.text,
       itemCount: parsed.text.split(/\n+/).filter(Boolean).length
+    }
+  });
+}
+
+export async function createFigmaReviewSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
+  const parsed = figmaSessionInputSchema.parse(input);
+  const figma = parseFigmaUrl(parsed.url);
+
+  return createSession(state, {
+    projectId: parsed.projectId,
+    sourceType: "figma",
+    scope: {
+      url: parsed.url,
+      fileKey: figma.fileKey,
+      nodeId: figma.nodeId,
+      suggestedScope: figma.suggestedScope
     }
   });
 }

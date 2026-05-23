@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { ChangeStatus, ReviewChange } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
@@ -21,21 +23,36 @@ export function ReviewQueuePanel({
   onQueueUpdated,
   onMessage
 }: ReviewQueuePanelProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftAfter, setDraftAfter] = useState("");
+
   const changes = (queue?.changes ?? []).filter(
     (change) => statusFilter === "all" || change.status === statusFilter
   );
 
-  async function act(changeId: string, nextStatus: ChangeStatus) {
+  async function act(changeId: string, nextStatus: ChangeStatus, after?: string) {
     if (!sessionId) {
       return;
     }
 
     try {
-      await client.transitionChange({ changeId, nextStatus });
+      await client.transitionChange({ changeId, nextStatus, after });
+      setEditingId(null);
       onQueueUpdated();
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Could not update change.");
     }
+  }
+
+  async function saveEdit(change: ReviewChange) {
+    const trimmed = draftAfter.trim();
+    if (!trimmed) {
+      onMessage("Edited copy cannot be empty.");
+      return;
+    }
+
+    await act(change.id, "edited", trimmed);
+    onMessage(`Saved edit for ${change.sourceId}.`);
   }
 
   async function bulkApprove() {
@@ -101,10 +118,30 @@ export function ReviewQueuePanel({
                 <span className="copy-label">After</span> {change.after}
               </p>
               {change.rationale ? <p className="queue-rationale">{change.rationale}</p> : null}
+              {editingId === change.id ? (
+                <label className="edit-copy-field">
+                  Edited copy
+                  <textarea rows={2} value={draftAfter} onChange={(event) => setDraftAfter(event.target.value)} />
+                </label>
+              ) : null}
               <div className="queue-item-actions">
                 <button className="secondary-action" onClick={() => void act(change.id, "approved")}>
                   Approve
                 </button>
+                <button
+                  className="secondary-action"
+                  onClick={() => {
+                    setEditingId(change.id);
+                    setDraftAfter(change.after);
+                  }}
+                >
+                  Edit
+                </button>
+                {editingId === change.id ? (
+                  <button className="secondary-action" onClick={() => void saveEdit(change)}>
+                    Save edit
+                  </button>
+                ) : null}
                 <button className="secondary-action" onClick={() => void act(change.id, "rejected")}>
                   Reject
                 </button>

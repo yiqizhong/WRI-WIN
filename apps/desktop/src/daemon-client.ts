@@ -1,7 +1,9 @@
 import {
   isApiError,
+  parseAgentAdapterList,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseMcpServerList,
   parseParsedFigmaUrl,
   parseProject,
   parseProjectList,
@@ -195,7 +197,65 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       request<{ entries: Array<{ summary: string; timestamp: string }> }>(
         baseUrl,
         `/review/changelog?sessionId=${encodeURIComponent(sessionId)}`
-      )
+      ),
+
+    createFigmaSession: (input: { projectId: string; url: string }) =>
+      request(
+        baseUrl,
+        "/sessions/figma",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseReviewSession
+      ),
+
+    exportSpreadsheet: (input: { sessionId: string; outputPath: string; mapping?: Record<string, unknown> }) =>
+      request<{ outputPath: string; rowCount: number }>(baseUrl, "/spreadsheet/export", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    exportHtml: async (sessionId: string) => {
+      const response = await fetch(
+        `${baseUrl}/review/export/html?sessionId=${encodeURIComponent(sessionId)}`
+      );
+      if (!response.ok) {
+        throw new DaemonClientError("service_unavailable", "HTML export failed.");
+      }
+      return response.text();
+    },
+
+    listAgents: () => request(baseUrl, "/agents", undefined, parseAgentAdapterList),
+
+    setActiveAdapter: (adapterId: string) =>
+      request(
+        baseUrl,
+        "/agents/active",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ adapterId })
+        },
+        parseAgentAdapterList
+      ),
+
+    listMcpServers: () => request(baseUrl, "/mcp/servers", undefined, parseMcpServerList),
+
+    setMcpServerEnabled: async (serverId: string, enabled: boolean) => {
+      await request(
+        baseUrl,
+        `/mcp/servers/${serverId}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ enabled })
+        }
+      );
+      return request(baseUrl, "/mcp/servers", undefined, parseMcpServerList);
+    }
   };
 }
 

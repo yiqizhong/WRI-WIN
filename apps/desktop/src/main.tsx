@@ -17,9 +17,12 @@ import {
   getDaemonStatusView,
   type DaemonConnectionState
 } from "./daemon-status";
+import { AgentsPanel } from "./agents-panel";
+import { ChangelogPanel } from "./changelog-panel";
 import { createDaemonClient, DaemonClientError, type ReviewQueue } from "./daemon-client";
 import { ReviewQueuePanel } from "./review-queue-panel";
-import type { ChangeStatus, Project } from "@writer/contracts";
+import { SpreadsheetMappingPanel } from "./spreadsheet-mapping-panel";
+import type { ChangeStatus, Project, SpreadsheetMappingInput, SpreadsheetParseResult } from "@writer/contracts";
 import "./styles.css";
 
 const navItems = [
@@ -41,6 +44,9 @@ function App() {
   const [reviewQueue, setReviewQueue] = useState<ReviewQueue | null>(null);
   const [statusFilter, setStatusFilter] = useState<ChangeStatus | "all">("proposed");
   const [brandVoice, setBrandVoice] = useState("");
+  const [parsedSpreadsheet, setParsedSpreadsheet] = useState<SpreadsheetParseResult | null>(null);
+  const [spreadsheetMapping, setSpreadsheetMapping] = useState<SpreadsheetMappingInput | null>(null);
+  const [parsedFigmaScope, setParsedFigmaScope] = useState<string | null>(null);
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
 
@@ -101,19 +107,73 @@ function App() {
 
     try {
       const parsed = await daemonClient.parseSpreadsheet(filePath);
-      const session = await daemonClient.createSession({
-        projectId: activeProject.id,
-        sourceType: "spreadsheet",
-        scope: { fileName: parsed.fileName, rows: parsed.rows, mapping: parsed.suggestedMapping }
+      setParsedSpreadsheet(parsed);
+      setSpreadsheetMapping({
+        source: parsed.suggestedMapping.source ?? 0,
+        suggestion: parsed.suggestedMapping.suggestion,
+        status: parsed.suggestedMapping.status,
+        note: parsed.suggestedMapping.note
       });
-      setActiveSessionId(session.id);
-      setWorkflowMessage(`Imported ${parsed.rows.length} rows from ${parsed.fileName}.`);
+      setWorkflowMessage(`Parsed ${parsed.rows.length} rows from ${parsed.fileName}. Confirm mapping, then create session.`);
     } catch (error) {
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Spreadsheet import failed.");
     }
   }
 
-  async function exportSession(format: "markdown" | "json") {
+  async function createSpreadsheetSession() {
+    if (!activeProject || !parsedSpreadsheet || !spreadsheetMapping) {
+      return;
+    }
+
+    try {
+      const session = await daemonClient.createSession({
+        projectId: activeProject.id,
+        sourceType: "spreadsheet",
+        scope: {
+          fileName: parsedSpreadsheet.fileName,
+          format: parsedSpreadsheet.format,
+          columns: parsedSpreadsheet.columns,
+          rows: parsedSpreadsheet.rows,
+          mapping: spreadsheetMapping
+        }
+      });
+      setActiveSessionId(session.id);
+      setWorkflowMessage(`Spreadsheet session ready (${session.id.slice(0, 8)}…).`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not create spreadsheet session.");
+    }
+  }
+
+  async function exportSpreadsheet() {
+    if (!activeSessionId || !spreadsheetMapping) {
+      return;
+    }
+
+    const savePath = await window.writerDesktop.pickSaveFile({
+      defaultPath: "review-export.xlsx",
+      filters: [
+        { name: "Excel", extensions: ["xlsx"] },
+        { name: "CSV", extensions: ["csv"] }
+      ]
+    });
+
+    if (!savePath) {
+      return;
+    }
+
+    try {
+      const result = await daemonClient.exportSpreadsheet({
+        sessionId: activeSessionId,
+        outputPath: savePath,
+        mapping: spreadsheetMapping
+      });
+      setWorkflowMessage(`Exported ${result.rowCount} rows to ${result.outputPath}.`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Spreadsheet export failed.");
+    }
+  }
+
+  async function exportSession(format: "markdown" | "json" | "pdf") {
     if (!activeSessionId) {
       return;
     }
@@ -121,12 +181,37 @@ function App() {
     try {
       if (format === "markdown") {
         const markdown = await daemonClient.exportMarkdown(activeSessionId);
-        await navigator.clipboard.writeText(markdown);
-        setWorkflowMessage("Markdown report copied to clipboard.");
-      } else {
+        const savePath = await window.writerDesktop.pickSaveFile({
+          defaultPath: "review-report.md",
+          filters: [{ name: "Markdown", extensions: ["md"] }]
+        });
+        if (!savePath) {
+          return;
+        }
+        await window.writerDesktop.saveTextFile(savePath, markdown);
+        setWorkflowMessage(`Markdown report saved to ${savePath}.`);
+      } else if (format === "json") {
         const json = await daemonClient.exportJson(activeSessionId);
-        await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
-        setWorkflowMessage("JSON report copied to clipboard.");
+        const savePath = await window.writerDesktop.pickSaveFile({
+          defaultPath: "review-report.json",
+          filters: [{ name: "JSON", extensions: ["json"] }]
+        });
+        if (!savePath) {
+          return;
+        }
+        await window.writerDesktop.saveTextFile(savePath, JSON.stringify(json, null, 2));
+        setWorkflowMessage(`JSON report saved to ${savePath}.`);
+      } else {
+        const html = await daemonClient.exportHtml(activeSessionId);
+        const savePath = await window.writerDesktop.pickSaveFile({
+          defaultPath: "review-report.pdf",
+          filters: [{ name: "PDF", extensions: ["pdf"] }]
+        });
+        if (!savePath) {
+          return;
+        }
+        await window.writerDesktop.exportPdfFromHtml(savePath, html);
+        setWorkflowMessage(`PDF report saved to ${savePath}.`);
       }
     } catch (error) {
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Export failed.");
@@ -147,11 +232,30 @@ function App() {
 
     try {
       const parsed = await daemonClient.parseFigmaUrl(figmaUrl.trim());
+      setParsedFigmaScope(`${parsed.suggestedScope.kind} · ${parsed.fileKey}`);
       setWorkflowMessage(`Figma scope ready: ${parsed.suggestedScope.kind} (${parsed.fileKey})`);
     } catch (error) {
       const message =
         error instanceof DaemonClientError ? error.message : "Could not parse the Figma URL.";
+      setParsedFigmaScope(null);
       setWorkflowMessage(message);
+    }
+  }
+
+  async function startFigmaSession() {
+    if (!activeProject || !figmaUrl.trim()) {
+      return;
+    }
+
+    try {
+      const session = await daemonClient.createFigmaSession({
+        projectId: activeProject.id,
+        url: figmaUrl.trim()
+      });
+      setActiveSessionId(session.id);
+      setWorkflowMessage(`Figma session created (${session.id.slice(0, 8)}…).`);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not create Figma session.");
     }
   }
 
@@ -324,7 +428,15 @@ function App() {
                 <FileText aria-hidden="true" size={18} />
                 <span>Connect Figma</span>
               </button>
+              <button
+                className="secondary-action"
+                disabled={!activeProject || !figmaUrl.trim()}
+                onClick={() => void startFigmaSession()}
+              >
+                <span>Start Figma session</span>
+              </button>
             </div>
+            {parsedFigmaScope ? <p className="project-banner">Scope: {parsedFigmaScope}</p> : null}
           </div>
 
           <div className="panel compact-panel">
@@ -369,9 +481,22 @@ function App() {
                 <FileText aria-hidden="true" size={18} />
                 <span>Import CSV/XLSX</span>
               </button>
+              <button
+                className="secondary-action"
+                disabled={!parsedSpreadsheet || !spreadsheetMapping}
+                onClick={() => void createSpreadsheetSession()}
+              >
+                <span>Create spreadsheet session</span>
+              </button>
             </div>
           </div>
         </section>
+
+        <SpreadsheetMappingPanel
+          parsed={parsedSpreadsheet}
+          mapping={spreadsheetMapping}
+          onMappingChange={setSpreadsheetMapping}
+        />
 
         <div className="review-toolbar">
           <button className="secondary-action" disabled={!activeSessionId} onClick={() => void runAudit()}>
@@ -382,6 +507,12 @@ function App() {
           </button>
           <button className="secondary-action" disabled={!activeSessionId} onClick={() => void exportSession("json")}>
             Export JSON
+          </button>
+          <button className="secondary-action" disabled={!activeSessionId} onClick={() => void exportSession("pdf")}>
+            Export PDF
+          </button>
+          <button className="secondary-action" disabled={!activeSessionId} onClick={() => void exportSpreadsheet()}>
+            Export spreadsheet
           </button>
         </div>
 
@@ -394,6 +525,10 @@ function App() {
           onQueueUpdated={() => void refreshQueue()}
           onMessage={setWorkflowMessage}
         />
+
+        <ChangelogPanel client={daemonClient} sessionId={activeSessionId} />
+
+        <AgentsPanel client={daemonClient} connected={daemonState.kind === "connected" || daemonState.kind === "degraded"} />
 
         <section className="settings-strip">
           <div>

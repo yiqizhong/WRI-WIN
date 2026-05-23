@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
@@ -49,6 +50,43 @@ ipcMain.handle("writer:pick-spreadsheet-file", async () => {
   }
 
   return result.filePaths[0];
+});
+
+ipcMain.handle("writer:pick-save-file", async (_event, options = {}) => {
+  const result = await dialog.showSaveDialog({
+    defaultPath: options.defaultPath,
+    filters: options.filters ?? [{ name: "All files", extensions: ["*"] }]
+  });
+
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
+
+  return result.filePath;
+});
+
+ipcMain.handle("writer:save-text-file", async (_event, filePath, content) => {
+  await writeFile(filePath, content, "utf8");
+  return filePath;
+});
+
+ipcMain.handle("writer:export-pdf-from-html", async (_event, filePath, html) => {
+  const window = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  try {
+    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    const pdf = await window.webContents.printToPDF({ printBackground: true });
+    await writeFile(filePath, pdf);
+    return filePath;
+  } finally {
+    window.destroy();
+  }
 });
 
 app.whenReady().then(() => {

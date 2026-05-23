@@ -6,12 +6,14 @@ import { FigmaUrlParseError } from "@writer/review-core";
 import {
   assembleSessionContext,
   buildReportArtifact,
+  createFigmaReviewSession,
   createPastedTextSession,
   extractFigmaNodes,
   listReviewChanges,
   parseFigmaUrlInput,
   transitionReviewChange
 } from "../review";
+import { exportSpreadsheetSession, renderReportHtml } from "../export";
 import {
   bulkTransitionChanges,
   exportReportJson,
@@ -57,6 +59,21 @@ export async function handleReviewRequest(
       sendJson(response, 200, extractFigmaNodes(await readJsonBody(request)));
     } catch {
       invalidRequest(response, "Invalid Figma extract payload.", "Provide scope.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/sessions/figma") {
+    try {
+      const session = await createFigmaReviewSession(state, await readJsonBody(request));
+      sendJson(response, 201, session);
+    } catch (error) {
+      if (error instanceof FigmaUrlParseError) {
+        invalidRequest(response, error.message, "Use a figma.com/design/... URL.");
+        return true;
+      }
+
+      invalidRequest(response, "Invalid Figma session payload.", "Provide projectId and url.");
     }
     return true;
   }
@@ -238,6 +255,39 @@ export async function handleReviewRequest(
       }
 
       invalidRequest(response, "Unable to export JSON.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/review/export/html") {
+    const sessionId = getQueryParam(request.url, "sessionId");
+
+    if (!sessionId) {
+      invalidRequest(response, "Missing sessionId.");
+      return true;
+    }
+
+    try {
+      const html = renderReportHtml(state, sessionId);
+      response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      response.end(html);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Unable to export HTML.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/spreadsheet/export") {
+    try {
+      sendJson(response, 200, await exportSpreadsheetSession(state, await readJsonBody(request)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to export spreadsheet.";
+      invalidRequest(response, message);
     }
     return true;
   }

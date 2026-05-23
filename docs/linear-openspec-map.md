@@ -55,6 +55,21 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 | Changelog | WRI-40 | `/review/changelog` |
 | Audit stub | WRI-5 | `POST /review/audit/run` |
 
+## Batch 4 (M4 completion + desktop polish)
+
+| Deliverable | Issue | Notes |
+|-------------|-------|-------|
+| Row approval + XLSX/CSV export | WRI-36 | `POST /spreadsheet/export`, `@writer/spreadsheet` export |
+| PDF export | WRI-39 | `GET /review/export/html` + Electron `printToPDF` |
+| Light Edit epic | WRI-7 | Parent closes when WRI-36 + children done |
+| Reports epic | WRI-8 | Parent closes when WRI-39 + children done |
+| Save dialog exports | WRI-42 | MD/JSON/PDF via `pickSaveFile` |
+| Changelog panel | WRI-43 | Desktop `ChangelogPanel` |
+| Column remap UI | WRI-44 | `SpreadsheetMappingPanel` before session |
+| Agents/MCP settings | WRI-45 | `AgentsPanel` + `/agents`, `/mcp/servers` |
+| Figma session from URL | WRI-46 | `POST /sessions/figma` |
+| Edit before approve | WRI-47 | Queue inline edit → `edited` transition |
+
 **Parent:** WRI-1 — Platform Foundation (epic for M1)
 
 **Milestone:** M0 = WRI-41 · M1 = WRI-1 subtree
