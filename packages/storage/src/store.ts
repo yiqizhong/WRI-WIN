@@ -5,12 +5,16 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import {
+  type AgentRun,
+  type AgentRunEvent,
   type AuditLogEntry,
   type AuditLogList,
   type Project,
   type ProjectList,
   type ReviewSession,
   type ReviewSessionList,
+  agentRunEventSchema,
+  agentRunSchema,
   auditLogListSchema,
   auditLogEntrySchema,
   projectListSchema,
@@ -27,6 +31,9 @@ export type PlatformStoreSnapshot = {
   activeProjectId: string | null;
   sessions: ReviewSession[];
   auditLog: AuditLogEntry[];
+  agentRuns: AgentRun[];
+  agentRunEvents: AgentRunEvent[];
+  activeAdapterId: string | null;
 };
 
 export type PlatformStoreOptions = {
@@ -51,7 +58,10 @@ export class PlatformStore {
       projects: [],
       activeProjectId: null,
       sessions: [],
-      auditLog: []
+      auditLog: [],
+      agentRuns: [],
+      agentRunEvents: [],
+      activeAdapterId: null
     };
   }
 
@@ -74,7 +84,10 @@ export class PlatformStore {
         }).sessions,
         auditLog: auditLogListSchema.parse({
           entries: parsed.auditLog ?? []
-        }).entries
+        }).entries,
+        agentRuns: (parsed.agentRuns ?? []).map((run) => agentRunSchema.parse(run)),
+        agentRunEvents: (parsed.agentRunEvents ?? []).map((event) => agentRunEventSchema.parse(event)),
+        activeAdapterId: parsed.activeAdapterId ?? null
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -148,5 +161,40 @@ export class PlatformStore {
 
   listAuditLog(): AuditLogList {
     return { entries: this.snapshot.auditLog };
+  }
+
+  getActiveAdapterId(): string | null {
+    return this.snapshot.activeAdapterId;
+  }
+
+  setActiveAdapterId(adapterId: string | null): void {
+    this.snapshot.activeAdapterId = adapterId;
+  }
+
+  upsertAgentRun(run: AgentRun): AgentRun {
+    const validated = agentRunSchema.parse(run);
+    const index = this.snapshot.agentRuns.findIndex((item) => item.id === validated.id);
+
+    if (index === -1) {
+      this.snapshot.agentRuns.push(validated);
+    } else {
+      this.snapshot.agentRuns[index] = validated;
+    }
+
+    return validated;
+  }
+
+  getAgentRun(runId: string): AgentRun | undefined {
+    return this.snapshot.agentRuns.find((item) => item.id === runId);
+  }
+
+  appendAgentRunEvent(event: AgentRunEvent): AgentRunEvent {
+    const validated = agentRunEventSchema.parse(event);
+    this.snapshot.agentRunEvents.push(validated);
+    return validated;
+  }
+
+  listAgentRunEvents(runId: string): AgentRunEvent[] {
+    return this.snapshot.agentRunEvents.filter((event) => event.runId === runId);
   }
 }

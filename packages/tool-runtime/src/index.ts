@@ -1,2 +1,1 @@
-export {};
-
+export { createDefaultToolRegistry, type ToolRegistry } from "./registry";

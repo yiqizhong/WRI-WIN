@@ -2,22 +2,35 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { getQueryParam, readJsonBody } from "../http";
 import {
+  cancelAgentRun,
+  createPermissionRequest,
   createProject,
   createSession,
   decidePermission,
+  executeTool,
   getAgentAdapterList,
+  getAgentRunDetail,
   getMcpServerList,
   getToolList,
   listPermissionRequests,
   listProjects,
   listSessions,
+  setActiveAdapter,
+  setMcpServerEnabled,
+  smokeFigmaRead,
+  smokeFigmaWrite,
+  startAgentRun,
   type DaemonState
 } from "../state";
-import { invalidRequest, notFound, serviceUnavailable } from "../errors";
+import { invalidRequest, notFound, permissionDenied, serviceUnavailable } from "../errors";
 
 function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {
   response.writeHead(statusCode, { "content-type": "application/json" });
   response.end(JSON.stringify(payload));
+}
+
+function getPathSegments(path: string | undefined): string[] {
+  return (path ?? "").split("/").filter(Boolean);
 }
 
 export async function handlePlatformRequest(
@@ -25,7 +38,9 @@ export async function handlePlatformRequest(
   response: ServerResponse,
   state: DaemonState
 ): Promise<boolean> {
-  const path = request.url?.split("?")[0];
+  const url = request.url ?? "";
+  const path = url.split("?")[0];
+  const segments = getPathSegments(path);
 
   if (request.method === "GET" && path === "/projects") {
     sendJson(response, 200, listProjects(state));
@@ -43,7 +58,7 @@ export async function handlePlatformRequest(
   }
 
   if (request.method === "GET" && path === "/sessions") {
-    const projectId = getQueryParam(request.url, "projectId");
+    const projectId = getQueryParam(url, "projectId");
     sendJson(response, 200, listSessions(state, projectId));
     return true;
   }
@@ -59,7 +74,69 @@ export async function handlePlatformRequest(
   }
 
   if (request.method === "GET" && path === "/agents") {
-    sendJson(response, 200, getAgentAdapterList());
+    sendJson(response, 200, await getAgentAdapterList(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/agents/active") {
+    try {
+      sendJson(response, 200, await setActiveAdapter(state, await readJsonBody(request)));
+    } catch {
+      invalidRequest(response, "Invalid active adapter payload.", "Provide adapterId.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/agents/runs") {
+    try {
+      const result = await startAgentRun(state, await readJsonBody(request));
+      sendJson(response, 201, result);
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === "Session not found") {
+          notFound(response, error.message);
+          return true;
+        }
+
+        if (error.message.startsWith("Agent adapter unavailable")) {
+          serviceUnavailable(
+            response,
+            error.message,
+            "Install the agent CLI or choose another adapter in Settings."
+          );
+          return true;
+        }
+      }
+
+      invalidRequest(response, "Invalid agent run payload.", "Provide sessionId and prompt.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && segments[0] === "agents" && segments[1] === "runs" && segments[2]) {
+    const detail = getAgentRunDetail(state, segments[2]);
+
+    if (!detail) {
+      notFound(response, "Agent run not found.");
+      return true;
+    }
+
+    sendJson(response, 200, detail);
+    return true;
+  }
+
+  if (request.method === "DELETE" && segments[0] === "agents" && segments[1] === "runs" && segments[2]) {
+    try {
+      const run = await cancelAgentRun(state, segments[2]);
+      sendJson(response, 200, run);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Agent run not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Unable to cancel agent run.");
+    }
     return true;
   }
 
@@ -68,13 +145,103 @@ export async function handlePlatformRequest(
     return true;
   }
 
+  if (request.method === "POST" && path === "/tools/execute") {
+    try {
+      const result = await executeTool(state, await readJsonBody(request));
+
+      if (!result.ok) {
+        permissionDenied(
+          response,
+          "Tool execution requires approval.",
+          `Approve permission request ${result.permissionRequestId ?? "unknown"}.`
+        );
+        return true;
+      }
+
+      sendJson(response, 200, result);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Tool not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid tool execution payload.", "Provide toolId.");
+    }
+    return true;
+  }
+
   if (request.method === "GET" && path === "/mcp/servers") {
-    sendJson(response, 200, getMcpServerList());
+    sendJson(response, 200, getMcpServerList(state));
+    return true;
+  }
+
+  if (request.method === "POST" && segments[0] === "mcp" && segments[1] === "servers" && segments[2]) {
+    try {
+      const server = await setMcpServerEnabled(state, segments[2], await readJsonBody(request));
+      sendJson(response, 200, server);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Unknown MCP server") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid MCP server payload.", "Provide enabled boolean.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/mcp/smoke/figma/read") {
+    sendJson(response, 200, smokeFigmaRead(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/mcp/smoke/figma/write") {
+    try {
+      const body = (await readJsonBody(request)) as { sessionId?: string; permissionRequestId?: string };
+
+      if (!body.sessionId) {
+        invalidRequest(response, "Missing sessionId for Figma write smoke.");
+        return true;
+      }
+
+      const result = await smokeFigmaWrite(state, {
+        sessionId: body.sessionId,
+        permissionRequestId: body.permissionRequestId
+      });
+
+      if (!result.ok) {
+        permissionDenied(
+          response,
+          "Figma write smoke requires approval.",
+          `Approve permission request ${result.permissionRequestId ?? "unknown"}.`
+        );
+        return true;
+      }
+
+      sendJson(response, 200, result);
+    } catch {
+      invalidRequest(response, "Invalid Figma write smoke payload.");
+    }
     return true;
   }
 
   if (request.method === "GET" && path === "/permissions/requests") {
     sendJson(response, 200, { requests: listPermissionRequests(state) });
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/permissions/requests") {
+    try {
+      const created = await createPermissionRequest(state, await readJsonBody(request));
+      sendJson(response, 201, created);
+    } catch (error) {
+      if (error instanceof Error && error.message === "Tool not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(response, "Invalid permission request payload.", "Provide toolId, sessionId, and reason.");
+    }
     return true;
   }
 

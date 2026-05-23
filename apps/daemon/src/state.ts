@@ -1,23 +1,36 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  type AgentAdapterList,
   type McpServerList,
   type PermissionRequest,
   type Project,
   type ProjectList,
   type ReviewSession,
   type ReviewSessionList,
-  type ToolList,
   createProjectInputSchema,
   createReviewSessionInputSchema,
   parsePermissionDecisionInput
 } from "@writer/contracts";
+import type { AgentRunHandle } from "@writer/agent-adapters";
 import { PlatformStore } from "@writer/storage";
+
+import {
+  cancelAgentRun,
+  getAgentAdapterList,
+  getAgentRunDetail,
+  setActiveAdapter,
+  startAgentRun,
+  type AgentRunResult
+} from "./agents";
+import { createDefaultMcpState, getMcpServerList, setMcpServerEnabled, smokeFigmaRead, smokeFigmaWrite } from "./mcp";
+import type { McpRuntimeState } from "./mcp";
+import { createPermissionRequest, executeTool, getToolList } from "./tools";
 
 export type DaemonState = {
   store: PlatformStore;
   permissionRequests: PermissionRequest[];
+  activeRuns: Map<string, { handle: AgentRunHandle }>;
+  mcp: McpRuntimeState;
 };
 
 export async function createDaemonState(): Promise<DaemonState> {
@@ -26,7 +39,9 @@ export async function createDaemonState(): Promise<DaemonState> {
 
   return {
     store,
-    permissionRequests: []
+    permissionRequests: [],
+    activeRuns: new Map(),
+    mcp: createDefaultMcpState()
   };
 }
 
@@ -72,46 +87,21 @@ export async function createSession(state: DaemonState, input: unknown): Promise
   return session;
 }
 
-export function getAgentAdapterList(): AgentAdapterList {
-  return {
-    adapters: [
-      {
-        id: "codex",
-        displayName: "Codex",
-        available: false,
-        setupMessage: "Install the Codex CLI and ensure it is on PATH.",
-        capabilities: [{ id: "review", label: "UX copy review", enabled: false }]
-      },
-      {
-        id: "cursor-agent",
-        displayName: "Cursor Agent",
-        available: false,
-        setupMessage: "Configure Cursor Agent CLI access in Settings.",
-        capabilities: [{ id: "review", label: "UX copy review", enabled: false }]
-      }
-    ],
-    activeAdapterId: null
-  };
-}
-
-export function getToolList(): ToolList {
-  return { tools: [] };
-}
-
-export function getMcpServerList(): McpServerList {
-  return {
-    servers: [
-      {
-        id: "figma",
-        name: "Figma MCP",
-        enabled: false,
-        status: "disconnected",
-        capabilities: ["figma.read", "figma.write"],
-        errorMessage: "Not configured"
-      }
-    ]
-  };
-}
+export {
+  getAgentAdapterList,
+  setActiveAdapter,
+  startAgentRun,
+  cancelAgentRun,
+  getAgentRunDetail,
+  getToolList,
+  createPermissionRequest,
+  executeTool,
+  getMcpServerList,
+  setMcpServerEnabled,
+  smokeFigmaRead,
+  smokeFigmaWrite,
+  type AgentRunResult
+};
 
 export function listPermissionRequests(state: DaemonState): PermissionRequest[] {
   return state.permissionRequests;

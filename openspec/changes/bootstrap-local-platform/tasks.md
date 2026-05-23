@@ -29,18 +29,18 @@
 ## 5. Agent Adapter Runtime
 
 - [x] 5.1 Define the agent adapter interface for detect, capability report, run, stream, cancel, and error normalization.
-- [ ] 5.2 Implement local agent discovery and daemon endpoint for listing adapters.
-- [ ] 5.3 Implement one working local CLI adapter that can run a simple UX copy review prompt.
-- [ ] 5.4 Normalize agent run events and persist run lifecycle metadata.
-- [ ] 5.5 Implement cancellation for in-flight agent runs.
+- [x] 5.2 Implement local agent discovery and daemon endpoint for listing adapters.
+- [x] 5.3 Implement one working local CLI adapter that can run a simple UX copy review prompt.
+- [x] 5.4 Normalize agent run events and persist run lifecycle metadata.
+- [x] 5.5 Implement cancellation for in-flight agent runs.
 
 ## 6. Tool and MCP Runtime
 
-- [ ] 6.1 Implement tool registry with source, capability, and risk metadata.
-- [ ] 6.2 Implement permission request and decision flow for write/destructive tools.
-- [ ] 6.3 Implement MCP server configuration, enable/disable, connection status, and capability listing.
-- [ ] 6.4 Add Figma MCP connection smoke check for read metadata.
-- [ ] 6.5 Add controlled Figma MCP write smoke action that requires permission and records the result.
+- [x] 6.1 Implement tool registry with source, capability, and risk metadata.
+- [x] 6.2 Implement permission request and decision flow for write/destructive tools.
+- [x] 6.3 Implement MCP server configuration, enable/disable, connection status, and capability listing.
+- [x] 6.4 Add Figma MCP connection smoke check for read metadata.
+- [x] 6.5 Add controlled Figma MCP write smoke action that requires permission and records the result.
 
 ## 7. Verification
 

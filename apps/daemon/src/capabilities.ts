@@ -4,8 +4,8 @@ export function getBootstrapCapabilities(): DaemonCapability[] {
   return [
     { id: "desktop-shell", status: "enabled" },
     { id: "local-storage", status: "enabled" },
-    { id: "agent-runtime", status: "disabled", message: "Not implemented yet" },
-    { id: "tool-runtime", status: "disabled", message: "Not implemented yet" },
+    { id: "agent-runtime", status: "enabled" },
+    { id: "tool-runtime", status: "enabled" },
     { id: "figma-mcp", status: "degraded", message: "Not configured" }
   ];
 }
