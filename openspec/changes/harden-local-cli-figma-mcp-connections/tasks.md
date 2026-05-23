@@ -20,6 +20,7 @@
 - [x] 3.3 Add Figma MCP config loading for command, args, env, and read tool preference
 - [x] 3.4 Wire Figma MCP enable/disable, initialize, tool discovery, and diagnostics into `/mcp/servers`
 - [x] 3.5 Implement Figma read smoke through MCP with clear `not_configured`, `tool_not_found`, auth, startup, timeout, and success results
+- [x] 3.6 Add remote HTTP MCP URL config for Figma's recommended remote server path
 
 ## 4. Desktop connection UX
 
@@ -33,3 +34,4 @@
 - [x] 5.2 Update README with CLI diagnostics and Figma MCP configuration/smoke instructions
 - [x] 5.3 Run `npm run typecheck`, `npm run test`, and `openspec validate harden-local-cli-figma-mcp-connections --type change --strict`
 - [x] 5.4 Capture manual verification notes for installed CLIs and Figma MCP config in `verify.md`
+- [x] 5.5 Capture official remote Figma MCP setup notes and local client status

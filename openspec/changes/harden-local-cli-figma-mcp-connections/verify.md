@@ -87,7 +87,9 @@ Manual/local notes captured anyway:
 | `cursor agent --version` | `2026.05.20-2b5dd59` | CLI diagnostics covered by `packages/agent-adapters` tests |
 | `devin version` | `devin 2026.5.6-12 (df51ddd)` | CLI diagnostics covered by `packages/agent-adapters` tests |
 | `codex --version` | vendor binary `ENOENT` | Covered by Codex broken-wrapper regression test |
-| Figma MCP live server | Not configured in current env | `mcp-client.test.ts` and `mcp.smoke.test.ts` cover not configured, startup failure, tool discovery, tool missing, and read smoke success via fake client |
+| `codex mcp add figma --url https://mcp.figma.com/mcp` | failed with the same Codex vendor binary `ENOENT` | Codex CLI repair remains prerequisite for Codex CLI remote MCP setup |
+| `claude mcp list` | `figma: https://mcp.figma.com/mcp (HTTP) - Connected` | Confirms official remote Figma MCP is already configured for Claude Code user scope |
+| Writer Figma MCP remote URL | `WRITER_FIGMA_MCP_URL=https://mcp.figma.com/mcp` supported in code; OAuth callback/persistence is not yet implemented | `mcp-client.test.ts` and `mcp.smoke.test.ts` cover remote URL config, auth-required diagnostics, startup failure, tool discovery, tool missing, and read smoke success via fake client |
 
 ## 8. Automated Verification
 
@@ -116,4 +118,4 @@ npm run test:
 - [x] PASS WITH WARNINGS — implementation and tests pass, but work is not committed/pushed and live Figma MCP was not configured in this environment.
 - [ ] FAIL
 
-Next step: review the local diff, optionally run a live Figma MCP smoke with `WRITER_FIGMA_MCP_COMMAND`, then commit and sync Linear task comments.
+Next step: repair Codex CLI if Codex CLI MCP setup is required, or use the already-connected Claude Code remote Figma MCP path while Writer daemon OAuth callback/persistence is designed.

@@ -31,8 +31,9 @@ export function createDefaultMcpState(options: { env?: NodeJS.ProcessEnv; create
       diagnostic: {
         code: "not_configured",
         severity: "warning",
-        message: "Figma MCP command is not configured.",
-        recoveryAction: "Set WRITER_FIGMA_MCP_COMMAND and optional WRITER_FIGMA_MCP_ARGS."
+        message: "Figma MCP is not configured.",
+        recoveryAction:
+          "Set WRITER_FIGMA_MCP_URL for remote HTTP, or WRITER_FIGMA_MCP_COMMAND and optional WRITER_FIGMA_MCP_ARGS for stdio."
       }
     }
   };
@@ -76,10 +77,10 @@ export async function setMcpServerEnabled(state: DaemonState, serverId: string, 
       status: "error",
       errorMessage: connection.diagnostic?.message,
       diagnostic: connection.diagnostic,
-      command: config.command,
+      command: config.url ?? config.command,
       tools: []
     };
-    await appendMcpToggleAudit(state, serverId, parsed.enabled, Boolean(config.command));
+    await appendMcpToggleAudit(state, serverId, parsed.enabled, Boolean(config.command || config.url));
     return state.mcp.figma;
   }
 
@@ -90,7 +91,7 @@ export async function setMcpServerEnabled(state: DaemonState, serverId: string, 
     ...state.mcp.figma,
     enabled: true,
     status: "connected",
-    command: config.command,
+    command: config.url ?? config.command,
     errorMessage: undefined,
     diagnostic: {
       code: "ready",
@@ -100,7 +101,7 @@ export async function setMcpServerEnabled(state: DaemonState, serverId: string, 
     tools
   };
 
-  await appendMcpToggleAudit(state, serverId, parsed.enabled, Boolean(config.command));
+  await appendMcpToggleAudit(state, serverId, parsed.enabled, Boolean(config.command || config.url));
   return state.mcp.figma;
 }
 
@@ -121,11 +122,18 @@ async function appendMcpToggleAudit(
 }
 
 export function getFigmaMcpConfigFromEnv(env: NodeJS.ProcessEnv = process.env): McpClientConfig & { readToolName?: string } {
+  const remoteAuthToken = env.WRITER_FIGMA_MCP_AUTH_TOKEN;
+
   return {
+    transport: env.WRITER_FIGMA_MCP_URL ? "http" : "stdio",
+    url: env.WRITER_FIGMA_MCP_URL,
     command: env.WRITER_FIGMA_MCP_COMMAND,
     args: parseArgs(env.WRITER_FIGMA_MCP_ARGS),
     env: {
       ...(env.FIGMA_ACCESS_TOKEN ? { FIGMA_ACCESS_TOKEN: env.FIGMA_ACCESS_TOKEN } : {})
+    },
+    headers: {
+      ...(remoteAuthToken ? { Authorization: `Bearer ${remoteAuthToken}` } : {})
     },
     readToolName: env.WRITER_FIGMA_MCP_READ_TOOL
   };
@@ -134,15 +142,16 @@ export function getFigmaMcpConfigFromEnv(env: NodeJS.ProcessEnv = process.env): 
 export async function smokeFigmaRead(state: DaemonState): Promise<McpSmokeResult> {
   const config = getFigmaMcpConfigFromEnv(state.mcp.env);
 
-  if (!config.command && !state.mcp.figmaClient && state.mcp.figma.status !== "connected") {
+  if (!config.command && !config.url && !state.mcp.figmaClient && state.mcp.figma.status !== "connected") {
     return {
       ok: false,
       serverId: "figma",
       diagnostic: {
         code: "not_configured",
         severity: "warning",
-        message: "Figma MCP command is not configured.",
-        recoveryAction: "Set WRITER_FIGMA_MCP_COMMAND and optional WRITER_FIGMA_MCP_ARGS."
+        message: "Figma MCP is not configured.",
+        recoveryAction:
+          "Set WRITER_FIGMA_MCP_URL for remote HTTP, or WRITER_FIGMA_MCP_COMMAND and optional WRITER_FIGMA_MCP_ARGS for stdio."
       }
     };
   }
@@ -175,7 +184,7 @@ export async function smokeFigmaRead(state: DaemonState): Promise<McpSmokeResult
         severity: "error",
         message: "Figma MCP server is not connected.",
         recoveryAction: "Enable Figma MCP before running read smoke.",
-        command: config.command
+        command: config.url ?? config.command
       },
       metadata: {
         tools: tools.map((tool) => tool.name)

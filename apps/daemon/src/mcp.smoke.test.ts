@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { PlatformStore } from "@writer/storage";
 
 import { createDefaultMcpState, smokeFigmaRead } from "./mcp";
+import { getFigmaMcpConfigFromEnv } from "./mcp";
 import type { DaemonState } from "./state";
 
 async function createTestState(): Promise<DaemonState> {
@@ -28,6 +29,17 @@ describe("figma mcp smoke", () => {
     const result = await smokeFigmaRead(state);
     expect(result.ok).toBe(false);
     expect(result.diagnostic?.code).toBe("not_configured");
+  });
+
+  it("loads remote Figma MCP URL config", () => {
+    const config = getFigmaMcpConfigFromEnv({
+      WRITER_FIGMA_MCP_URL: "https://mcp.figma.com/mcp",
+      WRITER_FIGMA_MCP_AUTH_TOKEN: "oauth-token"
+    });
+
+    expect(config.transport).toBe("http");
+    expect(config.url).toBe("https://mcp.figma.com/mcp");
+    expect(config.headers?.Authorization).toBe("Bearer oauth-token");
   });
 
   it("reports tool_not_found when connected without a read tool", async () => {

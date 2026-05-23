@@ -96,6 +96,31 @@ Set `WRITER_AGENT_STUBS=1` to register echo only (tests/CI without CLIs).
 
 ## Figma MCP setup and smoke
 
+Figma's recommended setup is the remote MCP server:
+
+```bash
+export WRITER_FIGMA_MCP_URL=https://mcp.figma.com/mcp
+export WRITER_FIGMA_MCP_READ_TOOL=figma_get_file
+./scripts/smoke-figma-mcp.sh
+```
+
+The remote server uses Figma OAuth. Writer can attempt the HTTP MCP connection and will return `needs_auth` if the server requires an OAuth flow that has not been completed in a supported MCP client. On this machine, Claude Code already has user-scope Figma MCP configured and connected:
+
+```bash
+claude mcp list
+# figma: https://mcp.figma.com/mcp (HTTP) - Connected
+```
+
+The official Codex CLI setup is:
+
+```bash
+codex mcp add figma --url https://mcp.figma.com/mcp
+```
+
+That currently requires a repaired Codex CLI on this machine; the installed wrapper reports a vendor binary `ENOENT`.
+
+For a local stdio MCP server, keep using:
+
 ```bash
 export WRITER_FIGMA_MCP_COMMAND=your-figma-mcp-command
 export WRITER_FIGMA_MCP_ARGS='["--stdio"]'
@@ -104,7 +129,7 @@ export FIGMA_ACCESS_TOKEN=your-token # if your Figma MCP server expects it
 ./scripts/smoke-figma-mcp.sh
 ```
 
-The daemon owns the MCP process. Desktop only toggles the configured server and calls daemon smoke endpoints.
+The daemon owns the configured MCP connection. Desktop only toggles the configured server and calls daemon smoke endpoints.
 
 Relevant endpoints:
 
@@ -116,8 +141,9 @@ Figma MCP diagnostics:
 
 | Code | Meaning | Typical recovery |
 |------|---------|------------------|
-| `not_configured` | No MCP command configured | Set `WRITER_FIGMA_MCP_COMMAND` |
-| `startup_failed` | Server process/init failed | Check command, args, token, and server logs |
+| `not_configured` | No MCP URL or command configured | Set `WRITER_FIGMA_MCP_URL` for remote HTTP, or `WRITER_FIGMA_MCP_COMMAND` for stdio |
+| `needs_auth` | Remote server requires OAuth | Authenticate in a supported MCP client, or configure a local stdio server |
+| `startup_failed` | Server process/init failed | Check URL, command, args, token, and server logs |
 | `tool_not_found` | Connected but no read tool selected/discovered | Set `WRITER_FIGMA_MCP_READ_TOOL` |
 | `smoke_failed` | MCP tool call failed | Check Figma auth, file access, and tool args |
 | `ready` | MCP server initialized | Run read smoke |
