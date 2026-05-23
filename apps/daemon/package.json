@@ -4,8 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node src/main.js",
+    "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@writer/contracts": "0.1.0"
   }
 }
