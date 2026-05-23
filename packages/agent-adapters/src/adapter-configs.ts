@@ -1,18 +1,13 @@
 import type { CliAdapterConfig } from "./create-cli-adapter";
-import { claudeCodeCliConfig } from "./adapters/claude-code";
-import { codexCliConfig } from "./adapters/codex";
+import { LLM_PROVIDER_ADAPTER_IDS } from "@writer/contracts";
 import { cursorAgentCliConfig } from "./adapters/cursor-agent";
 import { devinCliConfig } from "./adapters/devin";
-import { createClaudeCodeAdapter } from "./adapters/claude-code";
-import { createCodexAdapter } from "./adapters/codex";
 import { createCursorAgentAdapter } from "./adapters/cursor-agent";
 import { createDevinAdapter } from "./adapters/devin";
 
-export const CLI_ADAPTER_IDS = ["claude-code", "codex", "cursor-agent", "devin"] as const;
+export const CLI_ADAPTER_IDS = LLM_PROVIDER_ADAPTER_IDS;
 
 const configs: Record<string, CliAdapterConfig> = {
-  "claude-code": claudeCodeCliConfig,
-  codex: codexCliConfig,
   "cursor-agent": cursorAgentCliConfig,
   devin: devinCliConfig
 };
@@ -22,5 +17,5 @@ export function getCliAdapterConfig(adapterId: string): CliAdapterConfig | undef
 }
 
 export function createProviderAdapters() {
-  return [createClaudeCodeAdapter(), createCodexAdapter(), createCursorAgentAdapter(), createDevinAdapter()];
+  return [createCursorAgentAdapter(), createDevinAdapter()];
 }

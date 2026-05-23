@@ -38,16 +38,28 @@ export function getDaemonStatusView(state: DaemonConnectionState): DaemonStatusV
     };
   }
 
+  const degradedCapabilities = state.health.capabilities.filter(
+    (capability) => capability.status === "degraded"
+  );
   const enabledCount = state.health.capabilities.filter(
     (capability) => capability.status === "enabled"
   ).length;
   const capabilityLabel = enabledCount === 1 ? "capability" : "capabilities";
 
   if (state.kind === "degraded" || state.health.status === "degraded") {
+    const degradedDetail =
+      degradedCapabilities.length > 0
+        ? degradedCapabilities
+            .map((capability) => capability.message ?? capability.id)
+            .join(" · ")
+        : null;
+
     return {
       label: "Daemon degraded",
       tone: "warning",
-      detail: `Version ${state.health.version} · ${enabledCount} ${capabilityLabel} enabled`
+      detail:
+        degradedDetail ??
+        `Version ${state.health.version} · ${enabledCount} ${capabilityLabel} enabled`
     };
   }
 

@@ -27,4 +27,24 @@ describe("daemon status view model", () => {
       detail: "Start the local daemon to enable agents, MCP, files, and writeback."
     });
   });
+
+  it("shows degraded capability messages in the detail line", () => {
+    expect(
+      getDaemonStatusView({
+        kind: "degraded",
+        health: {
+          status: "degraded",
+          version: "0.1.0",
+          capabilities: [
+            { id: "desktop-shell", status: "enabled" },
+            { id: "figma-mcp", status: "degraded", message: "Sign in required" }
+          ]
+        }
+      })
+    ).toEqual({
+      label: "Daemon degraded",
+      tone: "warning",
+      detail: "Sign in required"
+    });
+  });
 });

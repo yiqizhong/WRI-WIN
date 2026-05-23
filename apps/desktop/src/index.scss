@@ -1,0 +1,108 @@
+@use '@carbon/react/scss/config' with (
+  $font-path: '@ibm/plex',
+  $prefix: 'cds'
+);
+
+@use '@carbon/react/scss/themes';
+@use '@carbon/react/scss/theme' with (
+  $theme: themes.$g10
+);
+
+@use '@carbon/react';
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--cds-background);
+  color: var(--cds-text-primary);
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.seed-shell {
+  --seed-masthead-height: 56px;
+  --seed-content-top: 66px;
+  --seed-masthead-controls-inset-start: 0px;
+  --seed-masthead-controls-inset-end: 0px;
+}
+
+html[data-platform='darwin'] .seed-shell {
+  --seed-masthead-controls-inset-start: 78px;
+}
+
+html[data-platform='win32'] .seed-shell {
+  --seed-masthead-controls-inset-end: 138px;
+}
+
+.seed-shell__masthead.cds--header {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 8000;
+  block-size: var(--seed-masthead-height);
+  min-block-size: var(--seed-masthead-height);
+  background: var(--cds-background);
+  border-block-end: 1px solid var(--cds-border-subtle-01);
+  box-shadow: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.seed-shell__masthead .cds--header__name,
+.seed-shell__masthead .cds--header__global {
+  block-size: var(--seed-masthead-height);
+  min-block-size: var(--seed-masthead-height);
+}
+
+.seed-shell__masthead .cds--header__name {
+  padding-inline-start: var(--seed-masthead-controls-inset-start);
+  padding-inline-end: var(--seed-masthead-controls-inset-end);
+}
+
+.seed-shell__masthead a,
+.seed-shell__masthead button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.seed-shell__main {
+  padding-block-start: var(--seed-content-top);
+  min-block-size: 100vh;
+  box-sizing: border-box;
+}
+
+.writer-product-chrome .cds--side-nav {
+  display: flex;
+  flex-direction: column;
+  block-size: calc(100vh - var(--seed-content-top));
+  border-inline-end: 1px solid var(--cds-border-subtle-01);
+}
+
+.writer-product-chrome__footer {
+  margin-top: auto;
+  padding: var(--cds-spacing-05);
+}
+
+.writer-session-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-05);
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--cds-text-secondary);
+}
+
+.writer-toolbar-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cds-spacing-05);
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: var(--cds-spacing-05);
+  background: var(--cds-layer-01);
+  border: 1px solid var(--cds-border-subtle-01);
+}

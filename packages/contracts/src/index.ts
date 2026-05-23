@@ -58,6 +58,8 @@ export {
   agentRunSchema,
   agentRunStatusSchema,
   agentSmokeResultSchema,
+  isLlmProviderAdapterId,
+  LLM_PROVIDER_ADAPTER_IDS,
   parseAgentAdapterList,
   parseAgentRun,
   parseAgentRunEvent,
@@ -73,7 +75,8 @@ export type {
   AgentRunEvent,
   AgentRunEventType,
   AgentRunStatus,
-  AgentSmokeResult
+  AgentSmokeResult,
+  LlmProviderAdapterId
 } from "./agent";
 
 export {

@@ -64,8 +64,6 @@ Writer can route review prompts through locally installed agent CLIs (daemon-spa
 
 | Provider | Adapter ID | Install | Notes |
 |----------|------------|---------|-------|
-| Claude Code | `claude-code` | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Uses `claude -p` with write tools disallowed for review |
-| Codex | `codex` | `npm i -g @openai/codex` | Uses `codex exec`; repair vendor binary if `ENOENT` |
 | Cursor Agent | `cursor-agent` | Cursor CLI | Uses `cursor agent -p -f` (trusts project dir) |
 | Devin | `devin` | [Devin for Terminal](https://cli.devin.ai/docs) | Hybrid: local CLI, cloud inference; run `/login` first |
 
@@ -90,7 +88,7 @@ Connection diagnostics use stable codes so setup failures are actionable:
 | `smoke_failed` | Short prompt failed | Inspect stdout/stderr snippet in UI |
 | `ready` | Provider is usable | Select and run |
 
-Example: if `codex --version` reports a vendor `ENOENT`, Writer marks Codex as `broken_executable` and suggests reinstalling or repairing the Codex CLI instead of showing a generic unavailable state.
+Example: if a CLI version probe fails with a broken wrapper or missing vendor binary, Writer marks the adapter as `broken_executable` and suggests reinstalling or repairing that CLI instead of showing a generic unavailable state.
 
 Set `WRITER_AGENT_STUBS=1` to register echo only (tests/CI without CLIs).
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Stack, Tile } from "@carbon/react";
 
 import type { DaemonClient } from "./daemon-client";
 
@@ -27,23 +28,26 @@ export function ChangelogPanel({ client, sessionId }: ChangelogPanelProps) {
   }, [client, sessionId]);
 
   return (
-    <section className="panel changelog-panel">
-      <p className="eyebrow">Writeback trail</p>
-      <h2>Session changelog</h2>
-      {!sessionId ? (
-        <p className="queue-empty">Select a session to view audit events.</p>
-      ) : entries.length === 0 ? (
-        <p className="queue-empty">No changelog entries yet for this session.</p>
-      ) : (
-        <ul className="changelog-list">
-          {entries.map((entry, index) => (
-            <li key={`${entry.timestamp}-${index}`}>
-              <time dateTime={entry.timestamp}>{new Date(entry.timestamp).toLocaleString()}</time>
-              <span>{entry.summary}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
+    <Tile>
+      <Stack gap={5}>
+        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Session changelog</h2>
+        {!sessionId ? (
+          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>Select a session to view audit events.</p>
+        ) : entries.length === 0 ? (
+          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>No changelog entries yet for this session.</p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+            {entries.map((entry, index) => (
+              <li key={`${entry.timestamp}-${index}`} style={{ marginBlockEnd: "var(--cds-spacing-03)" }}>
+                <time dateTime={entry.timestamp} style={{ display: "block", fontSize: "0.75rem", color: "var(--cds-text-secondary)" }}>
+                  {new Date(entry.timestamp).toLocaleString()}
+                </time>
+                <span>{entry.summary}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Stack>
+    </Tile>
   );
 }

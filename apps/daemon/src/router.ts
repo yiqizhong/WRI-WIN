@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { DaemonConfig } from "./config";
-import { getBootstrapCapabilities } from "./capabilities";
+import { getDaemonCapabilities } from "./capabilities";
 import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
 import { handleFilesystemRequest } from "./routes/filesystem";
@@ -54,7 +54,7 @@ async function routeRequest(
   if (
     handleHealthRequest(request, response, {
       config,
-      getCapabilitySummary: getBootstrapCapabilities
+      getCapabilitySummary: () => getDaemonCapabilities(state)
     })
   ) {
     return;

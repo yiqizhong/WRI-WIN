@@ -1,0 +1,36 @@
+---
+description: OpenSpec + Superpowers workflow for Writer (superpowers-bridge)
+alwaysApply: true
+---
+
+# OpenSpec + Superpowers (Cursor)
+
+Requires **Superpowers plugin**: `/add-plugin superpowers`. Full setup: `AGENTS.md`, `docs/superpowers/README.md`.
+
+## Slash commands
+
+| Command | Use when |
+|---------|----------|
+| `/opsx-propose` | New change — full artifact set (superpowers-bridge default) |
+| `/opsx-new` | Scaffold change only |
+| `/opsx-continue` | Next artifact in the change |
+| `/opsx-ff` | Fast-forward all planning artifacts |
+| `/opsx-explore` | Think only — no product code |
+| `/opsx-apply` | Implement (worktree + subagents + TDD when using superpowers-bridge) |
+| `/opsx-verify` | Post-apply verification artifact |
+| `/opsx-sync` | Sync delta specs to main specs |
+| `/opsx-archive` | Archive completed change |
+
+## Schema routing
+
+- **Default:** `superpowers-bridge` (`openspec/config.yaml`)
+- **bootstrap-local-platform:** stays `spec-driven` — use `/opsx-apply bootstrap-local-platform`
+- **Trivial fix (bug/typo/docs):** direct PR, no opsx change
+
+## Superpowers skills (auto via plugin)
+
+Before implementation: brainstorming → writing-plans → using-git-worktrees → subagent-driven-development (includes TDD + code review). Do not write brainstorm/plan output to `docs/superpowers/` for active changes — use `openspec/changes/<name>/`.
+
+## Verbal brainstorm
+
+If user brainstorms in chat without `/opsx:*`, do not write to `docs/superpowers/specs/`. When scope + forks + deps + acceptance + convergence are clear, suggest `/opsx-propose` and wait for ack.

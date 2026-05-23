@@ -1,4 +1,5 @@
 import type { SpreadsheetMappingInput, SpreadsheetParseResult } from "@writer/contracts";
+import { Dropdown, Stack, Tile } from "@carbon/react";
 
 type SpreadsheetMappingPanelProps = {
   parsed: SpreadsheetParseResult | null;
@@ -6,46 +7,70 @@ type SpreadsheetMappingPanelProps = {
   onMappingChange: (mapping: SpreadsheetMappingInput) => void;
 };
 
+const ROLES = ["source", "suggestion", "status", "note"] as const;
+
 export function SpreadsheetMappingPanel({ parsed, mapping, onMappingChange }: SpreadsheetMappingPanelProps) {
   if (!parsed) {
     return null;
   }
 
+  const spreadsheet = parsed;
+
   const current = mapping ?? {
-    source: parsed.suggestedMapping.source ?? 0,
-    suggestion: parsed.suggestedMapping.suggestion,
-    status: parsed.suggestedMapping.status,
-    note: parsed.suggestedMapping.note
+    source: spreadsheet.suggestedMapping.source ?? 0,
+    suggestion: spreadsheet.suggestedMapping.suggestion,
+    status: spreadsheet.suggestedMapping.status,
+    note: spreadsheet.suggestedMapping.note
   };
 
-  function updateField(field: keyof SpreadsheetMappingInput, value: string) {
-    const index = value === "" ? undefined : Number(value);
-    onMappingChange({ ...current, [field]: index });
+  function columnItems(role: keyof SpreadsheetMappingInput) {
+    return [
+      { id: "", label: "—" },
+      ...spreadsheet.columns.map((column) => ({
+        id: String(column.index),
+        label: `${column.header} (${column.role})`
+      }))
+    ];
+  }
+
+  function selectedItem(role: keyof SpreadsheetMappingInput) {
+    const items = columnItems(role);
+    const value = current[role];
+    return items.find((item) => item.id === (value === undefined ? "" : String(value))) ?? items[0];
+  }
+
+  function updateField(role: keyof SpreadsheetMappingInput, selectedId: string) {
+    const index = selectedId === "" ? undefined : Number(selectedId);
+    onMappingChange({ ...current, [role]: index });
   }
 
   return (
-    <section className="panel mapping-panel">
-      <p className="eyebrow">Spreadsheet</p>
-      <h2>Column mapping</h2>
-      <p>Confirm which columns hold source copy, suggestions, status, and notes before running audit.</p>
-      <div className="mapping-grid">
-        {(["source", "suggestion", "status", "note"] as const).map((role) => (
-          <label key={role}>
-            {role}
-            <select
-              value={current[role] ?? ""}
-              onChange={(event) => updateField(role, event.target.value)}
-            >
-              <option value="">—</option>
-              {parsed.columns.map((column) => (
-                <option key={column.index} value={column.index}>
-                  {column.header} ({column.role})
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-      </div>
-    </section>
+    <Tile style={{ background: "var(--cds-layer-02)" }}>
+      <Stack gap={5}>
+        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Column mapping</h2>
+        <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
+          Confirm which columns hold source copy, suggestions, status, and notes before running audit.
+        </p>
+        <Stack gap={5} orientation="horizontal" style={{ flexWrap: "wrap" }}>
+          {ROLES.map((role) => (
+            <Dropdown
+              key={role}
+              id={`mapping-${role}`}
+              titleText={role}
+              label={selectedItem(role).label}
+              items={columnItems(role)}
+              itemToString={(item) => item?.label ?? ""}
+              selectedItem={selectedItem(role)}
+              onChange={({ selectedItem: next }) => {
+                if (next) {
+                  updateField(role, next.id);
+                }
+              }}
+              size="md"
+            />
+          ))}
+        </Stack>
+      </Stack>
+    </Tile>
   );
 }

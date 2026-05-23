@@ -2,6 +2,14 @@ import { z } from "zod";
 
 import { connectionDiagnosticSchema } from "./connection-diagnostic";
 
+export const LLM_PROVIDER_ADAPTER_IDS = ["cursor-agent", "devin"] as const;
+
+export type LlmProviderAdapterId = (typeof LLM_PROVIDER_ADAPTER_IDS)[number];
+
+export function isLlmProviderAdapterId(adapterId: string): adapterId is LlmProviderAdapterId {
+  return (LLM_PROVIDER_ADAPTER_IDS as readonly string[]).includes(adapterId);
+}
+
 export const agentCapabilitySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),

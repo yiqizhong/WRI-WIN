@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
-
-import type { AgentAdapter, McpServer } from "@writer/contracts";
+import {
+  Button,
+  RadioButton,
+  RadioButtonGroup,
+  Stack,
+  Tag,
+  Tile,
+  Toggle
+} from "@carbon/react";
+import { isLlmProviderAdapterId, type AgentAdapter, type McpServer } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
 import { AgentTestStatusBanner, type AgentTestStatus } from "./agent-test-status";
@@ -204,120 +212,133 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     }
   }
 
+  const llmAdapters = adapters.filter((adapter) => isLlmProviderAdapterId(adapter.id));
+
   return (
-    <section className="panel agents-panel">
-      <div className="agents-panel-header">
-        <div>
-          <p className="eyebrow">Runtime</p>
-          <h2>Agents and MCP</h2>
-        </div>
-        <button className="secondary-action" disabled={!connected} onClick={() => void refreshDetection()}>
+    <Stack gap={7}>
+      <Stack gap={5} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Agents and MCP</h2>
+        <Button kind="secondary" disabled={!connected} onClick={() => void refreshDetection()}>
           Refresh detection
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
       <AgentTestStatusBanner status={testStatus} />
 
-      <div className="agents-grid">
-        <div>
-          <h3>LLM providers</h3>
-          <ul className="settings-list agent-card-list">
-            {adapters
-              .filter((adapter) => adapter.id !== "echo")
-              .map((adapter) => {
+      <Stack gap={7} orientation="horizontal" style={{ flexWrap: "wrap", alignItems: "flex-start" }}>
+        <Tile style={{ flex: 1, minWidth: 280 }}>
+          <Stack gap={5}>
+            <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600 }}>LLM providers</h3>
+            <RadioButtonGroup
+              legendText="Active provider"
+              name="writer-active-adapter"
+              valueSelected={activeAdapterId ?? undefined}
+              onChange={(value) => void selectAdapter(String(value))}
+            >
+              {llmAdapters.map((adapter) => {
                 const label = runtimeLabel(adapter);
 
                 return (
-                  <li key={adapter.id} className="agent-card">
-                    <div className="agent-card-head">
-                      <strong>{adapter.displayName}</strong>
-                      {label ? <span className="runtime-badge">{label}</span> : null}
-                      <span className={adapter.available ? "status-pill status-approved" : "status-pill status-rejected"}>
+                  <Stack gap={3} key={adapter.id} style={{ marginBlockEnd: "var(--cds-spacing-05)" }}>
+                    <RadioButton labelText={adapter.displayName} value={adapter.id} disabled={!adapter.available} />
+                    <Stack gap={2} orientation="horizontal">
+                      {label ? <Tag type="gray">{label}</Tag> : null}
+                      <Tag type={adapter.available ? "green" : "red"}>
                         {adapter.available ? "available" : "unavailable"}
-                      </span>
-                    </div>
-                    {adapter.setupMessage ? <p className="agent-setup">{adapter.setupMessage}</p> : null}
+                      </Tag>
+                    </Stack>
+                    {adapter.setupMessage ? (
+                      <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+                        {adapter.setupMessage}
+                      </p>
+                    ) : null}
                     {formatConnectionDiagnostic(adapter.diagnostic) ? (
-                      <p className={`connection-diagnostic connection-diagnostic-${adapter.diagnostic?.severity ?? "info"}`}>
+                      <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
                         {formatConnectionDiagnostic(adapter.diagnostic)}
                       </p>
                     ) : null}
                     {adapter.executablePath ? (
-                      <p className="agent-path">{adapter.executablePath}</p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "0.75rem",
+                          color: "var(--cds-text-secondary)",
+                          wordBreak: "break-all"
+                        }}
+                      >
+                        {adapter.executablePath}
+                      </p>
                     ) : null}
-                    <div className="agent-card-actions">
-                      <button
-                        className={adapter.id === activeAdapterId ? "secondary-action active-chip" : "secondary-action"}
-                        disabled={!adapter.available}
-                        onClick={() => void selectAdapter(adapter.id)}
-                      >
-                        Use adapter
-                      </button>
-                      <button
-                        className="secondary-action"
-                        disabled={!adapter.available || busyAdapterId === adapter.id}
-                        onClick={() => void testConnection(adapter.id)}
-                      >
-                        {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
-                      </button>
-                    </div>
-                  </li>
+                    <Button
+                      kind="secondary"
+                      size="sm"
+                      disabled={!adapter.available || busyAdapterId === adapter.id}
+                      onClick={() => void testConnection(adapter.id)}
+                    >
+                      {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
+                    </Button>
+                  </Stack>
                 );
               })}
-          </ul>
-        </div>
+            </RadioButtonGroup>
+          </Stack>
+        </Tile>
 
-        <div>
-          <h3>MCP servers</h3>
-          <ul className="settings-list">
+        <Tile style={{ flex: 1, minWidth: 280 }}>
+          <Stack gap={5}>
+            <h3 style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600 }}>MCP servers</h3>
             {mcpServers.map((server) => (
-              <li key={server.id}>
-                <div className="mcp-server-row">
-                  <label className="mcp-toggle">
-                    <input
-                      type="checkbox"
-                      checked={server.enabled}
-                      onChange={(event) => void toggleMcp(server.id, event.target.checked)}
-                    />
-                    <span>{server.name}</span>
-                  </label>
-                  <span className={`status-pill ${server.status === "connected" ? "status-approved" : "status-rejected"}`}>
-                    {server.status}
-                  </span>
-                </div>
+              <Stack gap={3} key={server.id} style={{ marginBlockEnd: "var(--cds-spacing-06)" }}>
+                <Stack gap={3} orientation="horizontal" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+                  <Toggle
+                    id={`mcp-${server.id}`}
+                    labelText={server.name}
+                    labelA="Off"
+                    labelB="On"
+                    toggled={server.enabled}
+                    onToggle={(enabled) => void toggleMcp(server.id, enabled)}
+                  />
+                  <Tag type={server.status === "connected" ? "green" : "red"}>{server.status}</Tag>
+                </Stack>
                 {formatConnectionDiagnostic(server.diagnostic) ? (
-                  <p className={`connection-diagnostic connection-diagnostic-${server.diagnostic?.severity ?? "info"}`}>
+                  <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
                     {formatConnectionDiagnostic(server.diagnostic)}
                   </p>
                 ) : server.errorMessage ? (
-                  <p className="connection-diagnostic connection-diagnostic-error">{server.errorMessage}</p>
+                  <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-support-error)" }}>
+                    {server.errorMessage}
+                  </p>
                 ) : null}
-                <p className="mcp-tools">Tools: {summarizeMcpTools(server.tools)}</p>
+                <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+                  Tools: {summarizeMcpTools(server.tools)}
+                </p>
                 {server.id === "figma" ? (
-                  <div className="mcp-figma-actions">
+                  <Stack gap={3} orientation="horizontal">
                     {(server.status !== "connected" || server.diagnostic?.code === "needs_auth") && (
-                      <button
-                        className="secondary-action"
+                      <Button
+                        kind="secondary"
+                        size="sm"
                         disabled={!connected || busyMcpId === server.id}
                         onClick={() => void connectFigma(server.id)}
                       >
                         {busyMcpId === server.id ? "Connecting…" : "Connect Figma"}
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      className="secondary-action"
+                    <Button
+                      kind="secondary"
+                      size="sm"
                       disabled={!connected || busyMcpId === server.id || server.status !== "connected"}
                       onClick={() => void testFigmaRead(server.id)}
                     >
                       {busyMcpId === server.id ? "Testing…" : "Test Figma read"}
-                    </button>
-                  </div>
+                    </Button>
+                  </Stack>
                 ) : null}
-              </li>
+              </Stack>
             ))}
-          </ul>
-        </div>
-      </div>
-    </section>
+          </Stack>
+        </Tile>
+      </Stack>
+    </Stack>
   );
 }

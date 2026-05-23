@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Gate 1 · writer-carbon-ui-innovation v1</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font: 14px/1.6 "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #161616;
+    background: #f4f4f4;
+    margin: 0;
+    padding: 40px;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 28px; font-weight: 300; margin: 0 0 4px; }
+  .subtitle { color: #525252; font-size: 13px; margin-bottom: 32px; }
+  section {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  h2 { font-size: 18px; font-weight: 400; margin: 0 0 16px; }
+  h3 { font-size: 15px; font-weight: 600; margin: 20px 0 8px; }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #f4f4f4;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    font-size: 12px;
+    color: #525252;
+    margin-right: 6px;
+  }
+  .flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 12px 0 24px;
+    padding: 16px;
+    background: #f4f4f4;
+    border: 1px solid #e0e0e0;
+  }
+  .screen-box {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    padding: 12px 14px;
+    min-width: 120px;
+    text-align: center;
+  }
+  .screen-title { font-weight: 600; font-size: 13px; }
+  .screen-state { font-size: 11px; color: #525252; margin-top: 4px; }
+  .arrow {
+    color: #525252;
+    font-size: 11px;
+    text-align: center;
+    max-width: 120px;
+  }
+  .arrow::before { content: "→"; font-size: 18px; display: block; color: #8c8c8c; }
+  .decision {
+    margin: 12px 0;
+    padding: 12px 14px;
+    background: #f4f4f4;
+    border-left: 3px solid #0f62fe;
+    border-radius: 0;
+  }
+  .decision-text { font-weight: 600; }
+  .decision-reason { font-size: 12px; color: #525252; margin-top: 4px; }
+  .feedback {
+    position: sticky;
+    bottom: 24px;
+    background: #fff;
+    border: 2px solid #161616;
+    border-radius: 0;
+    padding: 20px;
+    margin-top: 32px;
+  }
+  .feedback h2 { margin: 0 0 12px; }
+  .feedback-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+  .feedback-actions button {
+    padding: 10px 16px;
+    border: 1px solid #0f62fe;
+    border-radius: 0;
+    background: #fff;
+    cursor: pointer;
+    font: inherit;
+  }
+  .feedback-actions button.pass { background: #0f62fe; color: #fff; }
+  .feedback-actions button.partial { background: #fff; border-color: #161616; }
+  .feedback-actions button.fail { background: #da1e28; color: #fff; border-color: #da1e28; }
+  textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: none;
+    border-bottom: 2px solid #161616;
+    background: #f4f4f4;
+    border-radius: 0;
+    font: inherit;
+    resize: vertical;
+  }
+  .mermaid { background: #f4f4f4; padding: 16px; border: 1px solid #e0e0e0; text-align: center; }
+  .persona-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0; }
+  .persona-card { border: 1px solid #e0e0e0; padding: 14px 16px; }
+  .persona-name { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .persona-meta { font-size: 12px; color: #525252; line-height: 1.5; }
+  .persona-friction { font-size: 12px; margin-top: 8px; color: #525252; }
+  .persona-friction strong { color: #161616; }
+  .friction-item { display: flex; gap: 10px; align-items: flex-start; margin: 6px 0; }
+  .friction-label {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    background: #edf5ff;
+    border: 1px solid #0f62fe;
+    color: #0043ce;
+  }
+  .friction-text { font-size: 13px; }
+  .open-q {
+    margin-top: 16px;
+    padding: 12px;
+    background: #fff8e1;
+    border-left: 3px solid #f1c21b;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Writer · UX copy review</h1>
+<div class="subtitle">Gate 1 · writer-carbon-ui-innovation v1 · Planner output for designer sign-off (locale: en-US)</div>
+
+<!-- Section 1 -->
+<section>
+  <h2>1 · Product understanding</h2>
+
+  <h3>Primary users</h3>
+  <div class="persona-grid">
+    <div class="persona-card">
+      <div class="persona-name">Persona A · Copy reviewer (Morgan)</div>
+      <div class="persona-meta">Designer / content designer · 30–90 min focused sessions<br>Mental model: inbox → before/after → approve → export</div>
+      <div class="persona-friction"><strong>Core friction:</strong> Queue buried below setup cards; unclear empty vs. no audit.</div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-name">Persona B · Platform operator (Alex)</div>
+      <div class="persona-meta">Owns CLI agents + Figma MCP on this machine<br>Mental model: connections green before review starts</div>
+      <div class="persona-friction"><strong>Core friction:</strong> Daemon degraded without naming capability; MCP mixed with review UI.</div>
+    </div>
+  </div>
+  <p>
+    <span class="tag">Electron desktop</span>
+    <span class="tag">Local daemon</span>
+    <span class="tag">Human gate mandatory</span>
+    <span class="tag">IBM Carbon brand (fixed)</span>
+  </p>
+
+  <h3>Core scenarios</h3>
+  <ul>
+    <li><strong>Figma flow audit:</strong> Open project → Sources → start session → Review queue → approve → export</li>
+    <li><strong>Paste / spreadsheet:</strong> Sources → paste or import → map columns → session → Review</li>
+    <li><strong>Platform setup:</strong> Agents → select provider → Figma OAuth → test read → daemon connected</li>
+    <li><strong>Bulk approval:</strong> Review → filter proposed → bulk approve → export</li>
+    <li><strong>Brand voice:</strong> Settings → save guidance for active project</li>
+  </ul>
+
+  <h3>Key friction</h3>
+  <ul style="list-style:none;padding-left:0;">
+    <li class="friction-item">
+      <span class="friction-label">IA</span>
+      <span class="friction-text">Single scroll page hides the approval queue below Figma/setup cards</span>
+    </li>
+    <li class="friction-item">
+      <span class="friction-label">State</span>
+      <span class="friction-text">Project, session, adapter, and daemon health not visible at a glance</span>
+    </li>
+    <li class="friction-item">
+      <span class="friction-label">Ops</span>
+      <span class="friction-text">Connection diagnostics mixed with review content; recovery after daemon restart unclear</span>
+    </li>
+    <li class="friction-item">
+      <span class="friction-label">Density</span>
+      <span class="friction-text">Hero cards and queue compete for attention — no density gradient</span>
+    </li>
+    <li class="friction-item">
+      <span class="friction-label">Errors</span>
+      <span class="friction-text">Critical failures must not use disappearing toasts (restraint L04)</span>
+    </li>
+  </ul>
+</section>
+
+<!-- Section 2 -->
+<section>
+  <h2>2 · Sitemap</h2>
+  <div class="mermaid">
+flowchart TD
+    Masthead["Seed masthead<br/>y=0..56 · not overridden"]
+    Chrome["ProductChrome<br/>sidebar + header + daemon footer"]
+
+    Masthead --> Chrome
+
+    Chrome --> Review["Review · default /"]
+    Chrome --> Sources["Sources · /figma"]
+    Chrome --> Agents["Agents · /agents"]
+    Chrome --> Settings["Settings · /settings"]
+
+    Review --> Queue["Queue + filter + bulk"]
+    Review --> Toolbar["Audit + export toolbar"]
+
+    Sources --> FigmaUrl["Figma URL + scope"]
+    Sources --> Paste["Pasted text"]
+    Sources --> Sheet["Spreadsheet import + mapping"]
+
+    Agents --> LLM["LLM provider radio"]
+    Agents --> MCP["Figma MCP + OAuth"]
+
+    Settings --> Voice["Brand voice form"]
+  </div>
+  <p style="font-size:12px;color:#525252;margin-top:12px;">
+    <strong>Primary screens: 4</strong> (Review, Sources, Agents, Settings). Chrome layers are cross-cutting.
+    Nav label <strong>Sources</strong> vs <strong>Figma</strong> is an open question for designer (see bottom).
+  </p>
+</section>
+
+<!-- Section 3 -->
+<section>
+  <h2>3 · Key flows</h2>
+
+  <h3>Flow A · Figma copy audit (core)</h3>
+  <p style="font-size:12px;color:#525252;margin-bottom:8px;">Trigger: Morgan opens project and reviews a Figma file</p>
+  <div class="flow">
+    <div class="screen-box">
+      <div class="screen-title">Header</div>
+      <div class="screen-state">Open project</div>
+    </div>
+    <div class="arrow">Sources nav</div>
+    <div class="screen-box">
+      <div class="screen-title">Sources</div>
+      <div class="screen-state">Paste URL · start session</div>
+    </div>
+    <div class="arrow">Review nav</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Run audit · filter proposed</div>
+    </div>
+    <div class="arrow">Approve items</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Export Markdown</div>
+    </div>
+  </div>
+
+  <h3>Flow B · Platform setup before review</h3>
+  <p style="font-size:12px;color:#525252;margin-bottom:8px;">Trigger: Alex configures Devin + Figma MCP on fresh install</p>
+  <div class="flow">
+    <div class="screen-box">
+      <div class="screen-title">Agents</div>
+      <div class="screen-state">Select Devin · test CLI</div>
+    </div>
+    <div class="arrow">Enable MCP</div>
+    <div class="screen-box">
+      <div class="screen-title">Agents</div>
+      <div class="screen-state">Connect Figma · OAuth</div>
+    </div>
+    <div class="arrow">Test read</div>
+    <div class="screen-box">
+      <div class="screen-title">Sidebar footer</div>
+      <div class="screen-state">Daemon connected</div>
+    </div>
+    <div class="arrow">Review nav</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Empty · link to Sources</div>
+    </div>
+  </div>
+
+  <h3>Flow C · Spreadsheet import</h3>
+  <p style="font-size:12px;color:#525252;margin-bottom:8px;">Trigger: Copy audit from CSV/XLSX</p>
+  <div class="flow">
+    <div class="screen-box">
+      <div class="screen-title">Sources</div>
+      <div class="screen-state">Import file</div>
+    </div>
+    <div class="arrow">Map columns</div>
+    <div class="screen-box">
+      <div class="screen-title">Sources</div>
+      <div class="screen-state">Confirm mapping</div>
+    </div>
+    <div class="arrow">Create session</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Session strip visible</div>
+    </div>
+  </div>
+
+  <h3>Flow D · Bulk approval under pressure</h3>
+  <p style="font-size:12px;color:#525252;margin-bottom:8px;">Trigger: 40+ proposed items</p>
+  <div class="flow">
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Filter: proposed</div>
+    </div>
+    <div class="arrow">Bulk approve visible</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Filter: approved</div>
+    </div>
+    <div class="arrow">Export</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Save report</div>
+    </div>
+  </div>
+
+  <h3>Flow E · First run (no project)</h3>
+  <p style="font-size:12px;color:#525252;margin-bottom:8px;">Trigger: App launch, no project open</p>
+  <div class="flow">
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Empty: open project first</div>
+    </div>
+    <div class="arrow">Open project</div>
+    <div class="screen-box">
+      <div class="screen-title">Review</div>
+      <div class="screen-state">Empty: start session on Sources</div>
+    </div>
+    <div class="arrow">Text link</div>
+    <div class="screen-box">
+      <div class="screen-title">Sources</div>
+      <div class="screen-state">Session setup enabled</div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 4 -->
+<section>
+  <h2>4 · Interaction logic</h2>
+
+  <h3>Navigation</h3>
+  <p>
+    Persistent <strong>left sidebar</strong> with four items inside ProductChrome (below seed masthead).
+    Active nav uses <strong>surface change</strong>, not accent color (restraint L01).
+    No hamburger at desktop widths (min 1040px). Default route is <strong>Review</strong>.
+  </p>
+
+  <h3>State changes</h3>
+  <ul>
+    <li><strong>No project:</strong> Session actions disabled; Review empty state points to Open project.</li>
+    <li><strong>Project, no session:</strong> Review empty state with text links to Sources (no wizard modal).</li>
+    <li><strong>Active session:</strong> Review header strip shows project, short session id, source type, status counts.</li>
+    <li><strong>Daemon degraded:</strong> Sidebar footer tile shows capability messages from <code>/health</code> + Refresh.</li>
+    <li><strong>Smoke tests:</strong> One inline banner region per screen; new result replaces previous (no toast stack).</li>
+  </ul>
+
+  <h3>Errors / empty states</h3>
+  <p>
+    Connection and save failures use <strong>persistent inline regions</strong> (L04), not toasts.
+    Queue empty after audit: explain filter or prompt Run audit on Review toolbar.
+    Mapping invalid on Sources: inline form error; session not created.
+    No onboarding bubbles or “Pro tip” copy (L06, Quiet Confidence).
+  </p>
+
+  <div class="open-q">
+    <strong>Designer input requested:</strong> Sidebar nav label — <em>Sources</em> (accurate) vs <em>Figma</em> (familiar)?
+    If Figma, page subtitle must say “Figma, paste, and spreadsheet.”
+  </div>
+</section>
+
+<!-- Section 5 -->
+<section>
+  <h2>5 · Key decisions</h2>
+
+  <div class="decision">
+    <div class="decision-text">D1 · Persistent sidebar (4 areas)</div>
+    <div class="decision-reason">30+ min sessions switch context often; scales to Changelog/Reports. Rejected: single-page scroll stack.</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D2 · Review is default landing route</div>
+    <div class="decision-reason">Human gate queue is the product core. Rejected: dashboard hero cards (LLM default).</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D3 · Session sources on dedicated Sources screen (/figma)</div>
+    <div class="decision-reason">Separates setup from triage (density gradient). Rejected: modal wizard.</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D4 · Daemon status in sidebar footer</div>
+    <div class="decision-reason">Persistent diagnostics for operators (L04). Rejected: header badge only.</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D5 · Inline banners for smoke / save errors</div>
+    <div class="decision-reason">Critical state must not disappear. Rejected: toast for errors.</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D6 · Session context strip on Review header</div>
+    <div class="decision-reason">Project + session + source + counts. Rejected: window title only.</div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-text">D7 · Open Project stays in global header</div>
+    <div class="decision-reason">High-frequency action. Rejected: bury in Settings.</div>
+  </div>
+</section>
+
+<!-- Feedback -->
+<section class="feedback">
+  <h2>Designer feedback</h2>
+  <div class="feedback-actions">
+    <button class="pass" onclick="submitFeedback('pass')">Pass — proceed to Architect</button>
+    <button class="partial" onclick="submitFeedback('partial')">Partial — I have notes</button>
+    <button class="fail" onclick="submitFeedback('fail')">Fail — revisit brief</button>
+  </div>
+  <textarea id="feedback-text" placeholder="Optional notes, e.g.:&#10;- Rename Sources → Figma or keep Sources&#10;- Review empty state copy&#10;- Missing Changelog in sitemap&#10;- Sidebar vs top nav preference"></textarea>
+  <p style="font-size:12px;color:#525252;margin:8px 0 0;">Download saves <code>gate1-feedback.json</code> — place in <code>openspec/changes/writer-carbon-ui-innovation/artifacts/</code></p>
+</section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.mermaid) {
+      mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+    }
+  });
+
+  function submitFeedback(decision) {
+    const text = document.getElementById('feedback-text').value;
+    const data = {
+      run_id: 'writer-carbon-ui-innovation',
+      version: 'v1',
+      decision,
+      comments: text,
+      timestamp: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gate1-feedback.json';
+    a.click();
+    alert('Downloaded gate1-feedback.json — save to openspec/changes/writer-carbon-ui-innovation/artifacts/');
+  }
+</script>
+
+</body>
+</html>

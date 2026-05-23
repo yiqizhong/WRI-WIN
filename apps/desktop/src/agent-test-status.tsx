@@ -1,3 +1,5 @@
+import { InlineNotification } from "@carbon/react";
+
 export type AgentTestStatus = {
   kind: "info" | "success" | "error";
   text: string;
@@ -12,9 +14,9 @@ export function AgentTestStatusBanner({ status }: AgentTestStatusBannerProps) {
     return null;
   }
 
+  const kind = status.kind === "success" ? "success" : status.kind === "error" ? "error" : "info";
+
   return (
-    <p className={`agent-test-status agent-test-status-${status.kind}`} role="status" aria-live="polite">
-      {status.text}
-    </p>
+    <InlineNotification kind={kind} lowContrast title="Connection test" subtitle={status.text} hideCloseButton />
   );
 }

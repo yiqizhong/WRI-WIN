@@ -7,20 +7,23 @@ describe("AgentAdapterRegistry", () => {
     const registry = createDefaultAgentRegistry();
     const adapters = registry.list();
 
-    expect(adapters.length).toBeGreaterThanOrEqual(5);
+    expect(adapters.length).toBe(3);
 
     const echo = registry.get("echo");
     const echoDetection = await echo!.detect();
     expect(echoDetection.adapter.available).toBe(true);
 
-    const codex = registry.get("codex");
-    expect(codex).toBeDefined();
-    const codexDetection = await codex!.detect();
-    expect(codexDetection.adapter.id).toBe("codex");
-    expect(typeof codexDetection.adapter.available).toBe("boolean");
+    const cursorAgent = registry.get("cursor-agent");
+    expect(cursorAgent).toBeDefined();
+    const cursorDetection = await cursorAgent!.detect();
+    expect(cursorDetection.adapter.id).toBe("cursor-agent");
+    expect(typeof cursorDetection.adapter.available).toBe("boolean");
 
     const devin = registry.get("devin");
     const devinDetection = await devin!.detect();
     expect(devinDetection.adapter.runtimeKind).toBe("hybrid");
+
+    expect(registry.get("claude-code")).toBeUndefined();
+    expect(registry.get("codex")).toBeUndefined();
   });
 });

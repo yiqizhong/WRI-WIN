@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult } from "@writer/contracts";
+import { isLlmProviderAdapterId } from "@writer/contracts";
 import {
   createDefaultAgentRegistry,
   detectCliAdapter,
@@ -48,19 +49,19 @@ function getRegistry(): AgentAdapterRegistry {
 
 export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdapterList> {
   const registry = getRegistry();
-  const adapters = await Promise.all(registry.list().map((impl) => impl.detect().then((result) => result.adapter)));
+  const adapters = (
+    await Promise.all(registry.list().map((impl) => impl.detect().then((result) => result.adapter)))
+  ).filter((adapter) => isLlmProviderAdapterId(adapter.id));
   let storedActive = state.store.getActiveAdapterId();
 
-  if (storedActive === "byok") {
+  if (storedActive && !isLlmProviderAdapterId(storedActive)) {
     storedActive = null;
     state.store.setActiveAdapterId(null);
     await state.store.save();
   }
 
   const fallback =
-    adapters.find((adapter) => adapter.available && adapter.id !== "echo")?.id ??
-    adapters.find((adapter) => adapter.available)?.id ??
-    null;
+    adapters.find((adapter) => adapter.available)?.id ?? null;
   const activeAdapterId = storedActive ?? fallback;
 
   if (!storedActive && activeAdapterId) {
@@ -138,7 +139,14 @@ export async function startAgentRun(state: DaemonState, input: unknown): Promise
 
   const list = await getAgentAdapterList(state);
   const adapterId = parsed.adapterId ?? list.activeAdapterId;
-  const adapter = list.adapters.find((item) => item.id === adapterId);
+  let adapter = list.adapters.find((item) => item.id === adapterId);
+
+  if (!adapter && adapterId) {
+    const impl = getRegistry().get(adapterId);
+    if (impl) {
+      adapter = (await impl.detect()).adapter;
+    }
+  }
 
   if (!adapterId || !adapter) {
     throw new Error("No agent adapter selected");

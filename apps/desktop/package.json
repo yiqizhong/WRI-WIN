@@ -10,8 +10,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@writer/contracts": "0.1.0"
+    "@carbon/icons-react": "^11.81.0",
+    "@carbon/react": "^1.108.0",
+    "@ibm/plex": "^6.4.1",
+    "@writer/contracts": "0.1.0",
+    "react-router-dom": "^7.15.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "sass-embedded": "^1.100.0"
+  }
 }
-

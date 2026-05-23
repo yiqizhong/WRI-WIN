@@ -2,7 +2,7 @@
 
 **Project:** [Figma UX Copy Review v1](https://linear.app/uicb/project/figma-ux-copy-review-v1-4a213fbaf788)  
 **Team:** Wri (`WRI`)  
-**Active change:** `bootstrap-local-platform`
+**Active change:** `writer-carbon-ui-innovation`
 
 ## Agent rule (required)
 
@@ -119,3 +119,23 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 - Commit: `<sha>` — <one-line summary>
 - Verified: `npm run typecheck` / `npm test` (if run)
 ```
+
+## writer-carbon-ui-innovation (archived: `openspec/changes/archive/2026-05-22-writer-carbon-ui-innovation/`)
+
+**Epic:** [WRI-72](https://linear.app/uicb/issue/WRI-72) — Writer Carbon UI innovation (pipeline run) — **Done**
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 0.1 | WRI-73 | Brief validation + artifacts scaffold |
+| 0.2 | WRI-74 | `@carbon/react` deps + token bridge |
+| 1.1 | WRI-75 | Planner 3-pass → `TaskBreakdown.md` |
+| 1.2 | WRI-76 | `gate1.html` + designer gate |
+| 2.1 | WRI-77 | Architect `design-decisions.md` + inventory |
+| 2.2 | WRI-78 | Carbon skeletons + ProductChrome |
+| 2.3 | WRI-79 | Architect Pass 2–3 + completeness |
+| 3.1 | WRI-80 | Builder shell + routing |
+| 3.2 | WRI-81 | Review + Sources screens |
+| 3.3 | WRI-82 | Agents/MCP + Settings |
+| 4.1 | WRI-83 | Verify typecheck + Playwright |
+
+**Verify:** `verify.md` + `artifacts/verify/*.png` · smoke: `apps/desktop/scripts/smoke-ui.sh`

@@ -31,15 +31,16 @@ async function createTestState(): Promise<DaemonState> {
 }
 
 describe("agent discovery and runs", () => {
-  it("lists adapters from registry including echo", async () => {
+  it("lists LLM provider adapters only", async () => {
     const state = await createTestState();
     const list = await getAgentAdapterList(state);
-    const echo = list.adapters.find((adapter) => adapter.id === "echo");
 
-    expect(echo).toBeDefined();
-    expect(echo?.available).toBe(true);
-    expect(list.adapters.some((adapter) => adapter.id === "claude-code")).toBe(true);
+    expect(list.adapters.every((adapter) => adapter.id === "cursor-agent" || adapter.id === "devin")).toBe(true);
+    expect(list.adapters.some((adapter) => adapter.id === "cursor-agent")).toBe(true);
     expect(list.adapters.some((adapter) => adapter.id === "devin")).toBe(true);
+    expect(list.adapters.some((adapter) => adapter.id === "claude-code")).toBe(false);
+    expect(list.adapters.some((adapter) => adapter.id === "codex")).toBe(false);
+    expect(list.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
     expect(list.activeAdapterId).toBeTruthy();
   });
 
