@@ -142,3 +142,4 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 
 - Commit: `20b30dd` — Carbon UI shell with routed screens (WRI-72 epic closed)
 - Follow-up: `482433c` — SideNav in-flow layout (no content overlap)
+- Follow-up: `de83d6b` — Agents runtime cached in workspace (providers stay visible; no per-visit reload)
