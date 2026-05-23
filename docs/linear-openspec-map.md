@@ -141,3 +141,4 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 **Verify:** `verify.md` + `artifacts/verify/*.png` · smoke: `apps/desktop/scripts/smoke-ui.sh`
 
 - Commit: `20b30dd` — Carbon UI shell with routed screens (WRI-72 epic closed)
+- Follow-up: `482433c` — SideNav in-flow layout (no content overlap)
