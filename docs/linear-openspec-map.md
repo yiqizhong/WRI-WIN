@@ -95,6 +95,10 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 
 **Decision:** User chose **A** — all four providers; Devin = hybrid (cloud-backed label).
 
+## llm-byok-direct-connect (cancelled)
+
+BYOK / Direct API removed per product decision — CLI adapters only (WRI-48). OpenSpec folder retained for history; epic WRI-59 cancelled.
+
 ## Comment template
 
 ```markdown

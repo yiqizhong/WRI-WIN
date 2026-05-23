@@ -467,6 +467,32 @@ h2 {
   color: #676258;
 }
 
+.agent-test-status {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.agent-test-status-info {
+  background: #f0f4ff;
+  border: 1px solid #c5d4f7;
+  color: #2a3f73;
+}
+
+.agent-test-status-success {
+  background: #edf8f0;
+  border: 1px solid #b8dfc4;
+  color: #1f5c33;
+}
+
+.agent-test-status-error {
+  background: #fff3f0;
+  border: 1px solid #f0c4b8;
+  color: #7a2e1c;
+}
+
 .agents-panel-header {
   display: flex;
   align-items: flex-start;

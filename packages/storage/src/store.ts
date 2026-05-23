@@ -99,7 +99,8 @@ export class PlatformStore {
         }).entries,
         agentRuns: (parsed.agentRuns ?? []).map((run) => agentRunSchema.parse(run)),
         agentRunEvents: (parsed.agentRunEvents ?? []).map((event) => agentRunEventSchema.parse(event)),
-        activeAdapterId: parsed.activeAdapterId ?? null,
+        activeAdapterId:
+          parsed.activeAdapterId === "byok" ? null : (parsed.activeAdapterId ?? null),
         reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change)),
         findings: (parsed.findings ?? []).map((finding) => uxCopyFindingSchema.parse(finding)),
         rewrites: (parsed.rewrites ?? []).map((rewrite) => rewriteCandidateSchema.parse(rewrite))

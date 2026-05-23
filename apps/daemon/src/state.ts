@@ -38,13 +38,15 @@ export type DaemonState = {
 export async function createDaemonState(): Promise<DaemonState> {
   const store = new PlatformStore();
   await store.load();
-
-  return {
+  const state: DaemonState = {
     store,
     permissionRequests: [],
     activeRuns: new Map(),
     mcp: createDefaultMcpState()
   };
+
+  await refreshAgentDetection(state);
+  return state;
 }
 
 export function listProjects(state: DaemonState): ProjectList {

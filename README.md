@@ -96,7 +96,7 @@ FIGMA_ACCESS_TOKEN=your-token npm --workspace @writer/daemon run test
 ## Known limitations (bootstrap slice)
 
 - Figma extraction and writeback use stub/bootstrap paths until full MCP integration
-- Agent adapters besides `echo` are detected but not fully wired to real CLIs
+- Agent adapters besides `echo` require locally installed CLIs
 - Review findings/rewrites schemas exist; audit engine UI is not built yet
 - PDF/spreadsheet export workflows are planned in later milestones
 

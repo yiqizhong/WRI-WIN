@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { AgentAdapter } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
+import { AgentTestStatusBanner, type AgentTestStatus } from "./agent-test-status";
 
 type AgentsPanelProps = {
   client: DaemonClient;
@@ -27,23 +28,14 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
   const [mcpServers, setMcpServers] = useState<Array<{ id: string; name: string; enabled: boolean }>>([]);
   const [busyAdapterId, setBusyAdapterId] = useState<string | null>(null);
-
-  async function loadAgents() {
-    try {
-      const agentList = await client.listAgents();
-      setAdapters(agentList.adapters);
-      setActiveAdapterId(agentList.activeAdapterId);
-    } catch {
-      setAdapters([]);
-    }
-  }
+  const [testStatus, setTestStatus] = useState<AgentTestStatus | null>(null);
 
   useEffect(() => {
     if (!connected) {
       return;
     }
 
-    void loadAgents();
+    void refreshDetection();
     void (async () => {
       try {
         const mcpList = await client.listMcpServers();
@@ -77,16 +69,31 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
 
   async function testConnection(adapterId: string) {
     setBusyAdapterId(adapterId);
+    setTestStatus({
+      kind: "info",
+      text: `Testing ${adapterId}… CLI agents may take up to 45 seconds.`
+    });
 
     try {
       const result = await client.smokeAgent(adapterId);
       if (result.ok) {
-        onMessage(`${adapterId} connection OK${result.output ? `: ${result.output.slice(0, 80)}` : ""}.`);
+        const summary = `${adapterId} connection OK${result.output ? `: ${result.output.slice(0, 120)}` : ""}.`;
+        setTestStatus({ kind: "success", text: summary });
+        onMessage(summary);
       } else {
-        onMessage(result.message ?? `${adapterId} smoke test failed.`);
+        const summary = result.message ?? `${adapterId} smoke test failed.`;
+        setTestStatus({ kind: "error", text: summary });
+        onMessage(summary);
       }
     } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Smoke test failed.");
+      const summary =
+        error instanceof Error && error.name === "AbortError"
+          ? "Smoke test timed out. Check that the agent CLI is installed and responding."
+          : error instanceof Error
+            ? error.message
+            : "Smoke test failed.";
+      setTestStatus({ kind: "error", text: summary });
+      onMessage(summary);
     } finally {
       setBusyAdapterId(null);
     }
@@ -113,6 +120,8 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
           Refresh detection
         </button>
       </div>
+
+      <AgentTestStatusBanner status={testStatus} />
 
       <div className="agents-grid">
         <div>

@@ -11,7 +11,7 @@ import { createDaemonState, type DaemonState } from "./state";
 
 function applyDevCors(response: ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5173");
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "content-type");
 }
 
@@ -40,12 +40,13 @@ async function routeRequest(
     request.method !== "POST" &&
     request.method !== "DELETE" &&
     request.method !== "PATCH" &&
+    request.method !== "PUT" &&
     request.method !== "OPTIONS"
   ) {
     invalidRequest(
       response,
       `Method ${request.method ?? "UNKNOWN"} is not supported.`,
-      "Use GET, POST, PATCH, or DELETE for daemon APIs."
+      "Use GET, POST, PUT, PATCH, or DELETE for daemon APIs."
     );
     return;
   }

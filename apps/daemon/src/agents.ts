@@ -49,7 +49,14 @@ function getRegistry(): AgentAdapterRegistry {
 export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdapterList> {
   const registry = getRegistry();
   const adapters = await Promise.all(registry.list().map((impl) => impl.detect().then((result) => result.adapter)));
-  const storedActive = state.store.getActiveAdapterId();
+  let storedActive = state.store.getActiveAdapterId();
+
+  if (storedActive === "byok") {
+    storedActive = null;
+    state.store.setActiveAdapterId(null);
+    await state.store.save();
+  }
+
   const fallback =
     adapters.find((adapter) => adapter.available && adapter.id !== "echo")?.id ??
     adapters.find((adapter) => adapter.available)?.id ??
@@ -61,7 +68,7 @@ export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdap
     await state.store.save();
   }
 
-  return { adapters, activeAdapterId };
+  return { adapters, activeAdapterId: activeAdapterId ?? null };
 }
 
 export async function refreshAgentDetection(state: DaemonState): Promise<AgentAdapterList> {

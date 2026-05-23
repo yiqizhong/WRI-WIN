@@ -33,13 +33,21 @@ export class DaemonClientError extends Error {
   }
 }
 
+function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function request<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
-  parse?: (payload: unknown) => T
+  parse?: (payload: unknown) => T,
+  timeoutMs = 60_000
 ): Promise<T> {
-  const response = await fetch(`${baseUrl}${path}`, init);
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, init, timeoutMs);
   const payload: unknown = await response.json();
 
   if (!response.ok) {
@@ -246,7 +254,9 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ adapterId })
-        }
+        },
+        undefined,
+        90_000
       ),
 
     setActiveAdapter: (adapterId: string) =>
