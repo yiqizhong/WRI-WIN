@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@writer/agent-adapters": "0.1.0",
     "@writer/contracts": "0.1.0",
     "@writer/review-core": "0.1.0",

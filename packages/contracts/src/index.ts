@@ -14,6 +14,19 @@ export {
 export type { ApiError, ApiErrorCode } from "./api-error";
 
 export {
+  connectionDiagnosticCodeSchema,
+  connectionDiagnosticSchema,
+  connectionDiagnosticSeveritySchema,
+  parseConnectionDiagnostic,
+  redactDiagnosticMetadata
+} from "./connection-diagnostic";
+export type {
+  ConnectionDiagnostic,
+  ConnectionDiagnosticCode,
+  ConnectionDiagnosticSeverity
+} from "./connection-diagnostic";
+
+export {
   directoryListingSchema,
   filesystemEntrySchema,
   filesystemEntryTypeSchema,
@@ -44,9 +57,11 @@ export {
   agentRunEventTypeSchema,
   agentRunSchema,
   agentRunStatusSchema,
+  agentSmokeResultSchema,
   parseAgentAdapterList,
   parseAgentRun,
-  parseAgentRunEvent
+  parseAgentRunEvent,
+  parseAgentSmokeResult
 } from "./agent";
 export type {
   AgentAdapter,
@@ -57,16 +72,19 @@ export type {
   AgentRun,
   AgentRunEvent,
   AgentRunEventType,
-  AgentRunStatus
+  AgentRunStatus,
+  AgentSmokeResult
 } from "./agent";
 
 export {
   mcpConnectionStatusSchema,
   mcpServerListSchema,
   mcpServerSchema,
-  parseMcpServerList
+  mcpSmokeResultSchema,
+  parseMcpServerList,
+  parseMcpSmokeResult
 } from "./mcp-server";
-export type { McpConnectionStatus, McpServer, McpServerList } from "./mcp-server";
+export type { McpConnectionStatus, McpServer, McpServerList, McpSmokeResult } from "./mcp-server";
 
 export {
   parsePermissionDecisionInput,

@@ -569,6 +569,43 @@ h2 {
   gap: 8px;
 }
 
+.mcp-server-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.connection-diagnostic {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.connection-diagnostic-info {
+  background: #eef4f8;
+  color: #385869;
+}
+
+.connection-diagnostic-warning {
+  background: #fff6dd;
+  color: #7b5b12;
+}
+
+.connection-diagnostic-error {
+  background: #fdeceb;
+  color: #8f2d25;
+}
+
+.mcp-tools {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  color: #676258;
+  word-break: break-word;
+}
+
 .active-chip {
   border-color: #2f6b4f;
   background: #e8f3ec;

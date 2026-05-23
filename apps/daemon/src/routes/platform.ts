@@ -212,7 +212,7 @@ export async function handlePlatformRequest(
   }
 
   if (request.method === "GET" && path === "/mcp/smoke/figma/read") {
-    sendJson(response, 200, smokeFigmaRead(state));
+    sendJson(response, 200, await smokeFigmaRead(state));
     return true;
   }
 

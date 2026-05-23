@@ -78,30 +78,65 @@ Writer can route review prompts through locally installed agent CLIs (daemon-spa
 - `POST /agents/smoke` — `{ "adapterId": "devin" }` short probe
 - `POST /agents/runs` — run review prompt
 
+Connection diagnostics use stable codes so setup failures are actionable:
+
+| Code | Meaning | Typical recovery |
+|------|---------|------------------|
+| `missing_command` | CLI is not on PATH | Install the CLI or fix PATH |
+| `broken_executable` | Wrapper exists but underlying binary cannot spawn | Reinstall/repair the CLI package |
+| `version_probe_failed` | Version probe returned non-zero | Run the CLI manually and fix install/auth |
+| `needs_auth` | CLI needs login | Complete provider login |
+| `timeout` | Probe or smoke hung | Check interactive prompts/auth and retry |
+| `smoke_failed` | Short prompt failed | Inspect stdout/stderr snippet in UI |
+| `ready` | Provider is usable | Select and run |
+
+Example: if `codex --version` reports a vendor `ENOENT`, Writer marks Codex as `broken_executable` and suggests reinstalling or repairing the Codex CLI instead of showing a generic unavailable state.
+
 Set `WRITER_AGENT_STUBS=1` to register echo only (tests/CI without CLIs).
 
-## Figma MCP manual smoke
+## Figma MCP setup and smoke
 
 ```bash
-export FIGMA_ACCESS_TOKEN=your-token
+export WRITER_FIGMA_MCP_COMMAND=your-figma-mcp-command
+export WRITER_FIGMA_MCP_ARGS='["--stdio"]'
+export WRITER_FIGMA_MCP_READ_TOOL=figma_get_file
+export FIGMA_ACCESS_TOKEN=your-token # if your Figma MCP server expects it
 ./scripts/smoke-figma-mcp.sh
 ```
 
-Or run the Vitest manual gate:
+The daemon owns the MCP process. Desktop only toggles the configured server and calls daemon smoke endpoints.
+
+Relevant endpoints:
+
+- `GET /mcp/servers` — status, diagnostics, capabilities, discovered tools
+- `POST /mcp/servers/figma` — `{ "enabled": true }` starts and initializes the configured MCP server
+- `GET /mcp/smoke/figma/read` — calls the configured/discovered read-capable MCP tool
+
+Figma MCP diagnostics:
+
+| Code | Meaning | Typical recovery |
+|------|---------|------------------|
+| `not_configured` | No MCP command configured | Set `WRITER_FIGMA_MCP_COMMAND` |
+| `startup_failed` | Server process/init failed | Check command, args, token, and server logs |
+| `tool_not_found` | Connected but no read tool selected/discovered | Set `WRITER_FIGMA_MCP_READ_TOOL` |
+| `smoke_failed` | MCP tool call failed | Check Figma auth, file access, and tool args |
+| `ready` | MCP server initialized | Run read smoke |
+
+Or run the daemon Vitest checks:
 
 ```bash
-FIGMA_ACCESS_TOKEN=your-token npm --workspace @writer/daemon run test
+npm --workspace @writer/daemon run test -- mcp-client.test.ts mcp.smoke.test.ts
 ```
 
 ## Known limitations (bootstrap slice)
 
-- Figma extraction and writeback use stub/bootstrap paths until full MCP integration
+- Full Figma extraction and writeback still use bootstrap paths until the next MCP-backed workflow slice
 - Agent adapters besides `echo` require locally installed CLIs
 - Review findings/rewrites schemas exist; audit engine UI is not built yet
 - PDF/spreadsheet export workflows are planned in later milestones
 
 ## OpenSpec
 
-Active change: `openspec/changes/bootstrap-local-platform/`
+Active change: `openspec/changes/harden-local-cli-figma-mcp-connections/`
 
 Linear project: [Figma UX Copy Review v1](https://linear.app/uicb/project/figma-ux-copy-review-v1-4a213fbaf788)

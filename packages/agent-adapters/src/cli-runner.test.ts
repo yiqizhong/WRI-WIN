@@ -18,4 +18,16 @@ describe("cli-runner", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout.trim()).toBe("hello");
   });
+
+  it("preserves spawn ENOENT details", async () => {
+    const result = await runCliCommand({
+      executable: "/definitely/missing/writer-cli",
+      args: ["--version"],
+      timeoutMs: 1_000
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.errorCode).toBe("ENOENT");
+    expect(result.spawnError).toContain("ENOENT");
+  });
 });

@@ -1,9 +1,11 @@
 import {
   isApiError,
   parseAgentAdapterList,
+  parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
   parseMcpServerList,
+  parseMcpSmokeResult,
   parseParsedFigmaUrl,
   parseProject,
   parseProjectList,
@@ -247,7 +249,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       ),
 
     smokeAgent: (adapterId: string) =>
-      request<{ ok: boolean; adapterId: string; output?: string; message?: string }>(
+      request(
         baseUrl,
         "/agents/smoke",
         {
@@ -255,7 +257,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ adapterId })
         },
-        undefined,
+        parseAgentSmokeResult,
         90_000
       ),
 
@@ -272,6 +274,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       ),
 
     listMcpServers: () => request(baseUrl, "/mcp/servers", undefined, parseMcpServerList),
+
+    smokeFigmaRead: () => request(baseUrl, "/mcp/smoke/figma/read", undefined, parseMcpSmokeResult, 90_000),
 
     setMcpServerEnabled: async (serverId: string, enabled: boolean) => {
       await request(

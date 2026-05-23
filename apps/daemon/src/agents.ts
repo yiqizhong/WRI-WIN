@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import type { AgentAdapterList, AgentRun, AgentRunEvent } from "@writer/contracts";
+import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult } from "@writer/contracts";
 import {
   createDefaultAgentRegistry,
   detectCliAdapter,
@@ -75,7 +75,7 @@ export async function refreshAgentDetection(state: DaemonState): Promise<AgentAd
   return getAgentAdapterList(state);
 }
 
-export async function smokeAgentAdapter(state: DaemonState, input: unknown) {
+export async function smokeAgentAdapter(state: DaemonState, input: unknown): Promise<AgentSmokeResult> {
   const parsed = smokeAdapterInputSchema.parse(input);
   const config = getCliAdapterConfig(parsed.adapterId);
 
@@ -90,6 +90,7 @@ export async function smokeAgentAdapter(state: DaemonState, input: unknown) {
       ok: false,
       adapterId: parsed.adapterId,
       adapter: detection.adapter,
+      diagnostic: detection.adapter.diagnostic,
       message: detection.adapter.setupMessage ?? "Adapter is not available."
     };
   }
@@ -101,7 +102,12 @@ export async function smokeAgentAdapter(state: DaemonState, input: unknown) {
     timestamp: new Date().toISOString(),
     actor: "user",
     summary: `Agent smoke ${parsed.adapterId}: ${smoke.ok ? "ok" : "failed"}`,
-    details: { adapterId: parsed.adapterId, ok: smoke.ok, message: smoke.message }
+    details: {
+      adapterId: parsed.adapterId,
+      ok: smoke.ok,
+      message: smoke.message,
+      diagnosticCode: smoke.diagnostic?.code
+    }
   });
   await state.store.save();
 
@@ -109,6 +115,7 @@ export async function smokeAgentAdapter(state: DaemonState, input: unknown) {
     ok: smoke.ok,
     adapterId: parsed.adapterId,
     adapter: detection.adapter,
+    diagnostic: smoke.diagnostic,
     output: smoke.output,
     message: smoke.message
   };

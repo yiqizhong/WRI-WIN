@@ -15,6 +15,8 @@ export type CliRunResult = {
   exitCode: number | null;
   timedOut: boolean;
   cancelled: boolean;
+  errorCode?: string;
+  spawnError?: string;
 };
 
 export async function runCliCommand(options: CliRunOptions): Promise<CliRunResult> {
@@ -29,6 +31,8 @@ export async function runCliCommand(options: CliRunOptions): Promise<CliRunResul
     let stderr = "";
     let timedOut = false;
     let cancelled = false;
+    let errorCode: string | undefined;
+    let spawnError: string | undefined;
     let settled = false;
 
     const finish = (exitCode: number | null) => {
@@ -38,7 +42,7 @@ export async function runCliCommand(options: CliRunOptions): Promise<CliRunResul
 
       settled = true;
       clearTimeout(timer);
-      resolve({ stdout, stderr, exitCode, timedOut, cancelled });
+      resolve({ stdout, stderr, exitCode, timedOut, cancelled, errorCode, spawnError });
     };
 
     const timer =
@@ -57,7 +61,9 @@ export async function runCliCommand(options: CliRunOptions): Promise<CliRunResul
       stderr += chunk.toString("utf8");
     });
 
-    child.on("error", (error) => {
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      errorCode = error.code;
+      spawnError = error.message;
       stderr += error.message;
       finish(1);
     });

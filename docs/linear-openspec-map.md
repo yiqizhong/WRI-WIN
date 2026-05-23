@@ -99,6 +99,18 @@ After **each** OpenSpec task is checked off in `tasks.md` **and** committed:
 
 BYOK / Direct API removed per product decision — CLI adapters only (WRI-48). OpenSpec folder retained for history; epic WRI-59 cancelled.
 
+## harden-local-cli-figma-mcp-connections
+
+**Epic:** [WRI-66](https://linear.app/uicb/issue/WRI-66) — Connection hardening: local CLI LLM and Figma MCP
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.3 | WRI-67 | Shared connection diagnostics contracts |
+| 2.1–2.4 | WRI-68 | Local CLI LLM detection and smoke diagnostics |
+| 3.1–3.5 | WRI-69 | Real Figma MCP client lifecycle and read smoke |
+| 4.1–4.3 | WRI-70 | Desktop Agents/MCP diagnostic UI |
+| 5.1–5.4 | WRI-71 | Mapping, README, verify.md, final verification |
+
 ## Comment template
 
 ```markdown

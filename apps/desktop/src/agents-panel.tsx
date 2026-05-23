@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 
-import type { AgentAdapter } from "@writer/contracts";
+import type { AgentAdapter, McpServer } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
 import { AgentTestStatusBanner, type AgentTestStatus } from "./agent-test-status";
+import { formatConnectionDiagnostic, summarizeMcpTools } from "./connection-diagnostics";
 
 type AgentsPanelProps = {
   client: DaemonClient;
@@ -26,8 +27,9 @@ function runtimeLabel(adapter: AgentAdapter): string | null {
 export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) {
   const [adapters, setAdapters] = useState<AgentAdapter[]>([]);
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
-  const [mcpServers, setMcpServers] = useState<Array<{ id: string; name: string; enabled: boolean }>>([]);
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
   const [busyAdapterId, setBusyAdapterId] = useState<string | null>(null);
+  const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<AgentTestStatus | null>(null);
 
   useEffect(() => {
@@ -81,7 +83,8 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         setTestStatus({ kind: "success", text: summary });
         onMessage(summary);
       } else {
-        const summary = result.message ?? `${adapterId} smoke test failed.`;
+        const diagnostic = formatConnectionDiagnostic(result.diagnostic);
+        const summary = diagnostic ?? result.message ?? `${adapterId} smoke test failed.`;
         setTestStatus({ kind: "error", text: summary });
         onMessage(summary);
       }
@@ -106,6 +109,30 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
       onMessage(`${serverId} ${enabled ? "enabled" : "disabled"}.`);
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Could not update MCP server.");
+    }
+  }
+
+  async function testFigmaRead(serverId: string) {
+    setBusyMcpId(serverId);
+    setTestStatus({ kind: "info", text: "Testing Figma MCP read…" });
+
+    try {
+      const result = await client.smokeFigmaRead();
+      if (result.ok) {
+        const summary = `Figma MCP read OK${result.toolName ? ` via ${result.toolName}` : ""}.`;
+        setTestStatus({ kind: "success", text: summary });
+        onMessage(summary);
+      } else {
+        const summary = formatConnectionDiagnostic(result.diagnostic) ?? "Figma MCP read smoke failed.";
+        setTestStatus({ kind: "error", text: summary });
+        onMessage(summary);
+      }
+    } catch (error) {
+      const summary = error instanceof Error ? error.message : "Figma MCP read smoke failed.";
+      setTestStatus({ kind: "error", text: summary });
+      onMessage(summary);
+    } finally {
+      setBusyMcpId(null);
     }
   }
 
@@ -142,6 +169,11 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                       </span>
                     </div>
                     {adapter.setupMessage ? <p className="agent-setup">{adapter.setupMessage}</p> : null}
+                    {formatConnectionDiagnostic(adapter.diagnostic) ? (
+                      <p className={`connection-diagnostic connection-diagnostic-${adapter.diagnostic?.severity ?? "info"}`}>
+                        {formatConnectionDiagnostic(adapter.diagnostic)}
+                      </p>
+                    ) : null}
                     {adapter.executablePath ? (
                       <p className="agent-path">{adapter.executablePath}</p>
                     ) : null}
@@ -172,14 +204,36 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
           <ul className="settings-list">
             {mcpServers.map((server) => (
               <li key={server.id}>
-                <label className="mcp-toggle">
-                  <input
-                    type="checkbox"
-                    checked={server.enabled}
-                    onChange={(event) => void toggleMcp(server.id, event.target.checked)}
-                  />
-                  <span>{server.name}</span>
-                </label>
+                <div className="mcp-server-row">
+                  <label className="mcp-toggle">
+                    <input
+                      type="checkbox"
+                      checked={server.enabled}
+                      onChange={(event) => void toggleMcp(server.id, event.target.checked)}
+                    />
+                    <span>{server.name}</span>
+                  </label>
+                  <span className={`status-pill ${server.status === "connected" ? "status-approved" : "status-rejected"}`}>
+                    {server.status}
+                  </span>
+                </div>
+                {formatConnectionDiagnostic(server.diagnostic) ? (
+                  <p className={`connection-diagnostic connection-diagnostic-${server.diagnostic?.severity ?? "info"}`}>
+                    {formatConnectionDiagnostic(server.diagnostic)}
+                  </p>
+                ) : server.errorMessage ? (
+                  <p className="connection-diagnostic connection-diagnostic-error">{server.errorMessage}</p>
+                ) : null}
+                <p className="mcp-tools">Tools: {summarizeMcpTools(server.tools)}</p>
+                {server.id === "figma" ? (
+                  <button
+                    className="secondary-action"
+                    disabled={!connected || busyMcpId === server.id}
+                    onClick={() => void testFigmaRead(server.id)}
+                  >
+                    {busyMcpId === server.id ? "Testing…" : "Test Figma read"}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

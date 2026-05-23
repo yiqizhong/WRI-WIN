@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { connectionDiagnosticSchema } from "./connection-diagnostic";
+
 export const agentCapabilitySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
@@ -18,6 +20,7 @@ export const agentAdapterSchema = z.object({
   setupMessage: z.string().optional(),
   runtimeKind: agentRuntimeKindSchema.optional(),
   authState: agentAuthStateSchema.optional(),
+  diagnostic: connectionDiagnosticSchema.optional(),
   capabilities: z.array(agentCapabilitySchema)
 });
 
@@ -60,6 +63,15 @@ export const agentRunSchema = z.object({
   endedAt: z.iso.datetime().optional()
 });
 
+export const agentSmokeResultSchema = z.object({
+  ok: z.boolean(),
+  adapterId: z.string().min(1),
+  adapter: agentAdapterSchema.optional(),
+  diagnostic: connectionDiagnosticSchema.optional(),
+  output: z.string().optional(),
+  message: z.string().optional()
+});
+
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>;
 export type AgentRuntimeKind = z.infer<typeof agentRuntimeKindSchema>;
 export type AgentAuthState = z.infer<typeof agentAuthStateSchema>;
@@ -69,6 +81,7 @@ export type AgentRunStatus = z.infer<typeof agentRunStatusSchema>;
 export type AgentRunEventType = z.infer<typeof agentRunEventTypeSchema>;
 export type AgentRunEvent = z.infer<typeof agentRunEventSchema>;
 export type AgentRun = z.infer<typeof agentRunSchema>;
+export type AgentSmokeResult = z.infer<typeof agentSmokeResultSchema>;
 
 export function parseAgentAdapterList(payload: unknown): AgentAdapterList {
   return agentAdapterListSchema.parse(payload);
@@ -80,4 +93,8 @@ export function parseAgentRun(payload: unknown): AgentRun {
 
 export function parseAgentRunEvent(payload: unknown): AgentRunEvent {
   return agentRunEventSchema.parse(payload);
+}
+
+export function parseAgentSmokeResult(payload: unknown): AgentSmokeResult {
+  return agentSmokeResultSchema.parse(payload);
 }
