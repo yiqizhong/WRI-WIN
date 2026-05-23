@@ -1,0 +1,57 @@
+schema: superpowers-bridge
+
+context: |
+  Project: Writer — Figma UX Copy Review (local-first desktop app).
+  Product: Electron shell + local daemon + agent/MCP runtime for auditing and rewriting UX copy in Figma (with approval before writeback).
+  Primary spec: docs/superpowers/specs/2026-05-22-figma-ux-copy-review-design.md
+  Architecture freeze: docs/architecture/local-platform-architecture.md
+  Workflow: superpowers-bridge (OpenSpec + Superpowers). See AGENTS.md for routing.
+  In-flight platform change (spec-driven): openspec/changes/bootstrap-local-platform/
+
+  Tech stack: TypeScript (ESM), npm workspaces, React 19, Vite 7, Electron 39, Zod 4, Vitest.
+  Repo layout:
+    - apps/desktop — Electron shell, renderer UI, daemon status
+    - apps/daemon — privileged local API, MCP lifecycle, agent runs, permissions
+    - packages/contracts — shared Zod schemas
+    - packages/agent-adapters — Codex, Claude Code, Cursor Agent adapters
+    - packages/tool-runtime — tool registry, risk classification, MCP wrapping
+    - packages/storage — local persistence, audit log
+
+  Hard boundaries (do not violate in design or implementation):
+    - Renderer must NOT mutate Figma, run agent CLIs, manage MCP, write artifacts, or decide destructive permissions.
+    - Daemon validates all requests via shared schemas and enforces permission gates for write/destructive tools.
+    - Figma writeback requires approved change IDs in later slices.
+
+  Superpowers output redirection (superpowers-bridge):
+    - brainstorming → openspec/changes/<name>/brainstorm.md (NOT docs/superpowers/specs/)
+    - writing-plans → openspec/changes/<name>/plan.md (NOT docs/superpowers/plans/)
+    - Apply uses git worktrees + subagent-driven-development (TDD + code review transitive).
+
+  Conventions:
+    - Prefer minimal, focused diffs; match existing package patterns.
+    - Typecheck: npm run typecheck; test: npm run test.
+    - Do not commit unless the user explicitly asks.
+    - Linear project: "Figma UX Copy Review v1".
+    - After each OpenSpec task commit: update mapped WRI issue (state + comment). See docs/linear-openspec-map.md.
+
+rules:
+  brainstorm:
+    - Run superpowers:brainstorming; write only to the change directory brainstorm.md.
+    - Do not create orphan files under docs/superpowers/specs/ for active changes.
+  proposal:
+    - Tie every proposal to a user-visible outcome (designer/PM/content designer workflow).
+    - Reference bootstrap-local-platform or product spec when scope overlaps platform work.
+    - Include explicit non-goals and what stays out of the first slice.
+  design:
+    - Respect desktop vs daemon vs packages boundaries; no cross-layer shortcuts.
+    - Call out permission/risk class for any new tool or MCP integration.
+    - Link affected paths under apps/ and packages/.
+  specs:
+    - Use Given/When/Then scenarios; one requirement per behavioral concern.
+    - Align capability names with packages/contracts where applicable.
+  tasks:
+    - Order tasks: contracts → daemon → adapters/tool-runtime → desktop → integration.
+    - Keep tasks independently verifiable; note which npm script validates each chunk.
+  plan:
+    - Run superpowers:writing-plans; output plan.md in the change directory only.
+    - Tasks in plan.md must be TDD-sized steps with file paths and verification commands.

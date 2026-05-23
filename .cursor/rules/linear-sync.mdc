@@ -1,0 +1,18 @@
+---
+description: Sync Linear issues after each OpenSpec task commit
+alwaysApply: true
+---
+
+# Linear sync (required)
+
+When implementing `openspec/changes/*/tasks.md`:
+
+1. Complete one task → check `- [x]` in `tasks.md` → **one git commit**.
+2. **Immediately** update Linear (MCP `plugin-linear-linear`):
+   - `save_issue` — set state (`In Progress` / `Done`)
+   - `save_comment` — task id, commit SHA, one-line summary
+3. Use mapping in `docs/linear-openspec-map.md` (project: **Figma UX Copy Review v1**, team: **WRI**).
+
+Do **not** skip Linear because code or OpenSpec already updated. The board is the source of truth for the user.
+
+If no mapped issue exists, comment on parent **WRI-1** and say a new sub-issue may be needed.
