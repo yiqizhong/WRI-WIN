@@ -257,3 +257,17 @@ h2 {
   background: #eeece5;
   font-size: 13px;
 }
+
+.project-banner,
+.project-error {
+  margin: 0 28px;
+  font-size: 14px;
+}
+
+.project-banner {
+  color: #4f4c45;
+}
+
+.project-error {
+  color: #8f3d2c;
+}

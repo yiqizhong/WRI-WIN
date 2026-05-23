@@ -7,6 +7,21 @@ export {
 export type { ApiError, ApiErrorCode } from "./api-error";
 
 export {
+  directoryListingSchema,
+  filesystemEntrySchema,
+  filesystemEntryTypeSchema,
+  listDirectoryInputSchema,
+  parseDirectoryListing,
+  parseListDirectoryInput
+} from "./filesystem";
+export type {
+  DirectoryListing,
+  FilesystemEntry,
+  FilesystemEntryType,
+  ListDirectoryInput
+} from "./filesystem";
+
+export {
   capabilityStatusSchema,
   daemonCapabilitySchema,
   daemonHealthSchema,

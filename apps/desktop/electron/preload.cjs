@@ -1,6 +1,7 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("writerDesktop", {
-  platform: process.platform
+  platform: process.platform,
+  pickProjectFolder: () => ipcRenderer.invoke("writer:pick-project-folder")
 });
 

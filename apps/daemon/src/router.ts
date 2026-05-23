@@ -4,6 +4,7 @@ import type { DaemonConfig } from "./config";
 import { getBootstrapCapabilities } from "./capabilities";
 import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
+import { handleFilesystemRequest } from "./routes/filesystem";
 import { handlePlatformRequest } from "./routes/platform";
 import { createDaemonState, type DaemonState } from "./state";
 
@@ -30,6 +31,10 @@ async function routeRequest(
       getCapabilitySummary: getBootstrapCapabilities
     })
   ) {
+    return;
+  }
+
+  if (await handleFilesystemRequest(request, response)) {
     return;
   }
 

@@ -17,6 +17,8 @@ import {
   getDaemonStatusView,
   type DaemonConnectionState
 } from "./daemon-status";
+import { createDaemonClient, DaemonClientError } from "./daemon-client";
+import type { Project } from "@writer/contracts";
 import "./styles.css";
 
 const navItems = [
@@ -28,11 +30,45 @@ const navItems = [
 
 function App() {
   const [daemonState, setDaemonState] = useState<DaemonConnectionState>({ kind: "checking" });
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [isOpeningProject, setIsOpeningProject] = useState(false);
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
+  const daemonClient = useMemo(() => createDaemonClient(), []);
 
   async function refreshDaemonStatus() {
     setDaemonState({ kind: "checking" });
     setDaemonState(await checkDaemonHealth());
+  }
+
+  async function openProject() {
+    setProjectError(null);
+    setIsOpeningProject(true);
+
+    try {
+      const folderPath = await window.writerDesktop.pickProjectFolder();
+
+      if (!folderPath) {
+        return;
+      }
+
+      const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() ?? "Project";
+      const project = await daemonClient.openProject({
+        name: folderName,
+        rootPath: folderPath
+      });
+
+      await daemonClient.listDirectory(project.rootPath);
+      setActiveProject(project);
+    } catch (error) {
+      const message =
+        error instanceof DaemonClientError
+          ? error.message
+          : "Could not open the project through the local daemon.";
+      setProjectError(message);
+    } finally {
+      setIsOpeningProject(false);
+    }
   }
 
   useEffect(() => {
@@ -86,11 +122,27 @@ function App() {
             <p className="eyebrow">Local platform</p>
             <h1>Review workspace</h1>
           </div>
-          <button className="primary-action">
+          <button
+            className="primary-action"
+            disabled={isOpeningProject || daemonState.kind === "unavailable"}
+            onClick={() => void openProject()}
+          >
             <FolderOpen aria-hidden="true" size={18} />
-            <span>Open Project</span>
+            <span>{isOpeningProject ? "Opening…" : "Open Project"}</span>
           </button>
         </header>
+
+        {activeProject ? (
+          <p className="project-banner">
+            Active project: <strong>{activeProject.name}</strong> — {activeProject.rootPath}
+          </p>
+        ) : null}
+
+        {projectError ? (
+          <p className="project-error" role="alert">
+            {projectError}
+          </p>
+        ) : null}
 
         <section className="work-grid" aria-label="Workspace overview">
           <div className="panel hero-panel">

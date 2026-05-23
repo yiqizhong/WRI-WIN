@@ -17,7 +17,7 @@
 - [x] 3.1 Implement Electron desktop app shell with navigation, workspace area, settings entry, and daemon status display.
 - [x] 3.2 Implement the desktop-to-daemon client using shared contracts.
 - [x] 3.3 Add unavailable/degraded daemon states with user-readable recovery messages.
-- [ ] 3.4 Route local folder selection and file operations through the daemon boundary.
+- [x] 3.4 Route local folder selection and file operations through the daemon boundary.
 
 ## 4. Storage
 
