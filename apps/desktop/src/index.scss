@@ -75,10 +75,38 @@ html[data-platform='win32'] .seed-shell {
   box-sizing: border-box;
 }
 
+.writer-product-chrome {
+  display: flex;
+  align-items: stretch;
+  min-block-size: calc(100vh - var(--seed-content-top));
+}
+
+// Carbon SideNav is position:fixed by default — override to in-flow rail beside content.
+.writer-product-chrome .cds--side-nav__navigation.cds--side-nav {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 0 0 16rem;
+  inline-size: 16rem;
+  max-inline-size: 16rem;
+  block-size: auto;
+  min-block-size: calc(100vh - var(--seed-content-top));
+  transform: none;
+  overflow: visible;
+}
+
+.writer-product-chrome .cds--side-nav__overlay {
+  display: none;
+}
+
+.writer-product-chrome__main {
+  flex: 1;
+  min-width: 0;
+}
+
 .writer-product-chrome .cds--side-nav {
   display: flex;
   flex-direction: column;
-  block-size: calc(100vh - var(--seed-content-top));
   border-inline-end: 1px solid var(--cds-border-subtle-01);
 }
 

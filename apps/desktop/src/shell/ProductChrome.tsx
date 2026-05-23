@@ -50,8 +50,14 @@ export function ProductChrome({
   const location = useLocation();
 
   return (
-    <div className="writer-product-chrome" style={{ display: "flex", minHeight: "calc(100vh - 66px)" }}>
-      <SideNav aria-label="Writer navigation" expanded isFixedNav={false} isChildOfHeader={false}>
+    <div className="writer-product-chrome">
+      <SideNav
+        aria-label="Writer navigation"
+        className="writer-product-chrome__nav"
+        expanded
+        isFixedNav={false}
+        isChildOfHeader={false}
+      >
         <SideNavItems>
           {NAV_ITEMS.map((item) => (
             <SideNavLink
@@ -79,7 +85,7 @@ export function ProductChrome({
         </div>
       </SideNav>
 
-      <Stack gap={7} style={{ flex: 1, padding: "var(--cds-spacing-06)", minWidth: 0 }}>
+      <Stack gap={7} className="writer-product-chrome__main" style={{ padding: "var(--cds-spacing-06)" }}>
         <div
           style={{
             display: "flex",
