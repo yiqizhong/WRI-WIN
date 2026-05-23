@@ -4,27 +4,42 @@ import type { DaemonConfig } from "./config";
 import { getBootstrapCapabilities } from "./capabilities";
 import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
+import { handlePlatformRequest } from "./routes/platform";
+import { createDaemonState, type DaemonState } from "./state";
 
-export function createRequestHandler(config: DaemonConfig) {
+export function createRequestHandler(config: DaemonConfig, state: DaemonState = createDaemonState()) {
   return (request: IncomingMessage, response: ServerResponse) => {
-    if (request.method !== "GET" && request.method !== "POST") {
-      invalidRequest(response, `Method ${request.method ?? "UNKNOWN"} is not supported.`, "Use GET or POST for daemon APIs.");
-      return;
-    }
-
-    if (
-      handleHealthRequest(request, response, {
-        config,
-        getCapabilitySummary: getBootstrapCapabilities
-      })
-    ) {
-      return;
-    }
-
-    notFound(
-      response,
-      "Route not found.",
-      "Check the daemon API path or update the desktop client."
-    );
+    void routeRequest(request, response, config, state);
   };
+}
+
+async function routeRequest(
+  request: IncomingMessage,
+  response: ServerResponse,
+  config: DaemonConfig,
+  state: DaemonState
+) {
+  if (request.method !== "GET" && request.method !== "POST") {
+    invalidRequest(response, `Method ${request.method ?? "UNKNOWN"} is not supported.`, "Use GET or POST for daemon APIs.");
+    return;
+  }
+
+  if (
+    handleHealthRequest(request, response, {
+      config,
+      getCapabilitySummary: getBootstrapCapabilities
+    })
+  ) {
+    return;
+  }
+
+  if (await handlePlatformRequest(request, response, state)) {
+    return;
+  }
+
+  notFound(
+    response,
+    "Route not found.",
+    "Check the daemon API path or update the desktop client."
+  );
 }
