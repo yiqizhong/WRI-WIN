@@ -27,6 +27,11 @@ function createWindow() {
   window.loadURL(devServerUrl);
 }
 
+ipcMain.handle("writer:open-external", async (_event, url) => {
+  await shell.openExternal(url);
+  return true;
+});
+
 ipcMain.handle("writer:pick-project-folder", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory", "createDirectory"]

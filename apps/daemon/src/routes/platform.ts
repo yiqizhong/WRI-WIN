@@ -21,6 +21,7 @@ import {
   setMcpServerEnabled,
   smokeFigmaRead,
   smokeFigmaWrite,
+  startFigmaMcpAuth,
   startAgentRun,
   type DaemonState
 } from "../state";
@@ -193,6 +194,11 @@ export async function handlePlatformRequest(
 
   if (request.method === "GET" && path === "/mcp/servers") {
     sendJson(response, 200, getMcpServerList(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/mcp/servers/figma/auth/start") {
+    sendJson(response, 200, await startFigmaMcpAuth(state));
     return true;
   }
 

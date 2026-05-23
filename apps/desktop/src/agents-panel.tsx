@@ -112,6 +112,74 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     }
   }
 
+  async function connectFigma(serverId: string) {
+    setBusyMcpId(serverId);
+    setTestStatus({ kind: "info", text: "Opening Figma sign-in…" });
+
+    try {
+      if (!mcpServers.find((server) => server.id === serverId)?.enabled) {
+        await toggleMcp(serverId, true);
+      }
+
+      const result = await client.startFigmaMcpAuth();
+      if (result.status === "redirect" && result.authorizationUrl) {
+        if (window.writerDesktop?.openExternal) {
+          await window.writerDesktop.openExternal(result.authorizationUrl);
+        } else {
+          window.open(result.authorizationUrl, "_blank", "noopener,noreferrer");
+        }
+
+        setTestStatus({
+          kind: "info",
+          text: "Finish sign-in in your browser, then return here. Writer will connect automatically."
+        });
+        onMessage("Figma sign-in opened in browser.");
+
+        for (let attempt = 0; attempt < 60; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2_000));
+          const refreshed = await client.listMcpServers();
+          setMcpServers(refreshed.servers);
+          const figma = refreshed.servers.find((server) => server.id === "figma");
+          if (figma?.status === "connected") {
+            setTestStatus({ kind: "success", text: "Figma MCP connected." });
+            onMessage("Figma MCP connected.");
+            return;
+          }
+          if (figma?.status === "error") {
+            const summary = formatConnectionDiagnostic(figma.diagnostic) ?? "Figma MCP sign-in failed.";
+            setTestStatus({ kind: "error", text: summary });
+            onMessage(summary);
+            return;
+          }
+        }
+
+        setTestStatus({
+          kind: "error",
+          text: "Figma sign-in is still pending. Complete authorization in your browser or try Connect Figma again."
+        });
+        return;
+      }
+
+      if (result.ok && result.status === "connected") {
+        const refreshed = await client.listMcpServers();
+        setMcpServers(refreshed.servers);
+        setTestStatus({ kind: "success", text: "Figma MCP connected." });
+        onMessage("Figma MCP connected.");
+        return;
+      }
+
+      const summary = formatConnectionDiagnostic(result.diagnostic) ?? "Figma MCP sign-in failed.";
+      setTestStatus({ kind: "error", text: summary });
+      onMessage(summary);
+    } catch (error) {
+      const summary = error instanceof Error ? error.message : "Figma MCP sign-in failed.";
+      setTestStatus({ kind: "error", text: summary });
+      onMessage(summary);
+    } finally {
+      setBusyMcpId(null);
+    }
+  }
+
   async function testFigmaRead(serverId: string) {
     setBusyMcpId(serverId);
     setTestStatus({ kind: "info", text: "Testing Figma MCP read…" });
@@ -226,13 +294,24 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                 ) : null}
                 <p className="mcp-tools">Tools: {summarizeMcpTools(server.tools)}</p>
                 {server.id === "figma" ? (
-                  <button
-                    className="secondary-action"
-                    disabled={!connected || busyMcpId === server.id}
-                    onClick={() => void testFigmaRead(server.id)}
-                  >
-                    {busyMcpId === server.id ? "Testing…" : "Test Figma read"}
-                  </button>
+                  <div className="mcp-figma-actions">
+                    {(server.status !== "connected" || server.diagnostic?.code === "needs_auth") && (
+                      <button
+                        className="secondary-action"
+                        disabled={!connected || busyMcpId === server.id}
+                        onClick={() => void connectFigma(server.id)}
+                      >
+                        {busyMcpId === server.id ? "Connecting…" : "Connect Figma"}
+                      </button>
+                    )}
+                    <button
+                      className="secondary-action"
+                      disabled={!connected || busyMcpId === server.id || server.status !== "connected"}
+                      onClick={() => void testFigmaRead(server.id)}
+                    >
+                      {busyMcpId === server.id ? "Testing…" : "Test Figma read"}
+                    </button>
+                  </div>
                 ) : null}
               </li>
             ))}

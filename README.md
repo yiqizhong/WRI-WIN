@@ -96,7 +96,13 @@ Set `WRITER_AGENT_STUBS=1` to register echo only (tests/CI without CLIs).
 
 ## Figma MCP setup and smoke
 
-Figma's recommended setup is the remote MCP server:
+Writer defaults to Figma's official remote MCP server (`https://mcp.figma.com/mcp`), the same endpoint Claude Code uses. No manual env setup is required for the common case.
+
+**Desktop:** enable **Figma MCP**, click **Connect Figma**, sign in in the browser, then run **Test Figma read**.
+
+Tokens are stored in `~/.writer/mcp-auth/figma.json` and refreshed automatically.
+
+Advanced overrides:
 
 ```bash
 export WRITER_FIGMA_MCP_URL=https://mcp.figma.com/mcp
@@ -104,7 +110,7 @@ export WRITER_FIGMA_MCP_READ_TOOL=figma_get_file
 ./scripts/smoke-figma-mcp.sh
 ```
 
-The remote server uses Figma OAuth. Writer can attempt the HTTP MCP connection and will return `needs_auth` if the server requires an OAuth flow that has not been completed in a supported MCP client. On this machine, Claude Code already has user-scope Figma MCP configured and connected:
+The remote server uses Figma OAuth. Writer runs the OAuth callback on `http://127.0.0.1:19876/mcp/oauth/callback` (same pattern as Claude Code / Cursor). On this machine, Claude Code already has user-scope Figma MCP configured and connected:
 
 ```bash
 claude mcp list
@@ -142,7 +148,7 @@ Figma MCP diagnostics:
 | Code | Meaning | Typical recovery |
 |------|---------|------------------|
 | `not_configured` | No MCP URL or command configured | Set `WRITER_FIGMA_MCP_URL` for remote HTTP, or `WRITER_FIGMA_MCP_COMMAND` for stdio |
-| `needs_auth` | Remote server requires OAuth | Authenticate in a supported MCP client, or configure a local stdio server |
+| `needs_auth` | Remote server requires OAuth | Click **Connect Figma** in the desktop app |
 | `startup_failed` | Server process/init failed | Check URL, command, args, token, and server logs |
 | `tool_not_found` | Connected but no read tool selected/discovered | Set `WRITER_FIGMA_MCP_READ_TOOL` |
 | `smoke_failed` | MCP tool call failed | Check Figma auth, file access, and tool args |

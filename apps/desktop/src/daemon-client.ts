@@ -277,6 +277,24 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     smokeFigmaRead: () => request(baseUrl, "/mcp/smoke/figma/read", undefined, parseMcpSmokeResult, 90_000),
 
+    startFigmaMcpAuth: () =>
+      request(
+        baseUrl,
+        "/mcp/servers/figma/auth/start",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}"
+        },
+        undefined,
+        120_000
+      ) as Promise<{
+        ok: boolean;
+        status: "connected" | "redirect" | "error";
+        authorizationUrl?: string;
+        diagnostic?: import("@writer/contracts").ConnectionDiagnostic;
+      }>,
+
     setMcpServerEnabled: async (serverId: string, enabled: boolean) => {
       await request(
         baseUrl,

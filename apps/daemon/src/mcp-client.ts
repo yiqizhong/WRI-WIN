@@ -1,7 +1,10 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
+import {
+  StreamableHTTPClientTransport,
+  StreamableHTTPError
+} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { UnauthorizedError, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { ConnectionDiagnostic } from "@writer/contracts";
 
 export type McpClientConfig = {
@@ -11,6 +14,7 @@ export type McpClientConfig = {
   env?: Record<string, string>;
   url?: string;
   headers?: Record<string, string>;
+  authProvider?: OAuthClientProvider;
 };
 
 type NormalizedMcpClientConfig = McpClientConfig & {
@@ -29,6 +33,7 @@ export type McpProtocolClient = {
   connect: () => Promise<void>;
   listTools: () => Promise<{ tools: McpToolSummary[] }>;
   callTool: (input: { name: string; arguments?: Record<string, unknown> }) => Promise<unknown>;
+  finishAuth?: (authorizationCode: string) => Promise<void>;
   close: () => Promise<void>;
 };
 
@@ -82,16 +87,18 @@ export function createMcpClient(
         await protocolClient.connect();
         return { ok: true };
       } catch (error) {
-        protocolClient = null;
+        if (!isAuthRequiredError(error)) {
+          protocolClient = null;
+        }
 
-        if (error instanceof UnauthorizedError) {
+        if (isAuthRequiredError(error)) {
           return {
             ok: false,
             diagnostic: {
               code: "needs_auth",
               severity: "warning",
-              message: "Figma MCP remote server requires authentication.",
-              recoveryAction: "Authenticate the remote Figma MCP server in a supported MCP client, or configure a local stdio server for Writer.",
+              message: "Figma MCP requires sign-in.",
+              recoveryAction: "Click Connect Figma in Writer to sign in with your Figma account.",
               command: normalizedConfig.url ?? normalizedConfig.command
             }
           };
@@ -142,9 +149,27 @@ export function createMcpClient(
       }
 
       try {
+        const result = await protocolClient.callTool({ name, arguments: args });
+        const toolError = getMcpToolErrorMessage(result);
+
+        if (toolError) {
+          return {
+            ok: false,
+            result,
+            diagnostic: {
+              code: "smoke_failed",
+              severity: "error",
+              message: `Figma MCP tool ${name} returned an error.`,
+              recoveryAction: "Check tool arguments and Figma file access.",
+              command: normalizedConfig.url ?? normalizedConfig.command,
+              stderrSnippet: toolError
+            }
+          };
+        }
+
         return {
           ok: true,
-          result: await protocolClient.callTool({ name, arguments: args })
+          result
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "MCP tool call failed.";
@@ -156,6 +181,38 @@ export function createMcpClient(
             message: `Figma MCP tool ${name} failed.`,
             recoveryAction: "Check Figma MCP authentication, file access, and tool arguments.",
             command: normalizedConfig.url ?? normalizedConfig.command,
+            stderrSnippet: message
+          }
+        };
+      }
+    },
+
+    async finishAuth(authorizationCode: string): Promise<McpConnectionResult> {
+      if (!protocolClient?.finishAuth) {
+        return {
+          ok: false,
+          diagnostic: {
+            code: "needs_auth",
+            severity: "warning",
+            message: "Figma MCP OAuth is not available for this transport.",
+            recoveryAction: "Use the remote Figma MCP URL or click Connect Figma."
+          }
+        };
+      }
+
+      try {
+        await protocolClient.finishAuth(authorizationCode);
+        await protocolClient.connect();
+        return { ok: true };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Figma OAuth failed.";
+        return {
+          ok: false,
+          diagnostic: {
+            code: "smoke_failed",
+            severity: "error",
+            message: "Figma OAuth callback failed.",
+            recoveryAction: "Try Connect Figma again.",
             stderrSnippet: message
           }
         };
@@ -174,6 +231,7 @@ function createSdkProtocolClient(config: NormalizedMcpClientConfig): McpProtocol
   const transport =
     config.transport === "http" && config.url
       ? new StreamableHTTPClientTransport(new URL(config.url), {
+          authProvider: config.authProvider,
           requestInit: Object.keys(config.headers).length > 0 ? { headers: config.headers } : undefined
         })
       : new StdioClientTransport({
@@ -187,8 +245,28 @@ function createSdkProtocolClient(config: NormalizedMcpClientConfig): McpProtocol
     connect: () => client.connect(transport),
     listTools: () => client.listTools(),
     callTool: (input) => client.callTool(input),
+    finishAuth:
+      transport instanceof StreamableHTTPClientTransport
+        ? (authorizationCode) => transport.finishAuth(authorizationCode)
+        : undefined,
     close: () => client.close()
   };
+}
+
+function isAuthRequiredError(error: unknown): boolean {
+  if (error instanceof UnauthorizedError) {
+    return true;
+  }
+
+  if (error instanceof StreamableHTTPError && error.code === 401) {
+    return true;
+  }
+
+  if (error instanceof Error && /unauthorized/i.test(error.message)) {
+    return true;
+  }
+
+  return false;
 }
 
 function normalizeMcpClientConfig(config: McpClientConfig): NormalizedMcpClientConfig {
@@ -199,6 +277,45 @@ function normalizeMcpClientConfig(config: McpClientConfig): NormalizedMcpClientC
     env: config.env ?? {},
     headers: config.headers ?? {}
   };
+}
+
+function getMcpToolErrorMessage(result: unknown): string | undefined {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const record = result as Record<string, unknown>;
+
+  if (record.isError === true) {
+    return extractMcpContentText(record.content) ?? "MCP tool reported isError=true.";
+  }
+
+  const contentText = extractMcpContentText(record.content);
+  if (contentText && /^MCP error\b/i.test(contentText)) {
+    return contentText;
+  }
+
+  return undefined;
+}
+
+function extractMcpContentText(content: unknown): string | undefined {
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+
+  const text = content
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+
+      const entry = item as Record<string, unknown>;
+      return entry.type === "text" && typeof entry.text === "string" ? entry.text : "";
+    })
+    .join("\n")
+    .trim();
+
+  return text || undefined;
 }
 
 function notConfiguredDiagnostic(): McpConnectionResult {

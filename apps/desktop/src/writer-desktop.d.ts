@@ -4,6 +4,7 @@ declare global {
   interface Window {
     writerDesktop: {
       platform: string;
+      openExternal: (url: string) => Promise<boolean>;
       pickProjectFolder: () => Promise<string | null>;
       pickSpreadsheetFile: () => Promise<string | null>;
       pickSaveFile: (options: {

@@ -24,11 +24,18 @@ async function createTestState(): Promise<DaemonState> {
 }
 
 describe("figma mcp smoke", () => {
-  it("reports not configured without a command", async () => {
+  it("defaults to the official remote Figma MCP URL", () => {
+    const config = getFigmaMcpConfigFromEnv({});
+    expect(config.transport).toBe("http");
+    expect(config.url).toBe("https://mcp.figma.com/mcp");
+  });
+
+  it("reports startup_failed when not connected", async () => {
     const state = await createTestState();
+    state.mcp.env = { WRITER_FIGMA_MCP_URL: "https://mcp.figma.com/mcp" };
     const result = await smokeFigmaRead(state);
     expect(result.ok).toBe(false);
-    expect(result.diagnostic?.code).toBe("not_configured");
+    expect(result.diagnostic?.code).toBe("startup_failed");
   });
 
   it("loads remote Figma MCP URL config", () => {
@@ -47,12 +54,41 @@ describe("figma mcp smoke", () => {
     state.mcp.figma.enabled = true;
     state.mcp.figma.status = "connected";
     state.mcp.figma.tools = [{ name: "write_comment" }];
+    state.mcp.figmaClient = {
+      connect: async () => ({ ok: true }),
+      listTools: async () => [{ name: "write_comment" }],
+      callTool: async () => ({ ok: true, result: {} }),
+      finishAuth: async () => ({ ok: true }),
+      close: async () => undefined
+    };
 
     const result = await smokeFigmaRead(state);
 
     expect(result.ok).toBe(false);
     expect(result.diagnostic?.code).toBe("tool_not_found");
     expect(result.metadata?.tools).toEqual(["write_comment"]);
+  });
+
+  it("prefers whoami for read smoke tool selection", async () => {
+    const state = await createTestState();
+    state.mcp.figma.enabled = true;
+    state.mcp.figma.status = "connected";
+    state.mcp.figma.tools = [{ name: "create_new_file" }, { name: "whoami" }, { name: "get_metadata" }];
+    state.mcp.figmaClient = {
+      connect: async () => ({ ok: true }),
+      listTools: async () => state.mcp.figma.tools ?? [],
+      callTool: async (name: string) => ({
+        ok: true,
+        result: { content: [{ type: "text", text: `called ${name}` }] }
+      }),
+      finishAuth: async () => ({ ok: true }),
+      close: async () => undefined
+    };
+
+    const result = await smokeFigmaRead(state);
+
+    expect(result.ok).toBe(true);
+    expect(result.toolName).toBe("whoami");
   });
 
   it("runs a read smoke through the connected MCP client", async () => {
@@ -67,6 +103,7 @@ describe("figma mcp smoke", () => {
         ok: true,
         result: { content: [{ type: "text", text: `called ${name}` }] }
       }),
+      finishAuth: async () => ({ ok: true }),
       close: async () => undefined
     };
 

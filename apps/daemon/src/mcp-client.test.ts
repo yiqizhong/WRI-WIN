@@ -68,6 +68,20 @@ describe("mcp client wrapper", () => {
     expect(observedUrl).toBe("https://mcp.figma.com/mcp");
   });
 
+  it("returns needs_auth when remote HTTP responds unauthorized without auth provider", async () => {
+    const client = createMcpClient({ url: "https://mcp.figma.com/mcp" }, () => ({
+      ...fakeProtocolClient(),
+      connect: async () => {
+        throw new Error("Streamable HTTP error: Error POSTing to endpoint: Unauthorized");
+      }
+    }));
+
+    const connected = await client.connect();
+
+    expect(connected.ok).toBe(false);
+    expect(connected.diagnostic?.code).toBe("needs_auth");
+  });
+
   it("returns needs_auth when remote HTTP requires authorization", async () => {
     const client = createMcpClient({ url: "https://mcp.figma.com/mcp" }, () => ({
       ...fakeProtocolClient(),
@@ -81,6 +95,21 @@ describe("mcp client wrapper", () => {
     expect(connected.ok).toBe(false);
     expect(connected.diagnostic?.code).toBe("needs_auth");
     expect(connected.diagnostic?.command).toBe("https://mcp.figma.com/mcp");
+  });
+
+  it("treats MCP error content as smoke_failed", async () => {
+    const client = createMcpClient({ url: "https://mcp.figma.com/mcp" }, () => ({
+      ...fakeProtocolClient(),
+      callTool: async () => ({
+        content: [{ type: "text", text: "MCP error -32602: Input validation error" }]
+      })
+    }));
+
+    await client.connect();
+    const result = await client.callTool("create_new_file", {});
+
+    expect(result.ok).toBe(false);
+    expect(result.diagnostic?.code).toBe("smoke_failed");
   });
 
   it("returns startup_failed when protocol connection throws", async () => {

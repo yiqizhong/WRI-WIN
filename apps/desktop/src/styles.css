@@ -606,6 +606,12 @@ h2 {
   word-break: break-word;
 }
 
+.mcp-figma-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .active-chip {
   border-color: #2f6b4f;
   background: #e8f3ec;

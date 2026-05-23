@@ -24,7 +24,7 @@ import {
   startAgentRun,
   type AgentRunResult
 } from "./agents";
-import { createDefaultMcpState, getMcpServerList, setMcpServerEnabled, smokeFigmaRead, smokeFigmaWrite } from "./mcp";
+import { createDefaultMcpState, getMcpServerList, setMcpServerEnabled, smokeFigmaRead, smokeFigmaWrite, startFigmaMcpAuth } from "./mcp";
 import type { McpRuntimeState } from "./mcp";
 import { createPermissionRequest, executeTool, getToolList } from "./tools";
 
@@ -104,6 +104,7 @@ export {
   executeTool,
   getMcpServerList,
   setMcpServerEnabled,
+  startFigmaMcpAuth,
   smokeFigmaRead,
   smokeFigmaWrite,
   type AgentRunResult
