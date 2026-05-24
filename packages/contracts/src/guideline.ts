@@ -203,3 +203,9 @@ export function parseThreeLayerGuidelineSnapshot(payload: unknown): ThreeLayerGu
 export function parseSessionGuidelineSnapshot(payload: unknown): SessionGuidelineSnapshot {
   return sessionGuidelineSnapshotSchema.parse(payload);
 }
+
+export function isLegacyGuidelineSnapshot(
+  snapshot: SessionGuidelineSnapshot
+): snapshot is GuidelineSnapshot {
+  return "guidelineId" in snapshot;
+}

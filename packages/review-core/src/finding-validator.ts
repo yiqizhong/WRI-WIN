@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { GuidelineSnapshot, Surface, UxCopyFinding } from "@writer/contracts";
+import {
+  isLegacyGuidelineSnapshot,
+  type SessionGuidelineSnapshot,
+  type Surface,
+  type Term,
+  type UxCopyFinding
+} from "@writer/contracts";
 
 export type DropReason = "invalid_rule_id" | "invalid_term_id" | "evidence_not_found";
 
@@ -12,13 +18,34 @@ export type AuditRunSummary = {
   droppedByReason: Record<DropReason, number>;
 };
 
+function collectRuleIds(snapshot: SessionGuidelineSnapshot): Set<string> {
+  if (isLegacyGuidelineSnapshot(snapshot)) {
+    return new Set(snapshot.guideline.rules.map((r) => r.id));
+  }
+  const ids = new Set<string>();
+  for (const rule of snapshot.companyBase?.rules ?? []) ids.add(rule.id);
+  for (const rule of snapshot.softwareWriting?.rules ?? []) ids.add(rule.id);
+  for (const rule of snapshot.productPackage?.writingGuide?.rules ?? []) ids.add(rule.id);
+  return ids;
+}
+
+function collectTerms(snapshot: SessionGuidelineSnapshot): Term[] {
+  if (isLegacyGuidelineSnapshot(snapshot)) {
+    return snapshot.guideline.glossary;
+  }
+  const byId = new Map<string, Term>();
+  for (const term of snapshot.companyGlossary) byId.set(term.id, term);
+  for (const term of snapshot.productPackage?.glossary ?? []) byId.set(term.id, term);
+  return [...byId.values()];
+}
+
 export function validateFindings(
   findings: UxCopyFinding[],
-  snapshot: GuidelineSnapshot,
+  snapshot: SessionGuidelineSnapshot,
   auditedText: string
 ): { validated: UxCopyFinding[]; summary: AuditRunSummary } {
-  const ruleIds = new Set(snapshot.guideline.rules.map((r) => r.id));
-  const termIds = new Set(snapshot.guideline.glossary.map((t) => t.id));
+  const ruleIds = collectRuleIds(snapshot);
+  const termIds = new Set(collectTerms(snapshot).map((t) => t.id));
 
   const droppedByReason: Record<DropReason, number> = {
     invalid_rule_id: 0,
@@ -62,12 +89,12 @@ export function buildGlossaryFindings(
   sourceType: UxCopyFinding["sourceType"],
   surface: Surface,
   auditedText: string,
-  snapshot: GuidelineSnapshot
+  snapshot: SessionGuidelineSnapshot
 ): UxCopyFinding[] {
   const findings: UxCopyFinding[] = [];
   const textLower = auditedText.toLowerCase();
 
-  for (const term of snapshot.guideline.glossary) {
+  for (const term of collectTerms(snapshot)) {
     if (!term.forbidden?.length) continue;
 
     for (const forbidden of term.forbidden) {

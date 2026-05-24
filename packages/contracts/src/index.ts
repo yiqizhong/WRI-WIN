@@ -199,7 +199,8 @@ export {
   parseProductBackground,
   parseProductPackage,
   parseThreeLayerGuidelineSnapshot,
-  parseSessionGuidelineSnapshot
+  parseSessionGuidelineSnapshot,
+  isLegacyGuidelineSnapshot
 } from "./guideline";
 export type {
   Guideline,
