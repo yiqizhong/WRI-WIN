@@ -177,48 +177,82 @@ export type {
 } from "./finding";
 
 export {
+  guidelineLayerSchema,
   guidelineListItemSchema,
   guidelineListSchema,
   guidelineSchema,
   guidelineSnapshotSchema,
   guidelineSeveritySchema,
+  guidelinesTreeSchema,
+  productBackgroundSchema,
+  productPackageListItemSchema,
+  productPackageSchema,
   ruleSchema,
   surfaceSchema,
   termSchema,
+  threeLayerGuidelineSnapshotSchema,
   parseGuideline,
   parseGuidelineList,
-  parseGuidelineSnapshot
+  parseGuidelineSnapshot,
+  parseGuidelinesTree,
+  parseProductBackground,
+  parseProductPackage,
+  parseThreeLayerGuidelineSnapshot
 } from "./guideline";
 export type {
   Guideline,
+  GuidelineLayer,
   GuidelineList,
   GuidelineListItem,
   GuidelineSnapshot,
   GuidelineSeverity,
+  GuidelinesTree,
+  ProductBackground,
+  ProductPackage,
+  ProductPackageListItem,
   Rule,
   Surface,
-  Term
+  Term,
+  ThreeLayerGuidelineSnapshot
 } from "./guideline";
 
 export {
+  createProductInputSchema,
   glossaryFileSchema,
   glossaryListItemSchema,
   glossaryListSchema,
+  uploadCompanyBaseInputSchema,
+  uploadCompanyGlossaryInputSchema,
   uploadGlossaryInputSchema,
-  uploadGuidelineInputSchema,
+  uploadProductBackgroundInputSchema,
+  uploadProductGlossaryInputSchema,
+  uploadProductWritingGuideInputSchema,
   uploadResultSchema,
+  uploadSoftwareWritingInputSchema,
+  parseCreateProductInput,
   parseGlossaryList,
+  parseUploadCompanyBaseInput,
+  parseUploadCompanyGlossaryInput,
   parseUploadGlossaryInput,
-  parseUploadGuidelineInput,
-  parseUploadResult
+  parseUploadProductBackgroundInput,
+  parseUploadProductGlossaryInput,
+  parseUploadProductWritingGuideInput,
+  parseUploadResult,
+  parseUploadSoftwareWritingInput
 } from "./guideline-upload";
 export type {
+  CreateProductInput,
   GlossaryFile,
   GlossaryList,
   GlossaryListItem,
+  UploadCompanyBaseInput,
+  UploadCompanyGlossaryInput,
   UploadGlossaryInput,
-  UploadGuidelineInput,
-  UploadResult
+  UploadProductBackgroundInput,
+  UploadProductGlossaryInput,
+  UploadProductWritingGuideInput,
+  UploadResult,
+  UploadSoftwareWritingInput
 } from "./guideline-upload";
 
 export {

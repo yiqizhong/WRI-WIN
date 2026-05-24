@@ -1,19 +1,44 @@
 import { z } from "zod";
 
-import { termSchema } from "./guideline";
+import { productBackgroundSchema, termSchema } from "./guideline";
 
-export const uploadGuidelineInputSchema = z.object({
-  filename: z.string().min(1),
+const uploadContentSchema = z.object({
   content: z.string().min(1),
-  scope: z.enum(["company", "product"]),
   overwrite: z.boolean().optional()
 });
 
-export const uploadGlossaryInputSchema = z.object({
-  filename: z.string().min(1),
+export const uploadCompanyBaseInputSchema = uploadContentSchema;
+
+export const uploadSoftwareWritingInputSchema = uploadContentSchema;
+
+export const uploadCompanyGlossaryInputSchema = z.object({
   content: z.string().min(1),
   format: z.enum(["csv", "md"]),
   overwrite: z.boolean().optional()
+});
+
+export const uploadProductBackgroundInputSchema = z.object({
+  productId: z.string().min(1),
+  content: z.string().min(1),
+  overwrite: z.boolean().optional()
+});
+
+export const uploadProductGlossaryInputSchema = z.object({
+  productId: z.string().min(1),
+  content: z.string().min(1),
+  format: z.enum(["csv", "md"]),
+  overwrite: z.boolean().optional()
+});
+
+export const uploadProductWritingGuideInputSchema = z.object({
+  productId: z.string().min(1),
+  content: z.string().min(1),
+  overwrite: z.boolean().optional()
+});
+
+export const createProductInputSchema = z.object({
+  id: z.string().min(1),
+  background: productBackgroundSchema
 });
 
 export const glossaryFileSchema = z.object({
@@ -52,19 +77,44 @@ export const uploadResultSchema = z.object({
   message: z.string().optional()
 });
 
-export type UploadGuidelineInput = z.infer<typeof uploadGuidelineInputSchema>;
-export type UploadGlossaryInput = z.infer<typeof uploadGlossaryInputSchema>;
+export type UploadCompanyBaseInput = z.infer<typeof uploadCompanyBaseInputSchema>;
+export type UploadSoftwareWritingInput = z.infer<typeof uploadSoftwareWritingInputSchema>;
+export type UploadCompanyGlossaryInput = z.infer<typeof uploadCompanyGlossaryInputSchema>;
+export type UploadProductBackgroundInput = z.infer<typeof uploadProductBackgroundInputSchema>;
+export type UploadProductGlossaryInput = z.infer<typeof uploadProductGlossaryInputSchema>;
+export type UploadProductWritingGuideInput = z.infer<typeof uploadProductWritingGuideInputSchema>;
+export type CreateProductInput = z.infer<typeof createProductInputSchema>;
 export type GlossaryFile = z.infer<typeof glossaryFileSchema>;
 export type GlossaryListItem = z.infer<typeof glossaryListItemSchema>;
 export type GlossaryList = z.infer<typeof glossaryListSchema>;
 export type UploadResult = z.infer<typeof uploadResultSchema>;
 
-export function parseUploadGuidelineInput(payload: unknown): UploadGuidelineInput {
-  return uploadGuidelineInputSchema.parse(payload);
+export function parseUploadCompanyBaseInput(payload: unknown): UploadCompanyBaseInput {
+  return uploadCompanyBaseInputSchema.parse(payload);
 }
 
-export function parseUploadGlossaryInput(payload: unknown): UploadGlossaryInput {
-  return uploadGlossaryInputSchema.parse(payload);
+export function parseUploadSoftwareWritingInput(payload: unknown): UploadSoftwareWritingInput {
+  return uploadSoftwareWritingInputSchema.parse(payload);
+}
+
+export function parseUploadCompanyGlossaryInput(payload: unknown): UploadCompanyGlossaryInput {
+  return uploadCompanyGlossaryInputSchema.parse(payload);
+}
+
+export function parseUploadProductBackgroundInput(payload: unknown): UploadProductBackgroundInput {
+  return uploadProductBackgroundInputSchema.parse(payload);
+}
+
+export function parseUploadProductGlossaryInput(payload: unknown): UploadProductGlossaryInput {
+  return uploadProductGlossaryInputSchema.parse(payload);
+}
+
+export function parseUploadProductWritingGuideInput(payload: unknown): UploadProductWritingGuideInput {
+  return uploadProductWritingGuideInputSchema.parse(payload);
+}
+
+export function parseCreateProductInput(payload: unknown): CreateProductInput {
+  return createProductInputSchema.parse(payload);
 }
 
 export function parseGlossaryList(payload: unknown): GlossaryList {
@@ -73,4 +123,15 @@ export function parseGlossaryList(payload: unknown): GlossaryList {
 
 export function parseUploadResult(payload: unknown): UploadResult {
   return uploadResultSchema.parse(payload);
+}
+
+/** @deprecated use uploadCompanyGlossaryInputSchema */
+export const uploadGlossaryInputSchema = uploadCompanyGlossaryInputSchema;
+
+/** @deprecated */
+export type UploadGlossaryInput = UploadCompanyGlossaryInput;
+
+/** @deprecated use parseUploadCompanyGlossaryInput */
+export function parseUploadGlossaryInput(payload: unknown): UploadCompanyGlossaryInput {
+  return parseUploadCompanyGlossaryInput(payload);
 }

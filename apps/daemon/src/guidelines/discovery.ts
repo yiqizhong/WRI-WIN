@@ -35,9 +35,9 @@ export type GuidelineTreeResult = {
 };
 
 const STARTER_COMPANY_MD = `---
-id: company
-name: Company Guidelines
-scope: company
+id: company-base
+name: Company Base
+layer: company-base
 schema: 1
 version: "1.0.0"
 updatedAt: "${new Date().toISOString()}"
@@ -79,7 +79,7 @@ export function guidelinesDir(): string {
 
 async function scaffoldIfAbsent(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
-  const companyPath = join(dir, "company.md");
+  const companyPath = join(dir, "company-base.md");
   try {
     await readFile(companyPath);
   } catch {
@@ -177,7 +177,7 @@ export async function discoverGuidelines(): Promise<GuidelineTreeResult> {
   await scaffoldIfAbsent(dir);
 
   const { guidelines: guidelineFiles, glossaries: glossaryFiles } = await collectFiles(dir);
-  const companyPath = join(dir, "company.md");
+  const companyPath = join(dir, "company-base.md");
   const companyMissing = !guidelineFiles.includes(companyPath);
 
   const entries: GuidelineEntry[] = [];

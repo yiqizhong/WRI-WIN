@@ -518,7 +518,7 @@ function GuidelineTileView({
     <Tile>
       <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
         <strong>{item.id}</strong>
-        <span style={{ fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>{item.scope}</span>
+        <span style={{ fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>{item.layer}</span>
         <StatusPill status={item.parseStatus} />
         <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>v{item.version}</span>
         {canDelete && (

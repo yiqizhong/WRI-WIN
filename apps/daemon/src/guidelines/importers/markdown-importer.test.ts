@@ -7,9 +7,9 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { MarkdownImporter } from "./markdown-importer";
 
 const VALID_MD = `---
-id: company
-name: Company Guidelines
-scope: company
+id: company-base
+name: Company Base
+layer: company-base
 schema: 1
 version: "1.0.0"
 updatedAt: "2024-01-01T00:00:00Z"
@@ -63,8 +63,8 @@ describe("MarkdownImporter", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.guideline.id).toBe("company");
-    expect(result.guideline.scope).toBe("company");
+    expect(result.guideline.id).toBe("company-base");
+    expect(result.guideline.layer).toBe("company-base");
     expect(result.guideline.rules).toHaveLength(1);
     expect(result.guideline.rules[0].id).toBe("use-active-voice");
     expect(result.guideline.glossary).toHaveLength(1);
@@ -84,7 +84,7 @@ describe("MarkdownImporter", () => {
 
   it("returns ParseError on missing required field", async () => {
     const file = join(dir, "missing.md");
-    const md = VALID_MD.replace("id: company\n", "");
+    const md = VALID_MD.replace("id: company-base\n", "");
     await writeFile(file, md);
 
     const result = await importer.parse(file);
@@ -96,9 +96,9 @@ describe("MarkdownImporter", () => {
   it("returns ParseError on broken Rules YAML", async () => {
     const file = join(dir, "bad-rules.md");
     const md = `---
-id: company
-name: Company
-scope: company
+id: company-base
+name: Company Base
+layer: company-base
 schema: 1
 version: "1.0.0"
 updatedAt: "2024-01-01T00:00:00Z"

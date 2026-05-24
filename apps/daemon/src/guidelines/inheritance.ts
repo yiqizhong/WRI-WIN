@@ -46,8 +46,10 @@ export function buildInheritanceTree(treeResult: GuidelineTreeResult): ResolvedT
     (e): e is Extract<GuidelineEntry, { status: "ok" }> => e.status === "ok"
   );
 
-  const companyEntry = okEntries.find((e) => e.guideline.scope === "company");
-  const productEntries = okEntries.filter((e) => e.guideline.scope === "product");
+  const companyEntry = okEntries.find(
+    (e) => e.guideline.layer === "company-base" || e.guideline.layer === "software-writing"
+  );
+  const productEntries = okEntries.filter((e) => e.guideline.layer === "product-writing");
 
   const company = companyEntry ? toResolved(companyEntry) : null;
   const products = productEntries.map((e) => {

@@ -2,7 +2,7 @@ export const GUIDELINE_MD_TEMPLATE = `---
 # Required fields. Do not remove.
 id: my-guideline
 name: My Guideline
-scope: company  # or "product"
+layer: company-base  # company-base | software-writing | product-writing
 schema: 1
 version: "1.0.0"
 updatedAt: "${new Date().toISOString()}"

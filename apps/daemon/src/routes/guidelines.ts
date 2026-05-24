@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { parseUploadGlossaryInput, parseUploadGuidelineInput } from "@writer/contracts";
+import { z } from "zod";
+
+import { parseUploadCompanyGlossaryInput } from "@writer/contracts";
 
 import { getCachedTree } from "../guidelines/cache";
 import { discoverGuidelines } from "../guidelines/discovery";
@@ -43,7 +45,8 @@ export async function handleGuidelinesRequest(
       ...tree.products
     ].map((g) => ({
       id: g.id,
-      scope: g.scope,
+      layer: g.layer,
+      ...(g.productId ? { productId: g.productId } : {}),
       version: g.version,
       ruleCount: g.rules.length,
       termCount: g.glossary.length,
@@ -54,7 +57,7 @@ export async function handleGuidelinesRequest(
       .filter((e) => e.status === "error")
       .map((e) => ({
         id: e.filePath,
-        scope: "company" as const,
+        layer: "company-base" as const,
         version: "unknown",
         ruleCount: 0,
         termCount: 0,
@@ -121,11 +124,30 @@ export async function handleGuidelinesRequest(
     return true;
   }
 
-  // POST /guidelines/upload
+  // POST /guidelines/upload (v1 body; maps to 3-layer paths)
   if (request.method === "POST" && url === "/guidelines/upload") {
     try {
-      const body = parseUploadGuidelineInput(await readJsonBody(request));
-      const result = await writeGuideline(body);
+      const raw = await readJsonBody(request);
+      const legacy = z
+        .object({
+          filename: z.string().min(1),
+          content: z.string().min(1),
+          scope: z.enum(["company", "product"]).optional(),
+          layer: z.enum(["company-base", "software-writing", "product-writing"]).optional(),
+          productId: z.string().min(1).optional(),
+          overwrite: z.boolean().optional()
+        })
+        .parse(raw);
+      const layer =
+        legacy.layer ??
+        (legacy.scope === "company" ? "company-base" : ("product-writing" as const));
+      const result = await writeGuideline({
+        filename: legacy.filename,
+        content: legacy.content,
+        layer,
+        productId: legacy.productId,
+        overwrite: legacy.overwrite
+      });
       if (!result.ok) {
         if (result.code === "conflict") {
           sendApiError(response, {
@@ -142,7 +164,7 @@ export async function handleGuidelinesRequest(
       response.writeHead(201, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: true, filePath: result.filePath }));
     } catch {
-      invalidRequest(response, "Invalid upload payload.", "Provide filename, content, scope.");
+      invalidRequest(response, "Invalid upload payload.", "Provide filename, content, and layer or scope.");
     }
     return true;
   }
@@ -150,8 +172,13 @@ export async function handleGuidelinesRequest(
   // POST /glossary/upload
   if (request.method === "POST" && url === "/glossary/upload") {
     try {
-      const body = parseUploadGlossaryInput(await readJsonBody(request));
-      const result = await writeGlossary(body);
+      const body = parseUploadCompanyGlossaryInput(await readJsonBody(request));
+      const result = await writeGlossary({
+        filename: `company-glossary.${body.format}`,
+        content: body.content,
+        format: body.format,
+        overwrite: body.overwrite
+      });
       if (!result.ok) {
         if (result.code === "conflict") {
           sendApiError(response, {

@@ -416,7 +416,9 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     uploadGuideline: (input: {
       filename: string;
       content: string;
-      scope: "company" | "product";
+      scope?: "company" | "product";
+      layer?: "company-base" | "software-writing" | "product-writing";
+      productId?: string;
       overwrite?: boolean;
     }) =>
       request<{ ok: boolean; filePath: string }>(baseUrl, "/guidelines/upload", {
