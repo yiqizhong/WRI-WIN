@@ -137,6 +137,9 @@ export type {
   ReviewSourceType
 } from "./review-session";
 
+export { parseReviewQueue, reviewQueueSchema } from "./review-queue";
+export type { ReviewQueue } from "./review-queue";
+
 export {
   parseToolList,
   toolListSchema,

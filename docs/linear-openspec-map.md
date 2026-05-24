@@ -193,3 +193,18 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 | Optimistic UI | WRI-92 | Poll conversation until rewrite completes |
 
 **Suggested order:** WRI-90 → WRI-91 → WRI-92 → close WRI-89
+
+## extract-figma-via-mcp (OpenSpec: `openspec/changes/extract-figma-via-mcp/`)
+
+**Epic:** [WRI-98](https://linear.app/uicb/issue/WRI-98) - Figma frame review and approved writeback via MCP
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1-1.4 | WRI-99 | Frame-only intake, shared extraction/diagnostic contracts, persisted session data |
+| 2.1-2.5 | WRI-100 | Real Frame text extraction and audit input through Figma MCP |
+| 3.1-3.4 | WRI-101 | Explicit, permission-gated `use_figma` writeback with conflict protection |
+| 4.1-5.4 | WRI-102 | Desktop apply workflow, docs, end-to-end evidence, verify/retrospective |
+
+**Confirmed scope:** selected Figma `/design/` Frame URL only; approval/edit is separate from the explicit `Apply approved to Figma` mutation step.
+
+**Suggested order:** WRI-99 -> WRI-100 -> WRI-101 -> WRI-102 -> close WRI-98

@@ -74,6 +74,7 @@ describe("daemon integration smoke", () => {
     expect(agents.ok).toBe(true);
     const agentPayload = (await agents.json()) as { adapters: Array<{ id: string }> };
     expect(agentPayload.adapters.length).toBeGreaterThan(0);
+    expect(agentPayload.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
   });
 
   it("runs echo agent end to end", async () => {
@@ -139,12 +140,21 @@ describe("daemon integration smoke", () => {
     testState.mcp.figma.status = "connected";
     testState.mcp.figmaClient = {
       connect: async () => ({ ok: true }),
-      listTools: async () => [{ name: "get_metadata" }, { name: "get_design_context" }],
+      listTools: async () => [{ name: "get_metadata" }, { name: "get_design_context" }, { name: "use_figma" }],
       callTool: async (name: string, args: Record<string, unknown>) => {
         if (name === "get_metadata") {
           return {
             ok: true,
             result: { content: [{ type: "text", text: FRAME_METADATA }] }
+          };
+        }
+
+        if (name === "use_figma" && String(args.code).includes("return { nodeId")) {
+          return {
+            ok: true,
+            result: {
+              content: [{ type: "text", text: JSON.stringify({ nodeId: "1:11", characters: "Click here" }) }]
+            }
           };
         }
 

@@ -2,123 +2,166 @@
 
 ## Goal
 
-When a user pastes a Figma Page or Frame URL into the Sources screen and starts a review session, the daemon SHALL call the Figma MCP server to read real text nodes and design context — never stub data.
+Deliver a trustworthy Frame-only loop: the user selects one Figma Frame, Writer reviews the real text inside that Frame, and Writer changes only explicitly approved text nodes after the user chooses to apply them.
 
-## Architecture
+## User Flow
 
-### Layering
-
-```
-desktop (UI)
-   │
-   │  POST /sessions  /  POST /review/audit/run
-   ▼
-apps/daemon (review.ts)
-   │
-   │  buildFigmaExtractor(mcpClient)
-   ▼
-packages/review-core (figma-extract-mcp.ts)
-   │
-   │  McpCaller interface
-   ▼
-apps/daemon (state.mcp.figmaClient.callTool)
-   │
-   ▼
-Figma MCP server (remote https://mcp.figma.com/mcp)
+```text
+Sources                         Review                              Figma
+  |                               |                                  |
+  | paste /design/...node-id=...  |                                  |
+  |---- create frame session ---->|                                  |
+  |                               |-- Run audit -------------------->|
+  |                               |<-- real text nodes via MCP ------|
+  |                               | show suggestions                  |
+  |                               | approve/edit/reject               |
+  |                               | Apply approved to Figma           |
+  |                               |-- permission confirmation         |
+  |                               |-- use_figma write -------------->|
+  |                               |<-- per-node result ---------------|
+  |                               | show applied/failed status        |
 ```
 
-Review-core stays daemon-agnostic; daemon injects an `McpCaller`.
+Approval and mutation are separate operations. No Figma content changes during extraction, audit, approval, or editing.
 
-### McpCaller interface (new, in review-core)
+## Scope Contract
+
+`FigmaReviewScope` for this slice is one selected Frame:
 
 ```ts
-export interface McpCaller {
-  callTool(name: string, args: Record<string, unknown>): Promise<McpCallToolResult>;
+type FigmaFrameScope = {
+  kind: "frame";
+  fileKey: string;
+  nodeId: string;
+  frameName?: string;
+};
+```
+
+`parseFigmaUrl()` accepts only `/design/<fileKey>/...?...node-id=<id>` and returns a frame scope. A design URL without `node-id`, or a `/make/`, `/board/`, or `/slides/` URL, returns an `unsupported_source` diagnostic at session intake.
+
+## Data Model
+
+A Figma session stores stable identity and extraction outcome:
+
+```ts
+type FigmaTextExtraction = {
+  scope: FigmaFrameScope;
+  nodes: FigmaTextNode[];
+  warnings: ConnectionDiagnostic[];
+  extractedAt: string;
+};
+
+type ReviewSession = {
+  // existing properties
+  figmaExtraction?: FigmaTextExtraction;
+  designContext?: DesignContext;
+  diagnostic?: ConnectionDiagnostic;
+};
+
+type ReviewQueue = {
+  findings: UxCopyFinding[];
+  rewrites: RewriteCandidate[];
+  changes: ReviewChange[];
+  diagnostic?: ConnectionDiagnostic;
+};
+```
+
+Each `FigmaTextNode.id` is the original Figma text node ID. Each resulting `ReviewChange.sourceId` is that same ID, so writeback targets the exact originating node.
+
+New diagnostic codes:
+
+- `unsupported_source`
+- `mcp_not_ready`
+- `partial_read_failure`
+- `write_conflict`
+- `write_failed`
+
+## Component Boundaries
+
+### Contracts and Storage
+
+- `packages/contracts` defines persisted extraction, queue result, diagnostics, and writeback result schemas.
+- `packages/storage` stores those typed session fields unchanged.
+
+### Review Core
+
+`packages/review-core` remains daemon-agnostic:
+
+```ts
+interface FigmaMcpReader {
   status: "connected" | "disconnected" | "error";
+  getMetadata(scope: FigmaFrameScope): Promise<McpCallToolResult>;
+  getDesignContext(fileKey: string, nodeId: string): Promise<McpCallToolResult>;
 }
 ```
 
-`McpCallToolResult` shape already exists in `apps/daemon/src/mcp-client.ts` — promote the type to `packages/contracts` so review-core can import it without depending on daemon.
+It parses metadata hierarchy, extracts text from recorded design-context result shapes, and emits `FigmaTextExtraction` plus `DesignContext`. It does not manage OAuth, permissions, storage, or write operations.
 
-### Extraction algorithm
+### Daemon
 
-```
-extractFigmaTextNodesViaMcp(scope, mcpCaller):
+- Normalizes the session scope at `/sessions/figma`.
+- Adapts `state.mcp.figmaClient.callTool` to `FigmaMcpReader`.
+- Runs extraction when a Figma audit starts, persists output, and passes real node content into `runStubAudit` until the analysis engine is replaced separately.
+- Owns write permissions, eligible-change validation, MCP write invocation, status transitions, and audit log entries.
 
-  if mcpCaller.status !== "connected":
-    return { ok: false, diagnostic: { code: "mcp_not_ready", ... } }
+### Desktop
 
-  metadata = await mcpCaller.callTool("get_metadata", {
-    fileKey: scope.fileKey,
-    nodeId: scope.kind === "frame" ? scope.nodeId
-          : scope.kind === "page"  ? scope.pageId
-          : scope.kind === "flow"  ? scope.nodeIds[0]
-          : undefined  // file → list pages
-  })
+- Sources accepts and identifies a Frame link.
+- Review surfaces read diagnostics and a connection recovery link.
+- Queue supports current approve/edit/reject behavior.
+- A separate `Apply approved to Figma` action submits eligible changes and displays per-node results.
 
-  if !metadata.ok:
-    return { ok: false, diagnostic: metadata.diagnostic }
+## Extraction Algorithm
 
-  textNodeRefs = parseTextNodesFromMetadataXml(metadata.result)
-  // for flow: union across all nodeIds
+1. Require a connected MCP client or return `mcp_not_ready`.
+2. Call `get_metadata({ fileKey, nodeId })` for the selected Frame.
+3. Parse metadata XML and collect descendant TEXT references with hierarchy paths.
+4. For each text reference, call `get_design_context({ fileKey, nodeId: textNodeId })`.
+5. Parse the actual displayed characters from the recorded MCP content shape.
+6. When one node cannot be read, omit it and add a `partial_read_failure` warning; do not fabricate text.
+7. Persist extraction and context; audit uses `nodes.map(({ id, characters }) => ({ sourceId: id, text: characters }))`.
 
-  nodes: FigmaTextNode[] = []
-  for ref in textNodeRefs:
-    ctx = await mcpCaller.callTool("get_design_context", {
-      fileKey: scope.fileKey,
-      nodeId: ref.id
-    })
-    if ctx.ok:
-      nodes.push({
-        id: ref.id,
-        name: ref.name,
-        path: ref.path,           // built from metadata parent chain
-        characters: extractCharactersFromCode(ctx.result),
-        styleHints: extractStyleHints(ctx.result),
-        visible: ref.visible
-      })
+No caching is introduced: each audit intentionally reflects the currently selected Frame.
 
-  return { ok: true, extraction: { scope, nodes, extractedAt: now() } }
-```
+## Writeback Algorithm
 
-**parseTextNodesFromMetadataXml**: walk the returned XML, collect every element with `type="TEXT"`, capture `id`, `name`, `visible`, and ancestor name chain for `path`. Use a streaming/recursive-descent parser; XML structure is documented in MCP server's response (small, well-formed).
+`POST /figma/writeback` receives a `sessionId` and selected eligible `changeIds`.
 
-**extractCharactersFromCode**: `get_design_context` returns a code string (React-ish JSX/HTML). For a TEXT node target, the response includes the rendered text — extract via simple regex on the code string (`>([^<]+)</`). If that fails, fall back to the screenshot-less `metadata.result` name. Robustness > cleverness — wrap in try/catch and degrade gracefully per node, never per whole extraction.
+1. Load the Figma session and require its normalized frame scope and completed extraction.
+2. Resolve each requested change; accept only `approved` or `edited` status belonging to this session.
+3. Require a confirmed `figma.write` permission request through the existing daemon gate.
+4. Build one `use_figma` MCP invocation for the batch. Its JavaScript:
+   - gets each originating node by `sourceId`;
+   - requires a TEXT node;
+   - checks `node.characters === change.before` before mutation;
+   - loads required fonts;
+   - assigns `node.characters = change.after`;
+   - returns a structured per-node applied/failed result.
+5. Transition successful changes to `applied`; failed/conflicted changes to `failed` with an accurate result message.
+6. Persist results and audit log entries.
 
-### Design context
+The equality check protects a designer's newer edits made after audit. A conflict fails only that item and can be re-audited before retry.
 
-`captureDesignContextViaMcp(scope, mcpCaller, metadataXml)`: build `DesignContext.hierarchy` from the same `metadata` XML walk (id, name, type, parentId). No extra MCP calls; reuse the response from the extraction call.
+## Error Handling
 
-### Daemon wiring
+| Situation | Result |
+| --- | --- |
+| Source is not a selected `/design/` Frame URL | Reject session intake with `unsupported_source` guidance |
+| MCP disconnected during audit | Return/persist `mcp_not_ready`; produce no queue changes |
+| Frame contains no readable text | Successful empty extraction; show "No text found in selected Frame" |
+| One text read fails | Continue siblings and surface `partial_read_failure` |
+| MCP disconnected before apply | Keep approvals; return failed diagnostic, no state falsely applied |
+| Source text changed since audit | `write_conflict`; do not overwrite |
+| One MCP node update fails | Mark that item failed; preserve successfully applied siblings |
 
-`apps/daemon/src/review.ts`:
+## Testing Strategy
 
-- `extractFigmaNodes(input)` becomes `async` and takes the daemon state (or just the mcpClient).
-- `createFigmaSession(input)` does NOT call MCP yet — only persists the parsed scope. MCP calls happen on `runAudit` so that session creation stays fast and offline-tolerant.
-- `runAudit(sessionId)` for figma sessions:
-  - if `state.mcp.figmaClient` is null → write `mcp_not_ready` diagnostic onto the session, return ok=false with the diagnostic.
-  - else → call `extractFigmaTextNodesViaMcp` + `captureDesignContextViaMcp`, persist real nodes + context, return the queue as today.
+- Contracts/storage unit tests: persisted extraction, diagnostics, queue response, writeback results.
+- Review-core unit tests with recorded MCP fixtures: Frame metadata parsing, real text extraction, no-stub failure behavior, partial reads.
+- Daemon unit/integration tests: session normalization, real audit input, disconnected response, permission-gated `use_figma`, conflicts, partial write failure.
+- Desktop tests: diagnostic display and explicit apply action behavior.
+- Manual smoke: connected Frame extraction; approve without mutation; explicit apply; disconnected recovery; stale-text conflict.
 
-### Caching
+## Security and Permissions
 
-Per-session in-memory cache: don't re-fetch metadata if the same audit is re-run within 60s. Avoids hammering MCP on user refresh. Cache key = `${fileKey}:${nodeId}`.
-
-## Tech stack
-
-- Existing `@modelcontextprotocol/sdk` client in daemon (already in `apps/daemon/src/mcp-client.ts`).
-- No new deps. XML parsing: tiny hand-rolled recursive parser (MCP XML is small and well-formed); avoid pulling in a full XML lib.
-
-## Risks
-
-- **Per-TEXT `get_design_context` is N requests.** For frames with 50+ text nodes this is 50+ HTTP round trips. Mitigation: batch by parent component when `get_design_context` returns text for multiple descendants in one call (it does for component instances). Profile in integration test; if >10s for a typical frame, add a cap (e.g., first 100 text nodes, paginate the rest).
-- **XML schema drift.** MCP XML shape is not contractual. Mitigation: defensive parsing — never throw on unknown elements, log and skip.
-- **OAuth token expiry mid-audit.** Existing client handles 401 → refresh; verify by killing the cached token and re-running.
-- **Make files.** Out of scope; daemon SHALL detect `/make/` URLs in `parseFigmaUrl` (already does?) and surface a clear "not supported" diagnostic instead of attempting `get_metadata`.
-
-## Test strategy
-
-- Unit (review-core): fake `McpCaller` returning canned `get_metadata` XML + `get_design_context` payloads → assert `FigmaTextNode[]` shape.
-- Unit: `mcp_not_ready` diagnostic when `mcpCaller.status !== "connected"`.
-- Unit: degradation per node — one failing `get_design_context` doesn't fail the whole extraction.
-- Integration (daemon): inject a fake MCP client into `DaemonState.mcp`, POST `/sessions` + `/review/audit/run`, assert queue contains real characters.
-- Smoke (manual, optional): real MCP, real Figma frame, real characters.
+Reading Frame data uses only MCP read operations. Writeback runs only through daemon-owned `figma.write`, after explicit user apply and permission confirmation. Renderer code never owns an MCP client or writes to Figma directly.

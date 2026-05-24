@@ -76,8 +76,9 @@ export async function extractFigmaTextNodesViaMcp(
   }
 
   const extraction: FigmaTextExtraction = {
-    scope: scope as unknown as Record<string, unknown>,
+    scope,
     nodes,
+    warnings: [],
     extractedAt: new Date().toISOString()
   };
 

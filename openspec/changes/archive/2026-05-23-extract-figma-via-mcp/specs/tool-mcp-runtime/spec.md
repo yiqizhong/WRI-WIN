@@ -1,12 +1,23 @@
 ## ADDED Requirements
 
-### Requirement: Figma MCP client is callable from the review pipeline
-The daemon SHALL expose the connected Figma MCP client to the review pipeline via a typed `McpCaller` adapter so that review extraction can invoke discovered Figma MCP tools (initially `get_metadata` and `get_design_context`) without depending directly on daemon-internal client wiring.
+### Requirement: Review pipeline invokes typed Frame read tools
+The daemon SHALL expose connected Figma MCP read calls to the review pipeline through a typed adapter without making review-core depend on daemon-internal client state.
 
-#### Scenario: Review pipeline calls get_metadata
-- **WHEN** the review pipeline runs an audit on a figma session and the Figma MCP server is connected
-- **THEN** the daemon invokes `state.mcp.figmaClient.callTool("get_metadata", { fileKey, nodeId })` via the McpCaller adapter and receives the structured MCP result
+#### Scenario: Audit calls metadata and design context
+- **WHEN** a Frame audit runs while Figma MCP is connected
+- **THEN** the daemon adapter invokes `get_metadata` for the selected Frame and `get_design_context` for discovered text nodes
 
-#### Scenario: McpCaller status reflects MCP server state
-- **WHEN** the review pipeline checks `mcpCaller.status` while the Figma MCP server is disconnected
-- **THEN** the value is `disconnected` and the pipeline returns the `mcp_not_ready` diagnostic without attempting any tool calls
+#### Scenario: Adapter reflects disconnected status
+- **WHEN** Figma MCP is disconnected
+- **THEN** extraction returns `mcp_not_ready` without invoking MCP tools
+
+### Requirement: Daemon owns permission-gated Frame write tools
+The daemon SHALL invoke Figma MCP `use_figma` for approved text replacement only after its existing `figma.write` permission gate authorizes the apply operation.
+
+#### Scenario: Write permission is not approved
+- **WHEN** the user requests apply but has not granted required write permission
+- **THEN** the daemon requests permission and performs no `use_figma` invocation
+
+#### Scenario: Write permission is approved
+- **WHEN** permission has been granted for eligible changes in the Frame session
+- **THEN** the daemon invokes `use_figma` with operations targeted at the original text node ids and records its result

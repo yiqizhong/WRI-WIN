@@ -1,4 +1,4 @@
-import type { FigmaReviewScope, ParsedFigmaUrl } from "@writer/contracts";
+import type { ParsedFigmaUrl } from "@writer/contracts";
 
 const FIGMA_HOSTS = new Set(["www.figma.com", "figma.com"]);
 
@@ -29,20 +29,22 @@ export function parseFigmaUrl(url: string): ParsedFigmaUrl {
   const designMatch = parsed.pathname.match(/^\/design\/([^/]+)(?:\/.*)?$/);
 
   if (!designMatch?.[1]) {
-    throw new FigmaUrlParseError("Use a Figma design file URL (figma.com/design/...).");
+    throw new FigmaUrlParseError(
+      "Paste a selected Figma design Frame link (figma.com/design/...?...node-id=...)."
+    );
   }
 
   const fileKey = designMatch[1];
   const nodeIdParam = parsed.searchParams.get("node-id");
-  const nodeId = nodeIdParam ? nodeIdParam.replace(/-/g, ":") : undefined;
+  if (!nodeIdParam) {
+    throw new FigmaUrlParseError("Select a Figma Frame and paste its link with a node-id.");
+  }
 
-  const suggestedScope: FigmaReviewScope = nodeId
-    ? { kind: "frame", fileKey, nodeId }
-    : { kind: "file", fileKey };
+  const nodeId = nodeIdParam.replace(/-/g, ":");
 
   return {
     fileKey,
     nodeId,
-    suggestedScope
+    suggestedScope: { kind: "frame", fileKey, nodeId }
   };
 }

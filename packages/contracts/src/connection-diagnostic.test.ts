@@ -39,6 +39,10 @@ describe("connection diagnostics", () => {
       "tool_not_found",
       "mcp_not_ready",
       "unsupported_figma_source",
+      "unsupported_source",
+      "partial_read_failure",
+      "write_conflict",
+      "write_failed",
       "ready"
     ];
 

@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { connectionDiagnosticSchema } from "./connection-diagnostic";
+import { designContextSchema } from "./design-context";
+import { figmaTextExtractionSchema } from "./figma-text-node";
+
 export const reviewSourceTypeSchema = z.enum(["figma", "pasted_text", "spreadsheet"]);
 
 export const reviewSessionStatusSchema = z.enum([
@@ -17,6 +21,9 @@ export const reviewSessionSchema = z.object({
   scope: z.record(z.string(), z.unknown()),
   status: reviewSessionStatusSchema,
   agentRunIds: z.array(z.string().min(1)),
+  figmaExtraction: figmaTextExtractionSchema.optional(),
+  designContext: designContextSchema.optional(),
+  diagnostic: connectionDiagnosticSchema.optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 });

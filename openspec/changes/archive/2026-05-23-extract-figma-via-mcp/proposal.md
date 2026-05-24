@@ -1,51 +1,63 @@
 ## Why
 
-The Sources screen accepts Figma Page and Frame links, but the review pipeline still returns hardcoded stub text ("Primary CTA: Continue", "Subtitle: Review your UX copy before publishing.") regardless of what the link points to. The Figma MCP server is genuinely connected — `whoami` and 18 tools are discovered — yet none of those tools are called from the extraction path. The previous change (`harden-local-cli-figma-mcp-connections`) explicitly deferred this: "Figma MCP is a critical integration and must prove real connectivity before deeper Figma extraction and writeback work depends on it." That proof has landed; the dependent work has not. Without real extraction the Figma intake form is decorative, and downstream audit/rewrite work has nothing real to operate on.
+Writer currently accepts a Figma link but does not perform the product workflow it promises. It returns hardcoded placeholder copy during extraction, then records a dry-run writeback as though changes were applied. For a user reviewing one selected Frame, both behaviors break trust: the app is neither reviewing their design nor updating it after approval.
+
+The Figma MCP connection, approval state machine, and write permission gate already exist. This change connects them into the first complete Figma workflow: real Frame text in, explicit approved text out.
 
 ## What Changes
 
-**Figma text extraction**
-- From: `extractFigmaTextNodes` returns hardcoded stub nodes derived only from scope kind.
-- To: extraction calls Figma MCP `get_metadata` to discover real TEXT nodes under the scoped fileKey/nodeId, then `get_design_context` to read real `characters` and style hints.
-- Reason: the app must actually read the user's Figma frame, not invent text.
-- Impact: non-breaking on `FigmaTextNode` contract; behavior of `/sessions` and `/review/audit/run` changes for `sourceType: "figma"` sessions when MCP is connected.
+**Selected Frame intake**
+- Accept a Figma `/design/` Frame link only when it contains a concrete `node-id`.
+- Reject unsupported or overly broad sources instead of silently treating them as a valid extraction scope.
 
-**Design context capture**
-- From: `captureDesignContext` synthesizes a fake hierarchy from scope kind.
-- To: hierarchy is built from the real MCP `get_metadata` XML response (node id, name, type, parentId).
-- Reason: downstream rewrite prompts need real structural context.
-- Impact: additive — same `DesignContext` shape, populated with real data.
+**Real text extraction and analysis input**
+- Call Figma MCP read tools to discover the selected Frame's text nodes and read their actual characters.
+- Persist original text node IDs and content on the session.
+- Feed real extracted text into the existing audit/rewrite queue, eliminating Figma stub input paths.
 
-**MCP-not-ready behavior**
-- From: extraction silently succeeds with stub data when MCP is disconnected.
-- To: extraction returns a structured `mcp_not_ready` diagnostic instead of fake data; desktop surfaces it with a recovery action ("Connect Figma").
-- Reason: silent stubbing trained users to think the integration worked. Better to fail loud and actionable.
-- Impact: `/review/audit/run` may return a non-ok result when MCP is not connected for figma sessions.
+**Human-gated real writeback**
+- Keep approval/editing separate from mutation.
+- Add an explicit `Apply approved to Figma` action for eligible `approved` and `edited` changes.
+- Replace dry-run writeback with a permission-gated `use_figma` MCP mutation against original text node IDs.
+- Prevent stale overwrite when the current Figma text differs from the originally reviewed text.
+
+**Diagnostics and auditability**
+- Surface unsupported source, MCP-not-ready, partial read failure, write conflict, and write failure states.
+- Persist and display writeback results and audit-log records accurately.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `figma-mcp-extraction` — real Figma text node and design context extraction via MCP `get_metadata` + `get_design_context`, scoped to file/page/frame/flow links.
+- `figma-mcp-extraction` - real text extraction from one selected Figma Frame through MCP.
+- `figma-mcp-writeback` - explicit, approved, permission-gated mutation of originating Figma text nodes through MCP.
 
 ### Modified Capabilities
 
-- `tool-mcp-runtime` — Figma MCP client exposes a typed caller usable by the review pipeline, not only by smoke endpoints.
-- `review-session-storage` — figma sessions persist real extracted text nodes and design context produced from MCP responses.
+- `review-session-storage` - persist Frame extraction, diagnostics, and accurate writeback result state.
+- `tool-mcp-runtime` - expose typed read/write MCP invocation to the review pipeline while retaining daemon authority.
 
 ## Impact
 
-- `packages/review-core` — replace `figma-extract.ts` and `design-context.ts` stubs with MCP-backed implementations; inject an `McpCaller` interface so the package stays daemon-agnostic and testable.
-- `packages/contracts` — minor: add `mcp_not_ready` to the figma extraction diagnostic enum if not already covered by `ConnectionDiagnostic`.
-- `apps/daemon` — wire `state.mcp.figmaClient` into `createFigmaSession` / `runAudit` extraction paths; surface MCP errors as structured diagnostics on the session.
-- `apps/desktop` — surface `mcp_not_ready` diagnostic on the Sources / Review screens with a "Connect Figma" action (the action already exists, just route to it from the new error path).
-- `README.md` — remove the "Full Figma extraction and writeback still use bootstrap paths" line from Known limitations.
-- `docs/linear-openspec-map.md` — add mapping entry once Linear issue is created.
+- `packages/contracts` - typed extraction/audit/writeback results, new diagnostics, persisted session fields.
+- `packages/review-core` - Frame URL constraints and MCP-backed extraction/context behavior.
+- `packages/storage` - persisted session extraction and diagnostic data.
+- `apps/daemon` - MCP adapters, audit input replacement, permission-gated real writeback, integration tests.
+- `apps/desktop` - Frame-only intake feedback, extraction diagnostics, and explicit apply UI.
+- `README.md` and `docs/linear-openspec-map.md` - product behavior and Linear mapping updates.
 
-## Non-Goals (this change)
+## Linear Tracking
 
-- Exposing all 18 Figma MCP tools to the desktop UI — that is a separate change (`expose-figma-mcp-tools`, to be opened next).
-- Writeback (`use_figma`, `upload_assets`, `create_new_file`, etc.) — gated by permissions and out of scope for read-only extraction.
-- Screenshot embedding in the review queue UI — `get_screenshot` may be called for design context, but rendering screenshots in desktop is deferred.
-- Streaming extraction progress to the UI — single request/response is fine for v1.
-- Handling `figma.com/make/` URLs — Make files are not supported by `get_metadata` per the MCP tool description.
+- Parent: `WRI-98` - Figma frame review and approved writeback via MCP
+- `WRI-99` - Define Frame extraction and persisted review contracts
+- `WRI-100` - Extract real Frame text and feed it into review audit
+- `WRI-101` - Apply approved Frame copy back to Figma through MCP
+- `WRI-102` - Expose Frame apply workflow and validate end to end
+
+## Non-Goals
+
+- File-wide, page-wide, or multi-frame flow extraction.
+- Figma Make, FigJam, or Slides support.
+- Figma comment/annotation writeback.
+- Rendering screenshots or exposing all discovered MCP tools in desktop.
+- Streaming extraction progress or introducing an extraction cache.

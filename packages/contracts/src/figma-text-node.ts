@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { connectionDiagnosticSchema } from "./connection-diagnostic";
+import { figmaReviewScopeSchema } from "./figma-scope";
+
 export const figmaTextNodeSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -10,8 +13,9 @@ export const figmaTextNodeSchema = z.object({
 });
 
 export const figmaTextExtractionSchema = z.object({
-  scope: z.record(z.string(), z.unknown()),
+  scope: figmaReviewScopeSchema,
   nodes: z.array(figmaTextNodeSchema),
+  warnings: z.array(connectionDiagnosticSchema).default([]),
   extractedAt: z.iso.datetime()
 });
 

@@ -1,57 +1,79 @@
 # Brainstorm · extract-figma-via-mcp
 
-Captured 2026-05-23 during session where user asked why pasting a Figma frame link produced fake "Continue" / "Review your UX copy before publishing." text.
+Captured 2026-05-23 and revised 2026-05-24 after the product scope was clarified.
 
-## Background
+## Product Intent
 
-- `harden-local-cli-figma-mcp-connections` shipped: MCP server connects via OAuth, `whoami` smoke passes, 18 tools discovered.
-- Health endpoint: `/mcp/servers` shows `figma: connected, ready`.
-- README's "Known limitations" still lists: "Full Figma extraction and writeback still use bootstrap paths until the next MCP-backed workflow slice."
-- That slice was never opened. This change opens it (Slice A; Slice B for the broader 18-tool surface is a separate change).
+The desired workflow is deliberately narrow:
 
-## Decision chain
+```text
+Paste one selected Figma Frame URL
+  -> extract every text node in that Frame
+  -> analyze and propose rewrites
+  -> user approves or edits proposals
+  -> user explicitly applies approved copy back to Figma
+```
 
-**Q1: Scope — frame only, or page + frame + flow + file?**
-- Decision: support all four scope kinds the parser already produces (`frame`, `page`, `file`, `flow`).
-- Reason: the parser is already there; if we only support frame, page URLs silently degrade.
-- Edge: `flow` scope has multiple `nodeIds` — iterate and merge.
+The current app violates this expectation in two places: extraction returns hardcoded copy, and `/figma/writeback` reports applied results without mutating Figma.
 
-**Q2: One MCP call or two per node?**
-- Options considered:
-  - (a) `get_metadata` alone, parse text characters from XML.
-  - (b) `get_metadata` for structure + `get_design_context` per TEXT node for accurate characters and style.
-  - (c) `get_design_context` only on the scoped root, trust it to include nested text.
-- Decision: **(b)** for v1.
-- Reason: `get_metadata` XML doesn't include `characters` field per the tool description ("only includes node IDs, layer types, names, positions and sizes"). We must call `get_design_context` to get real text. Calling per-TEXT-node is more requests but produces a clean `FigmaTextNode[]`.
-- Optimization for later: batch / cache; not needed for v1.
+## Decisions
 
-**Q3: What happens when MCP is not connected?**
-- Decision: return structured `mcp_not_ready` diagnostic, do NOT fall back to stub.
-- Reason: silent stubbing is the bug we're fixing. Loud failure with a Connect action is correct UX.
+### D1. Scope is Frame-only for v1
 
-**Q4: Where does the MCP call live — daemon or review-core?**
-- Decision: review-core owns the extraction logic, takes an injected `McpCaller` interface. Daemon wires `state.mcp.figmaClient.callTool` into it.
-- Reason: review-core stays daemon-agnostic and testable with a fake MCP caller. Same pattern as existing `extractFigmaTextNodes` taking a pure `FigmaReviewScope`.
+- Accept only Figma `/design/` URLs carrying a concrete `node-id` for the selected Frame.
+- Reject file-wide URLs, flow selection, Make, FigJam, and Slides inputs in this change.
+- Reason: the core user job is reviewing a selected Frame. Broad scope handling adds traversal and UX cases before the basic loop is trustworthy.
 
-**Q5: Should this also expose all 18 tools?**
-- Decision: NO. Separate change `expose-figma-mcp-tools` (Slice B). Per user direction in chat.
-- Reason: Slice A is the user's immediate complaint ("read frame in app"). Slice B (write tools, permission UI) is bigger and benefits from being reviewed on its own.
+### D2. Read real text with read-only MCP calls
 
-**Q6: Handle Make files (`/make/`)?**
-- Decision: out of scope. Per `get_metadata` tool description: "This tool is not supported for Figma Make Files."
-- Reason: parser may produce a Make scope but downstream can't read it; document as non-goal.
+- Use `get_metadata` on the selected Frame to discover hierarchy and text node IDs.
+- Use `get_design_context` for discovered text nodes to obtain actual displayed copy and relevant style hints.
+- Persist each extracted text node's original Figma node ID; that identity drives later writeback.
+- Never synthesize text, and never treat a layer name as copy when a node read fails.
+
+### D3. Approval is not mutation
+
+- Clicking Approve or saving an edit only creates a writeback-eligible review change.
+- Mutation occurs only when the user explicitly clicks `Apply approved to Figma`.
+- Reason: the user can review a batch without external side effects and confirm once before a destructive operation.
+
+### D4. Real writeback uses Figma MCP `use_figma`
+
+- Replace the dry-run `/figma/writeback` behavior with a daemon-owned MCP call to `use_figma`.
+- For each eligible change, the generated operation targets the original text node ID and assigns the final approved/edited text.
+- The daemon enforces both requirements before invoking MCP: an eligible change status and approved write permission.
+- If a node's current text no longer equals the extracted original text, fail that node as a conflict instead of overwriting newer Figma changes.
+
+### D5. Partial failure is visible and retryable
+
+- Extraction skips an individual failed text read and emits a warning; valid sibling text nodes remain reviewable.
+- Writeback records `applied` or `failed` per node; successful writes remain applied, and failed nodes remain available for retry.
+- MCP-disconnected or unsupported-source cases fail loudly with a recovery message and no stub fallback.
+
+### D6. Defer non-essential expansion
+
+- No full MCP tool browser, screenshot rendering, annotations/comments, streaming progress, or cache in this change.
+- Performance optimization follows measured Frame extraction behavior, not speculation.
+
+## Dependencies
+
+| Dependency | State | Use |
+| --- | --- | --- |
+| Figma MCP OAuth/client lifecycle | Ready | Existing daemon client and Agents/MCP connection UX |
+| MCP `get_metadata` / `get_design_context` | Ready and mockable | Frame read fixture tests plus live smoke |
+| MCP `use_figma` | Ready and mockable | Permission-gated text writeback |
+| Approval state machine | Ready | Existing `approved` / `edited` eligibility |
+| Permission gate and audit log | Ready but writeback integration incomplete | Must wrap real mutation |
 
 ## Acceptance
 
-- `npm run typecheck && npm run test` pass.
-- New daemon integration test: POST `/sessions` with a Figma URL pointing at a real frame (use a recorded fixture for MCP responses) and verify `/review/audit/run` returns a queue with real characters, not the stub strings.
-- Manual: open desktop → Sources → paste a real Figma frame link → Start session → Review screen shows real text from that frame (not "Primary CTA: Continue").
-- README "Known limitations" line removed.
+- `npm run typecheck` and `npm run test` pass after any pre-existing baseline failure is addressed or explicitly waived.
+- Strict OpenSpec validation passes.
+- Connected manual smoke: a selected Frame produces actual Figma text in the review queue.
+- Approval smoke: no Figma mutation occurs when a change is merely approved.
+- Apply smoke: explicit apply modifies approved/edited original nodes in Figma and reports result.
+- Failure smoke: disconnected MCP and write conflicts show actionable diagnostics without fake output or silent overwrite.
 
-## Promotion criteria (all 5 — checked)
+## Promotion State
 
-1. **Scope locked** — Slice A only: read Page/Frame/File/Flow links via MCP. Write tools, UI for 18 tools, screenshots, streaming all explicit non-goals.
-2. **Forks resolved** — Q1–Q6 decided above.
-3. **Dependencies mapped** — Figma MCP client (ready), `get_metadata` + `get_design_context` (discovered tools, real), test fixture for MCP (mockable).
-4. **Acceptance stateable** — typecheck + test + integration test + manual smoke listed above.
-5. **Converging** — user explicit approval of A→B split and opsx flow.
+All promotion criteria hold: scope is locked to Frame review/writeback, design forks are resolved, dependencies are mapped, acceptance criteria are concrete, and the user explicitly approved this upgraded closed-loop scope on 2026-05-24.
