@@ -227,3 +227,38 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 **Suggested order:** WRI-104 → WRI-105 → WRI-106 → WRI-107 → WRI-108 → WRI-109 → WRI-110 → WRI-111 → close WRI-103
 
 **Locked decisions (design.md):** name = Guidelines; `company.md` required, products optional; single tree v1; inheritance = inherited+added only; `Importer` + `Index` interfaces stable; findings must carry citation + evidence with daemon validation; per-project binding; session snapshot for reproducibility.
+
+## guidelines-3-layer-refactor (planning)
+
+**Epic:** [WRI-112](https://linear.app/uicb/issue/WRI-112) — Guidelines 3-layer hierarchy refactor
+
+Replaces the flat company+product model from WRI-103 with a 3-layer structure that matches real team workflows: brand voice (company-base), UX writing rules (software-writing), and per-product packages (background + glossary + optional writing-guide).
+
+| Layer | File path | Owner | Frequency |
+|-------|-----------|-------|-----------|
+| Company Base | `~/.writer/guidelines/company-base.md` | Brand/Marketing | years |
+| Software Writing | `~/.writer/guidelines/software-writing.md` | UX Writing Lead | quarterly |
+| Company Glossary | `~/.writer/guidelines/company-glossary.{csv,md}` | UX Writing Lead | ongoing |
+| Product Background | `~/.writer/guidelines/products/<id>/background.md` | PM | per iteration |
+| Product Glossary | `~/.writer/guidelines/products/<id>/glossary.{csv,md}` | Product team | ongoing |
+| Product Writing Guide | `~/.writer/guidelines/products/<id>/writing-guide.md` | Product + UX Writer | ad hoc |
+
+| Sub-task | Linear | Notes |
+|----------|--------|-------|
+| Contracts: layer + product background + product package schemas | [WRI-113](https://linear.app/uicb/issue/WRI-113) | Replaces `scope` with `layer`; adds `productBackgroundSchema`, `productPackageSchema` |
+| Daemon: rewrite discovery for new layout | [WRI-114](https://linear.app/uicb/issue/WRI-114) | Scans `products/<id>/` subdirs; first-run scaffold creates empty structure (no example) |
+| Daemon: file writer for new paths | [WRI-115](https://linear.app/uicb/issue/WRI-115) | createProduct, writeProductBackground/Glossary/WritingGuide, delete by kind |
+| Daemon: REST routes for 3-layer slots | [WRI-116](https://linear.app/uicb/issue/WRI-116) | /company-base, /software-writing, /company-glossary, /products/:id/{background,glossary,writing-guide} |
+| Storage: activeProductId per project | [WRI-117](https://linear.app/uicb/issue/WRI-117) | Replaces `activeGuidelineId`; old field silently dropped on load |
+| Review-core: prompt assembly for 3-layer merge | [WRI-118](https://linear.app/uicb/issue/WRI-118) | Brand voice + software rules + product context (audience/env/purpose) + merged glossary + product rules |
+| Desktop: GuidelinesScreen rewrite (4 sections) | [WRI-119](https://linear.app/uicb/issue/WRI-119) | Company Base / Software Writing / Company Glossary / Products (expandable cards) |
+| Templates + Docs | [WRI-120](https://linear.app/uicb/issue/WRI-120) | 5 file templates + README + PRODUCT.md updates |
+
+**Locked decisions:**
+- D17: Software Writing layer is a single fixed slot (no mobile/web parallel variants in v1)
+- D18: Product Background frontmatter requires 3 fields: `audience`, `environment`, `purpose`
+- D19: Project is early — wipe `~/.writer/guidelines/` and restart, no migration logic
+
+**Suggested order:** WRI-113 → (WRI-114, WRI-115, WRI-117 in parallel) → (WRI-116, WRI-118 in parallel) → (WRI-119, WRI-120 in parallel) → close WRI-112
+
+**Note:** WRI-103 ~ WRI-111 stay Done as the v1 implementation; WRI-112 supersedes that data model.
