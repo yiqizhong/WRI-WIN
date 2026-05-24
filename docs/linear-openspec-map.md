@@ -261,4 +261,17 @@ Replaces the flat company+product model from WRI-103 with a 3-layer structure th
 
 **Suggested order:** WRI-113 → (WRI-114, WRI-115, WRI-117 in parallel) → (WRI-116, WRI-118 in parallel) → (WRI-119, WRI-120 in parallel) → close WRI-112
 
+**Implementation status (`feat/guidelines-runtime`, 2026-05-24):**
+
+| Issue | Commit | Status |
+|-------|--------|--------|
+| WRI-113 | `977ce49` | Done |
+| WRI-114 | `ba26496` | Done |
+| WRI-115 | `ad28181` | Done |
+| WRI-116 | `cd4cff8` | Done |
+| WRI-117 | `bd294ef` | Done |
+| WRI-118 | `123fb18` | Done |
+| WRI-119 | `3ac95a0` | Done |
+| WRI-120 | (pending) | Templates + README/PRODUCT.md |
+
 **Note:** WRI-103 ~ WRI-111 stay Done as the v1 implementation; WRI-112 supersedes that data model.

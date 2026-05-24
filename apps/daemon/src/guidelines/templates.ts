@@ -36,6 +36,18 @@ Cross-product UX writing standards (buttons, errors, empty states, etc.).
   surfaces:
     - button
   severity: must
+
+- id: error-messages-actionable
+  do: State what went wrong and what the user can do next.
+  surfaces:
+    - error
+  severity: must
+
+- id: empty-states-helpful
+  do: Explain why the view is empty and offer a clear next step.
+  surfaces:
+    - empty-state
+  severity: should
 `;
 
 export const PRODUCT_BACKGROUND_MD_TEMPLATE = `---

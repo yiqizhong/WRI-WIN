@@ -44,6 +44,43 @@ In **Sources**, paste a Figma frame URL (`figma.com/design/...?node-id=...`), co
 
 See [docs/architecture/local-platform-architecture.md](docs/architecture/local-platform-architecture.md).
 
+## Guidelines (3-layer)
+
+Writer stores UX writing guidelines on disk under `~/.writer/guidelines/`. The desktop **Guidelines** screen uploads and manages fixed company slots plus expandable product cards.
+
+```text
+~/.writer/guidelines/
+├── company-base.md              # Brand voice + company-wide rules
+├── software-writing.md          # Cross-product UX writing rules
+├── company-glossary.csv|md      # Optional company-wide terms
+└── products/
+    └── <product-id>/
+        ├── background.md        # Required — audience, environment, purpose + prose
+        ├── glossary.csv|md      # Optional product terms
+        └── writing-guide.md     # Optional product-specific rule overrides
+```
+
+Each **project** selects an **active product** (`activeProductId`) so audits merge company layers with that product’s background, glossary, and writing guide.
+
+**Upload flow (desktop):**
+
+1. Open **Guidelines** in the desktop app (daemon must be running).
+2. Drop or browse files into **Company base**, **Software writing**, or **Company glossary** — replacing an existing file asks for confirmation.
+3. Click **Add product**, enter a product id and background fields (or upload `background.md`).
+4. Expand a product card to upload/replace/delete glossary or writing-guide slots, or drop files on the card (files are routed by name: `background.md`, `glossary.*`, other `.md` → writing guide).
+
+**Download templates** (also served by the daemon):
+
+| Template | URL path |
+|----------|----------|
+| Company base | `GET /guidelines/templates/company-base.md` |
+| Software writing | `GET /guidelines/templates/software-writing.md` |
+| Company glossary (CSV) | `GET /guidelines/templates/glossary.csv` |
+| Product background | `GET /guidelines/templates/product-background.md` |
+| Product writing guide | `GET /guidelines/templates/product-writing-guide.md` |
+
+Legacy flat `company.md` / `products/<name>.md` layouts from early bootstrap are no longer scaffolded; use the structure above (see Linear epic [WRI-112](https://linear.app/uicb/issue/WRI-112)).
+
 ## Daemon API highlights
 
 - `GET /health` — status and capabilities

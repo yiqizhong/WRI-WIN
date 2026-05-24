@@ -13,7 +13,7 @@
 
 ## Product purpose
 
-Help teams audit, propose, approve, and apply UX/UI copy changes from Figma (or pasted text / spreadsheets) with a mandatory human gate before writeback. Audits are optionally grounded in file-backed UX writing guidelines — structured rules and glossary terms the team maintains in `~/.writer/guidelines/` — so every finding traces to a named rule or forbidden term.
+Help teams audit, propose, approve, and apply UX/UI copy changes from Figma (or pasted text / spreadsheets) with a mandatory human gate before writeback. Audits are optionally grounded in file-backed UX writing guidelines in `~/.writer/guidelines/` using a **three-layer model**: company-wide brand voice (`company-base.md`), cross-product UX writing rules (`software-writing.md`), optional company glossary, and per-product packages under `products/<id>/` (required `background.md` with audience/environment/purpose, optional glossary and writing guide). Each project binds one active product for review context. Findings trace to named rules or forbidden terms from the merged layers.
 
 ## Brand personality
 
