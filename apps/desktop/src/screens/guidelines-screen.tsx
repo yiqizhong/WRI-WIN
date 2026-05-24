@@ -360,14 +360,20 @@ export function GuidelinesScreen() {
               {guidelines?.companyMissing && (
                 <InlineNotification
                   kind="warning"
-                  title="Company guideline missing"
-                  subtitle="Upload a company.md to enable guideline-grounded audits."
+                  title="Company base missing"
+                  subtitle="Upload company-base.md to enable guideline-grounded audits."
                   lowContrast
                 />
               )}
 
               {guidelines?.guidelines.map((item) => (
-                <GuidelineTileView key={item.id} item={item} onDelete={() => void deleteGuideline(item.id)} canDelete={item.id !== "company"} busy={busy} />
+                <GuidelineTileView
+                  key={item.id}
+                  item={item}
+                  onDelete={() => void deleteGuideline(item.id)}
+                  canDelete={item.layer !== "company-base"}
+                  busy={busy}
+                />
               ))}
 
               {guidelines && guidelines.guidelines.length === 0 && !guidelines.companyMissing && (

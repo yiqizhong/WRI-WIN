@@ -7,9 +7,15 @@ import { parseUploadCompanyGlossaryInput } from "@writer/contracts";
 import { getCachedTree } from "../guidelines/cache";
 import { discoverGuidelines } from "../guidelines/discovery";
 import { GLOSSARY_CSV_TEMPLATE } from "../guidelines/glossary/csv-importer";
-import { buildInheritanceTree } from "../guidelines/inheritance";
+import { buildResolvedTree, collectFlatGuidelines } from "../guidelines/inheritance";
 import { buildSnapshot } from "../guidelines/snapshot";
 import { GUIDELINE_MD_TEMPLATE } from "../guidelines/templates";
+import {
+  findGuidelineFilePath,
+  toGuidelinesTreeApi,
+  toLegacyGlossaryList,
+  toLegacyGuidelineList
+} from "../guidelines/tree-api";
 import { addSseClient, forceReload } from "../guidelines/watcher";
 import {
   deleteGlossary,
@@ -35,42 +41,18 @@ export async function handleGuidelinesRequest(
 ): Promise<boolean> {
   const url = request.url ?? "";
 
-  // GET /guidelines
+  // GET /guidelines — 3-layer tree + v1 flat list for desktop until WRI-119
   if (request.method === "GET" && url === "/guidelines") {
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const tree = buildInheritanceTree(cached);
-
-    const guidelines = [
-      ...(tree.company ? [tree.company] : []),
-      ...tree.products
-    ].map((g) => ({
-      id: g.id,
-      layer: g.layer,
-      ...(g.productId ? { productId: g.productId } : {}),
-      version: g.version,
-      ruleCount: g.rules.length,
-      termCount: g.glossary.length,
-      parseStatus: "ok" as const
-    }));
-
-    const errorEntries = cached.entries
-      .filter((e) => e.status === "error")
-      .map((e) => ({
-        id: e.filePath,
-        layer: "company-base" as const,
-        version: "unknown",
-        ruleCount: 0,
-        termCount: 0,
-        parseStatus: "error" as const,
-        parseError: e.status === "error" ? e.error : undefined
-      }));
+    const legacy = toLegacyGuidelineList(cached);
+    const tree = toGuidelinesTreeApi(cached);
 
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
-        guidelines: [...guidelines, ...errorEntries],
-        companyMissing: tree.companyMissing,
-        ...(tree.conflictError ? { conflictError: tree.conflictError } : {})
+        ...tree,
+        guidelines: legacy.guidelines,
+        companyMissing: legacy.companyMissing
       })
     );
     return true;
@@ -99,28 +81,8 @@ export async function handleGuidelinesRequest(
   // GET /glossaries
   if (request.method === "GET" && url === "/glossaries") {
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const glossaries = cached.glossaries.map((g) =>
-      g.status === "ok"
-        ? {
-            id: g.id,
-            name: g.name,
-            format: g.format,
-            termCount: g.terms.length,
-            filePath: g.filePath,
-            parseStatus: "ok" as const
-          }
-        : {
-            id: g.filePath,
-            name: g.filePath.split("/").pop() ?? g.filePath,
-            format: g.format,
-            termCount: 0,
-            filePath: g.filePath,
-            parseStatus: "error" as const,
-            parseError: g.error
-          }
-    );
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify({ glossaries }));
+    response.end(JSON.stringify(toLegacyGlossaryList(cached)));
     return true;
   }
 
@@ -145,7 +107,7 @@ export async function handleGuidelinesRequest(
         filename: legacy.filename,
         content: legacy.content,
         layer,
-        productId: legacy.productId,
+        productId: legacy.productId ?? legacy.filename.replace(/\.md$/, ""),
         overwrite: legacy.overwrite
       });
       if (!result.ok) {
@@ -205,12 +167,12 @@ export async function handleGuidelinesRequest(
   if (delGuideline) {
     const id = decodeURIComponent(delGuideline[1]);
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const entry = cached.entries.find((e) => e.status === "ok" && e.guideline.id === id);
-    if (!entry || entry.status !== "ok") {
+    const filePath = findGuidelineFilePath(cached, id);
+    if (!filePath) {
       notFound(response, `Guideline "${id}" not found.`);
       return true;
     }
-    const result = await deleteGuideline(entry.filePath);
+    const result = await deleteGuideline(filePath);
     if (!result.ok) {
       invalidRequest(response, result.message);
       return true;
@@ -226,14 +188,12 @@ export async function handleGuidelinesRequest(
   if (delGlossary) {
     const id = decodeURIComponent(delGlossary[1]);
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const entry = cached.glossaries.find(
-      (g) => (g.status === "ok" && g.id === id) || (g.status === "error" && g.filePath.endsWith("/" + id))
-    );
-    if (!entry) {
+    const glossary = toLegacyGlossaryList(cached).glossaries.find((g) => g.id === id);
+    if (!glossary) {
       notFound(response, `Glossary "${id}" not found.`);
       return true;
     }
-    const result = await deleteGlossary(entry.filePath);
+    const result = await deleteGlossary(glossary.filePath);
     if (!result.ok) {
       invalidRequest(response, result.message);
       return true;
@@ -269,15 +229,15 @@ export async function handleGuidelinesRequest(
   if (idMatch) {
     const id = idMatch[1];
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const tree = buildInheritanceTree(cached);
-    const all = [...(tree.company ? [tree.company] : []), ...tree.products];
-    const guideline = all.find((g) => g.id === id);
+    const resolved = buildResolvedTree(cached);
+    const guideline = collectFlatGuidelines(resolved).find((g) => g.id === id);
     if (!guideline) {
       notFound(response, `Guideline "${id}" not found.`);
       return true;
     }
+    const { _filePath, _contentHash, _prose, ...apiGuideline } = guideline;
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify(guideline));
+    response.end(JSON.stringify(apiGuideline));
     return true;
   }
 
@@ -286,9 +246,8 @@ export async function handleGuidelinesRequest(
   if (sourcesMatch) {
     const id = sourcesMatch[1];
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const tree = buildInheritanceTree(cached);
-    const all = [...(tree.company ? [tree.company] : []), ...tree.products];
-    const guideline = all.find((g) => g.id === id);
+    const resolved = buildResolvedTree(cached);
+    const guideline = collectFlatGuidelines(resolved).find((g) => g.id === id);
     if (!guideline) {
       notFound(response, `Guideline "${id}" not found.`);
       return true;
@@ -303,9 +262,8 @@ export async function handleGuidelinesRequest(
   if (snapshotMatch) {
     const id = snapshotMatch[1];
     const cached = getCachedTree() ?? (await discoverGuidelines());
-    const tree = buildInheritanceTree(cached);
-    const all = [...(tree.company ? [tree.company] : []), ...tree.products];
-    const guideline = all.find((g) => g.id === id);
+    const resolved = buildResolvedTree(cached);
+    const guideline = collectFlatGuidelines(resolved).find((g) => g.id === id);
     if (!guideline) {
       notFound(response, `Guideline "${id}" not found.`);
       return true;

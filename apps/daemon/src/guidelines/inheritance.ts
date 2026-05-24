@@ -1,66 +1,84 @@
-import type { Guideline, Rule, Term } from "@writer/contracts";
+import type { Guideline, ProductPackage, Term } from "@writer/contracts";
 
-import type { GuidelineEntry, GuidelineTreeResult } from "./discovery";
+import type { FileParseResult, GuidelineTreeResult, ProductPackageResult } from "./discovery";
 
 export type ResolvedGuideline = Guideline & {
   _filePath: string;
   _contentHash: string;
+  _prose?: string;
+};
+
+export type ResolvedProductPackage = ProductPackage & {
+  _filePaths: { background: string; glossary?: string; writingGuide?: string };
+  _contentHashes: Record<string, string>;
 };
 
 export type ResolvedTree = {
-  company: ResolvedGuideline | null;
-  products: ResolvedGuideline[];
-  companyMissing: boolean;
+  companyBase: ResolvedGuideline | null;
+  softwareWriting: ResolvedGuideline | null;
+  companyGlossary: Term[];
+  products: ResolvedProductPackage[];
+  companyBaseMissing: boolean;
+  softwareWritingMissing: boolean;
+  companyGlossaryMissing: boolean;
   conflictError?: string;
+  errors: GuidelineTreeResult["errors"];
 };
 
-function markInherited(rules: Rule[], fromId: string): Rule[] {
-  return rules.map((r) => ({ ...r, inheritedFrom: fromId }));
-}
-
-function buildProductView(product: ResolvedGuideline, company: ResolvedGuideline): ResolvedGuideline {
-  const ownIds = new Set(product.rules.map((r) => r.id));
-  const inheritedRules: Rule[] = markInherited(
-    company.rules.filter((r) => !ownIds.has(r.id)),
-    company.id
-  );
-
-  const ownTermIds = new Set(product.glossary.map((t) => t.id));
-  const inheritedTerms: Term[] = company.glossary
-    .filter((t) => !ownTermIds.has(t.id))
-    .map((t) => ({ ...t }));
-
+function resolveGuideline(slot: FileParseResult<Guideline>): ResolvedGuideline | null {
+  if (slot.status !== "ok") return null;
   return {
-    ...product,
-    rules: [...inheritedRules, ...product.rules],
-    glossary: [...inheritedTerms, ...product.glossary]
+    ...slot.value,
+    _filePath: slot.filePath,
+    _contentHash: slot.contentHash,
+    _prose: slot.value.body
   };
 }
 
-function toResolved(entry: Extract<GuidelineEntry, { status: "ok" }>): ResolvedGuideline {
-  return { ...entry.guideline, _filePath: entry.filePath, _contentHash: entry.contentHash };
-}
-
-export function buildInheritanceTree(treeResult: GuidelineTreeResult): ResolvedTree {
-  const okEntries = treeResult.entries.filter(
-    (e): e is Extract<GuidelineEntry, { status: "ok" }> => e.status === "ok"
-  );
-
-  const companyEntry = okEntries.find(
-    (e) => e.guideline.layer === "company-base" || e.guideline.layer === "software-writing"
-  );
-  const productEntries = okEntries.filter((e) => e.guideline.layer === "product-writing");
-
-  const company = companyEntry ? toResolved(companyEntry) : null;
-  const products = productEntries.map((e) => {
-    const resolved = toResolved(e);
-    return company ? buildProductView(resolved, company) : resolved;
-  });
-
+function resolveProduct(product: ProductPackageResult): ResolvedProductPackage | null {
+  if (product.status !== "ok") return null;
   return {
-    company,
-    products,
-    companyMissing: treeResult.companyMissing,
-    conflictError: treeResult.conflictError
+    ...product.package,
+    _filePaths: product.filePaths,
+    _contentHashes: product.contentHashes
   };
 }
+
+export function buildResolvedTree(treeResult: GuidelineTreeResult): ResolvedTree {
+  const companyGlossary =
+    treeResult.companyGlossary?.status === "ok" ? treeResult.companyGlossary.value : [];
+
+  return {
+    companyBase: treeResult.companyBase ? resolveGuideline(treeResult.companyBase) : null,
+    softwareWriting: treeResult.softwareWriting ? resolveGuideline(treeResult.softwareWriting) : null,
+    companyGlossary,
+    products: treeResult.products.map(resolveProduct).filter((p): p is ResolvedProductPackage => p !== null),
+    companyBaseMissing: treeResult.companyBaseMissing,
+    softwareWritingMissing: treeResult.softwareWritingMissing,
+    companyGlossaryMissing: treeResult.companyGlossaryMissing,
+    conflictError: treeResult.conflictError,
+    errors: treeResult.errors
+  };
+}
+
+/** Flat guideline list for v1 routes and snapshots until WRI-118. */
+export function collectFlatGuidelines(tree: ResolvedTree): ResolvedGuideline[] {
+  const list: ResolvedGuideline[] = [];
+  if (tree.companyBase) list.push(tree.companyBase);
+  if (tree.softwareWriting) list.push(tree.softwareWriting);
+  for (const product of tree.products) {
+    if (product.writingGuide) {
+      list.push({
+        ...product.writingGuide,
+        productId: product.id,
+        _filePath: product._filePaths.writingGuide ?? product._filePaths.background,
+        _contentHash: product._contentHashes[product._filePaths.writingGuide ?? product._filePaths.background] ?? "",
+        _prose: product.writingGuide.body
+      });
+    }
+  }
+  return list;
+}
+
+/** @deprecated alias */
+export const buildInheritanceTree = buildResolvedTree;

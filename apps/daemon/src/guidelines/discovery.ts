@@ -1,243 +1,338 @@
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 
-import type { Guideline, Term } from "@writer/contracts";
+import type { Guideline, ProductPackage, Term } from "@writer/contracts";
 
+import { parseProductBackgroundFile } from "./glossary/background-importer";
 import { parseGlossaryCsv } from "./glossary/csv-importer";
 import { parseStandaloneGlossaryMd } from "./glossary/md-importer";
 import { findImporter } from "./importers/index";
 import type { ParseError } from "./importers/index";
 
-export type GuidelineEntry =
-  | { status: "ok"; guideline: Guideline; filePath: string; contentHash: string }
+export type FileParseResult<T> =
+  | { status: "ok"; value: T; filePath: string; contentHash: string }
   | { status: "error"; error: ParseError; filePath: string };
 
-export type GlossaryEntry =
+export type ProductPackageResult =
   | {
       status: "ok";
-      id: string;
-      name: string;
-      format: "csv" | "md";
-      terms: Term[];
-      filePath: string;
-      contentHash: string;
-      updatedAt: string;
+      package: ProductPackage;
+      filePaths: { background: string; glossary?: string; writingGuide?: string };
+      contentHashes: Record<string, string>;
     }
-  | { status: "error"; error: ParseError; filePath: string; format: "csv" | "md" };
+  | { status: "error"; productId: string; error: ParseError; filePath: string };
 
 export type GuidelineTreeResult = {
-  entries: GuidelineEntry[];
-  glossaries: GlossaryEntry[];
-  companyMissing: boolean;
+  companyBase: FileParseResult<Guideline> | null;
+  softwareWriting: FileParseResult<Guideline> | null;
+  companyGlossary: FileParseResult<Term[]> | null;
+  products: ProductPackageResult[];
+  errors: ParseError[];
+  companyBaseMissing: boolean;
+  softwareWritingMissing: boolean;
+  companyGlossaryMissing: boolean;
   conflictError?: string;
 };
 
-const STARTER_COMPANY_MD = `---
-id: company-base
-name: Company Base
-layer: company-base
-schema: 1
-version: "1.0.0"
-updatedAt: "${new Date().toISOString()}"
----
-
-This file defines your organization's UX writing standards. Edit it in any text editor.
-The daemon watches this file and reloads automatically on save.
-
-## Rules
-
-# Each rule needs a unique kebab-case id, a "do" instruction, one or more surfaces,
-# and a severity (must | should | may).
-- id: use-active-voice
-  do: Write in active voice to make actions clear and direct.
-  dont: Avoid passive constructions like "the form was submitted."
-  reason: Active voice reduces cognitive load and matches users' mental models.
-  surfaces:
-    - body
-    - title
-  severity: should
-
-## Glossary
-
-# Each term needs a unique id, a preferred spelling in "term",
-# and a list of forbidden alternatives in "forbidden".
-- id: sign-in
-  term: Sign in
-  status: active
-  forbidden:
-    - Login
-    - Log in
-  caseSensitive: false
-  reason: Consistent with platform conventions; lowercase two words.
-`;
-
 export function guidelinesDir(): string {
   return join(homedir(), ".writer", "guidelines");
-}
-
-async function scaffoldIfAbsent(dir: string): Promise<void> {
-  await mkdir(dir, { recursive: true });
-  const companyPath = join(dir, "company-base.md");
-  try {
-    await readFile(companyPath);
-  } catch {
-    await writeFile(companyPath, STARTER_COMPANY_MD, "utf8");
-  }
 }
 
 function contentHash(content: string): string {
   return createHash("sha256").update(content).digest("hex").slice(0, 16);
 }
 
-async function collectFiles(dir: string): Promise<{ guidelines: string[]; glossaries: string[] }> {
-  const guidelines: string[] = [];
-  const glossaries: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory() && entry.name === "products") {
-      const sub = await readdir(full, { withFileTypes: true });
-      for (const s of sub) {
-        if (s.isFile() && s.name.endsWith(".md")) guidelines.push(join(full, s.name));
-      }
-    } else if (entry.isDirectory() && entry.name === "glossary") {
-      const sub = await readdir(full, { withFileTypes: true });
-      for (const s of sub) {
-        if (s.isFile() && (s.name.endsWith(".csv") || s.name.endsWith(".md"))) {
-          glossaries.push(join(full, s.name));
-        }
-      }
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      guidelines.push(full);
-    }
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
   }
-  return { guidelines, glossaries };
 }
 
-async function parseGlossaryFile(filePath: string): Promise<GlossaryEntry> {
-  const format: "csv" | "md" = filePath.endsWith(".csv") ? "csv" : "md";
-  let raw: string;
+/** First-run: empty `guidelines/` + `products/` only (no sample content). */
+export async function scaffoldIfAbsent(dir: string): Promise<void> {
+  await mkdir(join(dir, "products"), { recursive: true });
+}
+
+async function readRaw(filePath: string): Promise<string | null> {
   try {
-    raw = await readFile(filePath, "utf8");
-  } catch (err) {
+    return await readFile(filePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+async function parseGuidelineFile(filePath: string): Promise<FileParseResult<Guideline>> {
+  const importer = findImporter(filePath);
+  if (!importer) {
     return {
       status: "error",
-      format,
       filePath,
-      error: { file: filePath, message: `Cannot read file: ${String(err)}` }
+      error: { file: filePath, message: "No importer for file type." }
     };
   }
 
-  const idFromName = basename(filePath).replace(/\.(csv|md)$/, "");
-  const hash = contentHash(raw);
-  const updatedAt = new Date().toISOString();
+  const result = await importer.parse(filePath);
+  if (!result.ok) {
+    return { status: "error", filePath, error: result.error };
+  }
+
+  const raw = (await readRaw(filePath)) ?? "";
+  return {
+    status: "ok",
+    value: result.guideline,
+    filePath,
+    contentHash: contentHash(raw)
+  };
+}
+
+async function parseCompanyGlossaryFile(
+  filePath: string,
+  format: "csv" | "md"
+): Promise<FileParseResult<Term[]>> {
+  const raw = await readRaw(filePath);
+  if (raw === null) {
+    return {
+      status: "error",
+      filePath,
+      error: { file: filePath, message: "Cannot read file." }
+    };
+  }
 
   if (format === "csv") {
     const parsed = parseGlossaryCsv(raw);
     if (!parsed.ok) {
       return {
         status: "error",
-        format,
         filePath,
         error: { file: filePath, line: parsed.line || undefined, message: parsed.message }
       };
     }
-    return {
-      status: "ok",
-      id: idFromName,
-      name: idFromName,
-      format,
-      terms: parsed.terms,
-      filePath,
-      contentHash: hash,
-      updatedAt
-    };
+    return { status: "ok", value: parsed.terms, filePath, contentHash: contentHash(raw) };
   }
 
   const parsed = parseStandaloneGlossaryMd(raw, filePath);
   if (!parsed.ok) {
-    return { status: "error", format, filePath, error: parsed.error };
+    return { status: "error", filePath, error: parsed.error };
   }
+  return { status: "ok", value: parsed.terms, filePath, contentHash: contentHash(raw) };
+}
+
+async function parseProductGlossary(
+  filePath: string,
+  format: "csv" | "md"
+): Promise<Term[] | ParseError> {
+  const raw = await readRaw(filePath);
+  if (raw === null) {
+    return { file: filePath, message: "Cannot read file." };
+  }
+
+  if (format === "csv") {
+    const parsed = parseGlossaryCsv(raw);
+    if (!parsed.ok) {
+      return { file: filePath, line: parsed.line || undefined, message: parsed.message };
+    }
+    return parsed.terms;
+  }
+
+  const parsed = parseStandaloneGlossaryMd(raw, filePath);
+  if (!parsed.ok) return parsed.error;
+  return parsed.terms;
+}
+
+async function discoverProductPackage(
+  productDir: string,
+  productId: string
+): Promise<ProductPackageResult | null> {
+  const backgroundPath = join(productDir, "background.md");
+  if (!(await fileExists(backgroundPath))) {
+    return null;
+  }
+
+  const bgResult = await parseProductBackgroundFile(backgroundPath, productId);
+  if (!bgResult.ok) {
+    return { status: "error", productId, error: bgResult.error, filePath: backgroundPath };
+  }
+
+  const contentHashes: Record<string, string> = {};
+  const rawBg = await readRaw(backgroundPath);
+  if (rawBg !== null) contentHashes[backgroundPath] = contentHash(rawBg);
+
+  let glossary: Term[] = [];
+  let glossaryPath: string | undefined;
+  const glossaryCsv = join(productDir, "glossary.csv");
+  const glossaryMd = join(productDir, "glossary.md");
+  if (await fileExists(glossaryCsv)) {
+    glossaryPath = glossaryCsv;
+    const terms = await parseProductGlossary(glossaryCsv, "csv");
+    if ("message" in terms) {
+      return { status: "error", productId, error: terms, filePath: glossaryCsv };
+    }
+    glossary = terms;
+    const raw = await readRaw(glossaryCsv);
+    if (raw !== null) contentHashes[glossaryCsv] = contentHash(raw);
+  } else if (await fileExists(glossaryMd)) {
+    glossaryPath = glossaryMd;
+    const terms = await parseProductGlossary(glossaryMd, "md");
+    if ("message" in terms) {
+      return { status: "error", productId, error: terms, filePath: glossaryMd };
+    }
+    glossary = terms;
+    const raw = await readRaw(glossaryMd);
+    if (raw !== null) contentHashes[glossaryMd] = contentHash(raw);
+  }
+
+  let writingGuide: Guideline | undefined;
+  const writingGuidePath = join(productDir, "writing-guide.md");
+  if (await fileExists(writingGuidePath)) {
+    const wg = await parseGuidelineFile(writingGuidePath);
+    if (wg.status === "error") {
+      return { status: "error", productId, error: wg.error, filePath: writingGuidePath };
+    }
+    writingGuide = wg.value;
+    contentHashes[writingGuidePath] = wg.contentHash;
+  }
+
+  const pkg: ProductPackage = {
+    id: productId,
+    name: bgResult.background.name,
+    background: bgResult.background,
+    glossary,
+    writingGuide
+  };
+
   return {
     status: "ok",
-    id: parsed.id || idFromName,
-    name: parsed.name || idFromName,
-    format,
-    terms: parsed.terms,
-    filePath,
-    contentHash: hash,
-    updatedAt
+    package: pkg,
+    filePaths: { background: backgroundPath, glossary: glossaryPath, writingGuide: writingGuide ? writingGuidePath : undefined },
+    contentHashes
   };
 }
 
-export async function discoverGuidelines(): Promise<GuidelineTreeResult> {
-  const dir = guidelinesDir();
-  await scaffoldIfAbsent(dir);
-
-  const { guidelines: guidelineFiles, glossaries: glossaryFiles } = await collectFiles(dir);
-  const companyPath = join(dir, "company-base.md");
-  const companyMissing = !guidelineFiles.includes(companyPath);
-
-  const entries: GuidelineEntry[] = [];
-  for (const filePath of guidelineFiles) {
-    const importer = findImporter(filePath);
-    if (!importer) continue;
-
-    const result = await importer.parse(filePath);
-    if (result.ok) {
-      let raw = "";
-      try {
-        raw = await readFile(filePath, "utf8");
-      } catch {
-        // hash stays empty string on read failure
-      }
-      entries.push({
-        status: "ok",
-        guideline: result.guideline,
-        filePath,
-        contentHash: contentHash(raw)
-      });
-    } else {
-      entries.push({ status: "error", error: result.error, filePath });
-    }
-  }
-
-  const glossaries: GlossaryEntry[] = [];
-  for (const filePath of glossaryFiles) {
-    glossaries.push(await parseGlossaryFile(filePath));
-  }
-
-  const conflictError = detectDuplicateIds(entries);
-
-  return { entries, glossaries, companyMissing, conflictError };
-}
-
-function detectDuplicateIds(entries: GuidelineEntry[]): string | undefined {
+function detectDuplicateIds(tree: GuidelineTreeResult): string | undefined {
   const ruleIds = new Map<string, string>();
   const termIds = new Map<string, string>();
 
-  for (const entry of entries) {
-    if (entry.status !== "ok") continue;
-    const { guideline, filePath } = entry;
-
+  const guidelineSlots = [tree.companyBase, tree.softwareWriting];
+  for (const slot of guidelineSlots) {
+    if (!slot || slot.status !== "ok") continue;
+    const { value: guideline, filePath } = slot;
     for (const rule of guideline.rules) {
       const existing = ruleIds.get(rule.id);
-      if (existing) {
-        return `Duplicate rule id "${rule.id}" found in ${existing} and ${filePath}`;
-      }
+      if (existing) return `Duplicate rule id "${rule.id}" found in ${existing} and ${filePath}`;
       ruleIds.set(rule.id, filePath);
     }
-
     for (const term of guideline.glossary) {
       const existing = termIds.get(term.id);
-      if (existing) {
-        return `Duplicate term id "${term.id}" found in ${existing} and ${filePath}`;
-      }
+      if (existing) return `Duplicate term id "${term.id}" found in ${existing} and ${filePath}`;
       termIds.set(term.id, filePath);
     }
   }
 
+  if (tree.companyGlossary?.status === "ok") {
+    for (const term of tree.companyGlossary.value) {
+      const existing = termIds.get(term.id);
+      const filePath = tree.companyGlossary.filePath;
+      if (existing) return `Duplicate term id "${term.id}" found in ${existing} and ${filePath}`;
+      termIds.set(term.id, filePath);
+    }
+  }
+
+  for (const product of tree.products) {
+    if (product.status !== "ok") continue;
+    const { package: pkg, filePaths } = product;
+    for (const term of pkg.glossary) {
+      const filePath = filePaths.glossary ?? filePaths.background;
+      const existing = termIds.get(term.id);
+      if (existing) return `Duplicate term id "${term.id}" found in ${existing} and ${filePath}`;
+      termIds.set(term.id, filePath);
+    }
+    if (pkg.writingGuide) {
+      for (const rule of pkg.writingGuide.rules) {
+        const filePath = filePaths.writingGuide ?? filePaths.background;
+        const existing = ruleIds.get(rule.id);
+        if (existing) return `Duplicate rule id "${rule.id}" found in ${existing} and ${filePath}`;
+        ruleIds.set(rule.id, filePath);
+      }
+    }
+  }
+
   return undefined;
+}
+
+export async function discoverGuidelines(rootDir?: string): Promise<GuidelineTreeResult> {
+  const dir = rootDir ?? guidelinesDir();
+  await mkdir(dir, { recursive: true });
+  await scaffoldIfAbsent(dir);
+
+  const errors: ParseError[] = [];
+
+  const companyBasePath = join(dir, "company-base.md");
+  const softwareWritingPath = join(dir, "software-writing.md");
+  const companyGlossaryCsv = join(dir, "company-glossary.csv");
+  const companyGlossaryMd = join(dir, "company-glossary.md");
+
+  const companyBaseMissing = !(await fileExists(companyBasePath));
+  const softwareWritingMissing = !(await fileExists(softwareWritingPath));
+
+  let companyBase: FileParseResult<Guideline> | null = null;
+  if (!companyBaseMissing) {
+    companyBase = await parseGuidelineFile(companyBasePath);
+    if (companyBase.status === "error") errors.push(companyBase.error);
+  }
+
+  let softwareWriting: FileParseResult<Guideline> | null = null;
+  if (!softwareWritingMissing) {
+    softwareWriting = await parseGuidelineFile(softwareWritingPath);
+    if (softwareWriting.status === "error") errors.push(softwareWriting.error);
+  }
+
+  const hasCsv = await fileExists(companyGlossaryCsv);
+  const hasMd = await fileExists(companyGlossaryMd);
+  const companyGlossaryMissing = !hasCsv && !hasMd;
+
+  let companyGlossary: FileParseResult<Term[]> | null = null;
+  if (hasCsv && hasMd) {
+    errors.push({
+      file: dir,
+      message: "Both company-glossary.csv and company-glossary.md exist; keep only one."
+    });
+  } else if (hasCsv) {
+    companyGlossary = await parseCompanyGlossaryFile(companyGlossaryCsv, "csv");
+    if (companyGlossary.status === "error") errors.push(companyGlossary.error);
+  } else if (hasMd) {
+    companyGlossary = await parseCompanyGlossaryFile(companyGlossaryMd, "md");
+    if (companyGlossary.status === "error") errors.push(companyGlossary.error);
+  }
+
+  const products: ProductPackageResult[] = [];
+  const productsDir = join(dir, "products");
+  if (await fileExists(productsDir)) {
+    const entries = await readdir(productsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+      const productDir = join(productsDir, entry.name);
+      const discovered = await discoverProductPackage(productDir, entry.name);
+      if (discovered) products.push(discovered);
+    }
+  }
+
+  const tree: GuidelineTreeResult = {
+    companyBase,
+    softwareWriting,
+    companyGlossary,
+    products,
+    errors,
+    companyBaseMissing,
+    softwareWritingMissing,
+    companyGlossaryMissing,
+    conflictError: undefined
+  };
+
+  tree.conflictError = detectDuplicateIds(tree);
+  return tree;
 }

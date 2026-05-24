@@ -87,7 +87,9 @@ export class MarkdownImporter implements Importer {
       }
     }
 
-    const payload = { ...frontmatter, rules, glossary };
+    const proseBody = body.search(/^##\s+/m) === -1 ? body.trim() : body.slice(0, body.search(/^##\s+/m)).trim();
+
+    const payload = { ...frontmatter, body: proseBody || undefined, rules, glossary };
     const result = guidelineSchema.safeParse(payload);
     if (!result.success) {
       const firstIssue = result.error.issues[0];
