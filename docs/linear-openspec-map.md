@@ -272,6 +272,6 @@ Replaces the flat company+product model from WRI-103 with a 3-layer structure th
 | WRI-117 | `bd294ef` | Done |
 | WRI-118 | `123fb18` | Done |
 | WRI-119 | `3ac95a0` | Done |
-| WRI-120 | (pending) | Templates + README/PRODUCT.md |
+| WRI-120 | `a8c00bf` | Done |
 
 **Note:** WRI-103 ~ WRI-111 stay Done as the v1 implementation; WRI-112 supersedes that data model.
