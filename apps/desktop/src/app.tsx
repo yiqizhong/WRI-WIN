@@ -6,7 +6,7 @@ import { SettingsScreen } from "./screens/settings-screen";
 import { SourcesScreen } from "./screens/sources-screen";
 import { AppShell } from "./shell/AppShell";
 import { ProductChrome } from "./shell/ProductChrome";
-import { titleForPath } from "./shell/nav-items";
+import { descriptionForPath, titleForPath } from "./shell/nav-items";
 import { WorkspaceProvider, useWorkspace } from "./workspace-context";
 
 function RoutedApp() {
@@ -16,6 +16,7 @@ function RoutedApp() {
   return (
     <ProductChrome
       pageTitle={titleForPath(location.pathname)}
+      pageDescription={descriptionForPath(location.pathname)}
       daemon={{
         label: workspace.statusView.label,
         detail: workspace.statusView.detail,

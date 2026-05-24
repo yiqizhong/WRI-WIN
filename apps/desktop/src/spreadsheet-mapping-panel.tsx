@@ -1,7 +1,8 @@
 import type { SpreadsheetMappingInput, SpreadsheetParseResult } from "@writer/contracts";
 import { Dropdown, Stack, Tile } from "@carbon/react";
 
-import { fillWidth, hugHeight, row, surface } from "./layout/writer-sizing";
+import { WriterSectionHeader } from "./layout/writer-headings";
+import { fillWidth, surface } from "./layout/writer-sizing";
 
 type SpreadsheetMappingPanelProps = {
   parsed: SpreadsheetParseResult | null;
@@ -47,15 +48,15 @@ export function SpreadsheetMappingPanel({ parsed, mapping, onMappingChange }: Sp
   }
 
   return (
-    <Tile className={`${surface} ${fillWidth}`} style={{ background: "var(--cds-layer-02)" }}>
+    <Tile className={`${surface} ${fillWidth} writer-mapping-tile`}>
       <Stack gap={5}>
-        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Column mapping</h2>
-        <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
-          Confirm which columns hold source copy, suggestions, status, and notes before running audit.
-        </p>
-        <Stack gap={5} orientation="horizontal" className={`${row} ${hugHeight}`}>
+        <WriterSectionHeader
+          title="Column mapping"
+          description="Confirm which columns hold source copy, suggestions, status, and notes before running audit."
+        />
+        <div className="writer-mapping-row">
           {ROLES.map((role) => (
-            <div key={role} className={hugHeight}>
+            <div key={role} className="writer-mapping-row__cell">
             <Dropdown
               id={`mapping-${role}`}
               titleText={role}
@@ -72,7 +73,7 @@ export function SpreadsheetMappingPanel({ parsed, mapping, onMappingChange }: Sp
             />
             </div>
           ))}
-        </Stack>
+        </div>
       </Stack>
     </Tile>
   );

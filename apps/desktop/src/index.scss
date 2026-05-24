@@ -8,7 +8,151 @@
   $theme: themes.$g10
 );
 
+@use '@carbon/react/scss/type';
+@use '@carbon/motion';
 @use '@carbon/react';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Token alias layer (pipeline)
+// `atomic-tokens.md`: 引用 token 时**优先用 alias 层**(`var(--color-*)`),
+// 不直接写 `var(--cds-*)`。IDL 8 阶 spacing 唯一真实来源。
+// Motion 值直接来自 @carbon/motion (`restraint-rules.md` L10)。
+// ─────────────────────────────────────────────────────────────────────────────
+
+:root,
+.cds--g10 {
+  // Color · G10 layering(`color-system.md`)
+  --color-bg: var(--cds-background);
+  --color-surface: var(--cds-layer-01);
+  --color-surface-2: var(--cds-layer-02);
+  --color-border: var(--cds-border-subtle-01);
+  --color-fg: var(--cds-text-primary);
+  --color-fg-muted: var(--cds-text-secondary);
+  --color-fg-subtle: var(--cds-text-helper);
+  --color-accent: var(--cds-link-primary);
+  --color-success: var(--cds-support-success);
+  --color-warning: var(--cds-support-warning);
+  --color-danger: var(--cds-support-error);
+  --color-focus: var(--cds-focus);
+  --color-layer-selected: var(--cds-layer-selected-01);
+  --color-layer-accent: var(--cds-layer-accent-01);
+  --color-field: var(--cds-field-01);
+
+  // Spacing · IDL 8 阶(`atomic-tokens.md` hard rule)
+  --space-2: var(--cds-spacing-03); // 8px  = IDL $spacing-01
+  --space-4: var(--cds-spacing-05); // 16px = IDL $spacing-02
+  --space-6: var(--cds-spacing-06); // 24px = IDL $spacing-03
+  --space-8: var(--cds-spacing-07); // 32px = IDL $spacing-04
+  --space-12: var(--cds-spacing-09); // 48px = IDL $spacing-05
+  --space-16: var(--cds-spacing-10); // 64px = IDL $spacing-06
+  --space-20: var(--cds-spacing-11); // 80px = IDL $spacing-07
+  --space-24: var(--cds-spacing-12); // 96px = IDL $spacing-08
+
+  // Radius
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  // Motion · 直接绑定 Carbon 值
+  --motion-duration-fast-01: #{motion.$duration-fast-01};
+  --motion-duration-fast-02: #{motion.$duration-fast-02};
+  --motion-duration-moderate-01: #{motion.$duration-moderate-01};
+  --motion-duration-moderate-02: #{motion.$duration-moderate-02};
+  --motion-duration-slow-01: #{motion.$duration-slow-01};
+  --motion-duration-slow-02: #{motion.$duration-slow-02};
+
+  --ease-standard-productive: #{motion.motion(standard, productive)};
+  --ease-entrance-productive: #{motion.motion(entrance, productive)};
+  --ease-exit-productive: #{motion.motion(exit, productive)};
+  --ease-standard-expressive: #{motion.motion(standard, expressive)};
+  --ease-entrance-expressive: #{motion.motion(entrance, expressive)};
+  --ease-exit-expressive: #{motion.motion(exit, expressive)};
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Typography helpers · 包 Carbon type-style mixin
+// 屏幕代码不允许写 inline fontSize/fontWeight (`restraint-rules.md` L07)
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-type-page-title {
+  @include type.type-style('productive-heading-05');
+  margin: 0;
+  color: var(--color-fg);
+}
+
+.writer-type-page-description {
+  @include type.type-style('body-01');
+  margin: 0;
+  color: var(--color-fg-muted);
+  max-inline-size: 42rem;
+}
+
+.writer-type-section-title {
+  @include type.type-style('productive-heading-02');
+  margin: 0;
+  color: var(--color-fg);
+}
+
+.writer-type-section-description {
+  @include type.type-style('body-compact-01');
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.writer-type-body {
+  @include type.type-style('body-01');
+  margin: 0;
+  color: var(--color-fg);
+}
+
+.writer-type-body-compact {
+  @include type.type-style('body-compact-01');
+  margin: 0;
+  color: var(--color-fg);
+}
+
+.writer-type-helper {
+  @include type.type-style('helper-text-01');
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.writer-type-label {
+  @include type.type-style('label-01');
+  margin: 0;
+  color: var(--color-fg-muted);
+}
+
+.writer-type-eyebrow {
+  @include type.type-style('label-01');
+  margin: 0;
+  color: var(--color-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+}
+
+.writer-type-mono {
+  font-family: var(--cds-font-family-mono);
+}
+
+.writer-text-secondary {
+  color: var(--color-fg-muted);
+}
+
+.writer-text-error {
+  color: var(--cds-text-error);
+}
+
+.writer-break-word {
+  word-break: break-all;
+}
+
+.writer-type-italic {
+  font-style: italic;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shell · seed masthead + product chrome
+// ─────────────────────────────────────────────────────────────────────────────
 
 html,
 body,
@@ -18,8 +162,8 @@ body,
 }
 
 body {
-  background: var(--cds-background);
-  color: var(--cds-text-primary);
+  background: var(--color-bg);
+  color: var(--color-fg);
   font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -45,8 +189,8 @@ html[data-platform='win32'] .seed-shell {
   z-index: 8000;
   block-size: var(--seed-masthead-height);
   min-block-size: var(--seed-masthead-height);
-  background: var(--cds-background);
-  border-block-end: 1px solid var(--cds-border-subtle-01);
+  background: var(--color-bg);
+  border-block-end: 1px solid var(--color-border);
   box-shadow: none;
   -webkit-app-region: drag;
   app-region: drag;
@@ -81,7 +225,6 @@ html[data-platform='win32'] .seed-shell {
   min-block-size: calc(100vh - var(--seed-content-top));
 }
 
-// Carbon SideNav is position:fixed by default — override to in-flow rail beside content.
 .writer-product-chrome .cds--side-nav__navigation.cds--side-nav {
   position: relative;
   inset: auto;
@@ -102,15 +245,29 @@ html[data-platform='win32'] .seed-shell {
 .writer-product-chrome__main {
   flex: 1;
   min-width: 0;
+  padding: var(--space-8) var(--space-6);
 }
 
-// IBM 2× grid — Product & docs style model (left-aligned, max width at max breakpoint).
 .writer-product-chrome__content {
   inline-size: 100%;
-  max-inline-size: 99rem; // 1584px — Overview max breakpoint
+  max-inline-size: 99rem;
 }
 
-// Page grids: Carbon handles wide (32px), narrow (16px), condensed (1px) gutters.
+.writer-product-chrome .cds--side-nav {
+  display: flex;
+  flex-direction: column;
+  border-inline-end: 1px solid var(--color-border);
+}
+
+.writer-product-chrome__footer {
+  margin-top: auto;
+  padding: var(--space-4);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page grid (Carbon 2× grid)
+// ─────────────────────────────────────────────────────────────────────────────
+
 .writer-page-grid {
   padding-inline: 0;
   margin-inline: 0;
@@ -118,57 +275,103 @@ html[data-platform='win32'] .seed-shell {
 }
 
 .writer-page-grid > .cds--col {
-  // 16px column padding per IBM breakpoint table (2x mini units).
-  padding-inline: var(--cds-spacing-05);
+  padding-inline: var(--space-4);
 }
 
-// Condensed mode: subtle borders on tiles so 1px gutters read clearly (Usage tab).
 .writer-page-grid.cds--css-grid--condensed .cds--tile {
-  border: 1px solid var(--cds-border-subtle-01);
+  border: 1px solid var(--color-border);
 }
 
-.writer-page-header {
+// ─────────────────────────────────────────────────────────────────────────────
+// Leadspace · 跨屏一致页头(`IBM Usage §Basic scaffolding`)
+// `composition-rules.md` whitespace: space replaces graphical dividers — no border.
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-leadspace {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: var(--cds-spacing-05);
+  gap: var(--space-8);
   flex-wrap: wrap;
 }
 
-.writer-product-chrome .cds--side-nav {
+.writer-leadspace__body {
   display: flex;
   flex-direction: column;
-  border-inline-end: 1px solid var(--cds-border-subtle-01);
+  gap: var(--space-2);
+  min-inline-size: 0;
+  flex: 1 1 24rem;
 }
 
-.writer-product-chrome__footer {
-  margin-top: auto;
-  padding: var(--cds-spacing-05);
+.writer-leadspace__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tile section header
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.writer-section-header__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-inline-size: 0;
+  flex: 1 1 14rem;
+}
+
+.writer-section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Session strip / tag row
+// ─────────────────────────────────────────────────────────────────────────────
 
 .writer-session-strip {
+  @include type.type-style('body-compact-01');
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cds-spacing-05);
+  gap: var(--space-4);
   align-items: center;
-  font-size: 0.875rem;
-  color: var(--cds-text-secondary);
+  color: var(--color-fg-muted);
 }
 
-.writer-toolbar-band {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cds-spacing-05);
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: var(--cds-spacing-05);
-  background: var(--cds-layer-01);
-  border: 1px solid var(--cds-border-subtle-01);
+.writer-toolbar-actions {
   inline-size: 100%;
-  box-sizing: border-box;
+  flex-wrap: wrap;
 }
 
-// --- Fill / Hug (Figma auto-layout semantics) ---
+.writer-review-toolbar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.writer-tag-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fill / Hug (Figma auto-layout semantics)
+// ─────────────────────────────────────────────────────────────────────────────
 
 .writer-fill-w {
   inline-size: 100%;
@@ -241,7 +444,7 @@ html[data-platform='win32'] .seed-shell {
 .writer-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cds-spacing-05);
+  gap: var(--space-4);
   align-items: flex-end;
   inline-size: 100%;
   flex: 0 0 auto;
@@ -257,13 +460,17 @@ html[data-platform='win32'] .seed-shell {
   align-items: center;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Chat composer + messages
+// ─────────────────────────────────────────────────────────────────────────────
+
 .writer-chat-scroll {
   flex: 1 1 auto;
   min-block-size: 12rem;
   overflow-y: auto;
-  padding: var(--cds-spacing-04);
-  background: var(--cds-layer-02);
-  border: 1px solid var(--cds-border-subtle-01);
+  padding: var(--space-4);
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
   box-sizing: border-box;
 }
 
@@ -277,10 +484,40 @@ html[data-platform='win32'] .seed-shell {
   align-self: flex-end;
 }
 
+.writer-chat-message {
+  @include type.type-style('body-compact-01');
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  white-space: pre-wrap;
+  border: 1px solid var(--color-border);
+}
+
+.writer-chat-message--assistant {
+  background: var(--color-surface);
+}
+
+.writer-chat-message--user {
+  background: var(--color-layer-accent);
+}
+
+.writer-chat-message--placeholder {
+  font-style: italic;
+  color: var(--color-fg-muted);
+}
+
+.writer-chat-message--failed {
+  border-color: var(--color-danger);
+  color: var(--cds-text-error);
+}
+
+.writer-row-index-input {
+  max-inline-size: 12.5rem;
+}
+
 .writer-composer-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cds-spacing-03);
+  gap: var(--space-2);
   align-items: flex-end;
   inline-size: 100%;
   flex: 0 0 auto;
@@ -294,11 +531,154 @@ html[data-platform='win32'] .seed-shell {
 .writer-composer-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--cds-spacing-02);
+  gap: var(--space-2);
   flex: 0 0 auto;
 }
 
-.writer-intro-copy {
+// ─────────────────────────────────────────────────────────────────────────────
+// Settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-active-project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Changelog
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-changelog-list {
   margin: 0;
-  max-inline-size: 42rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.writer-changelog-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block-end: var(--space-2);
+  border-block-end: 1px solid var(--color-border);
+
+  &:last-child {
+    border-block-end: none;
+    padding-block-end: 0;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Review queue
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-queue-filter {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.writer-row-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Agents panel · provider tile + MCP tile
+// `restraint-rules.md` L10 — motion via Carbon tokens, wrapped in reduced-motion guard.
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-agent-tile {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .writer-agent-tile {
+    transition:
+      border-color var(--motion-duration-fast-02) var(--ease-standard-productive),
+      background-color var(--motion-duration-fast-02) var(--ease-standard-productive);
+  }
+}
+
+.writer-agent-tile--selected {
+  border-color: var(--color-focus);
+  background: var(--color-layer-selected);
+}
+
+.writer-agent-tile__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-6);
+}
+
+.writer-agent-tile__actions {
+  padding-inline-start: var(--space-6);
+}
+
+.writer-mcp-tile {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.writer-mcp-tile--centered {
+  text-align: center;
+}
+
+.writer-mcp-tile__actions {
+  padding-block-start: var(--space-2);
+}
+
+.writer-labeled-code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.writer-code-chip {
+  @include type.type-style('code-01');
+  display: inline-block;
+  padding: 2px var(--space-2);
+  background: var(--color-field);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-fg-muted);
+  font-family: var(--cds-font-family-mono);
+}
+
+.writer-code-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spreadsheet mapping (used outside Sources)
+// ─────────────────────────────────────────────────────────────────────────────
+
+.writer-mapping-tile {
+  background: var(--color-surface-2);
+}
+
+.writer-mapping-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-end;
+}
+
+.writer-mapping-row__cell {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
 }

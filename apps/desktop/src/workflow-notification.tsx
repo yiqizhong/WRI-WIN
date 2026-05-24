@@ -25,7 +25,7 @@ export function WorkflowNotification() {
     <InlineNotification
       kind="info"
       lowContrast
-      title="Update"
+      title=""
       subtitle={workflowMessage}
       onClose={() => setWorkflowMessage(null)}
     />

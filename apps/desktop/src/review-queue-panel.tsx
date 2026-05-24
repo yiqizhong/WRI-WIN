@@ -17,7 +17,8 @@ import {
 import type { ChangeStatus, ReviewChange } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
-import { hugHeight, row, rowBetween, stackFill, surfaceBody, surfaceFillHeight } from "./layout/writer-sizing";
+import { WriterSectionHeader } from "./layout/writer-headings";
+import { stackFill, surfaceBody, surfaceFillHeight } from "./layout/writer-sizing";
 
 type ReviewQueuePanelProps = {
   client: DaemonClient;
@@ -120,37 +121,42 @@ export function ReviewQueuePanel({
   return (
     <Tile className={surfaceFillHeight}>
       <Stack gap={5} className={stackFill}>
-        <div className={rowBetween}>
-          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Review queue</h2>
-          <Stack gap={3} orientation="horizontal" className={`${row} ${hugHeight}`}>
-            <Dropdown
-              id="status-filter"
-              titleText="Status"
-              label={selectedStatus.label}
-              items={STATUS_ITEMS}
-              itemToString={(item) => item?.label ?? ""}
-              selectedItem={selectedStatus}
-              onChange={({ selectedItem }) => {
-                if (selectedItem) {
-                  onStatusFilterChange(selectedItem.id);
-                }
-              }}
-              size="md"
-            />
-            <Button kind="secondary" size="md" disabled={!sessionId || changes.length === 0} onClick={() => void bulkApprove()}>
-              Approve filtered
-            </Button>
-          </Stack>
-        </div>
+        <WriterSectionHeader
+          title="Review queue"
+          actions={
+            <div className="writer-queue-filter">
+              <Dropdown
+                id="status-filter"
+                titleText="Status"
+                label={selectedStatus.label}
+                items={STATUS_ITEMS}
+                itemToString={(item) => item?.label ?? ""}
+                selectedItem={selectedStatus}
+                onChange={({ selectedItem }) => {
+                  if (selectedItem) {
+                    onStatusFilterChange(selectedItem.id);
+                  }
+                }}
+                size="md"
+              />
+              <Button
+                kind="secondary"
+                size="md"
+                disabled={!sessionId || changes.length === 0}
+                onClick={() => void bulkApprove()}
+              >
+                Approve filtered
+              </Button>
+            </div>
+          }
+        />
 
         {!sessionId ? (
-          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
-            Create a review session from <Link to="/figma">Sources</Link> to populate the queue.
+          <p className="writer-type-body-compact writer-text-secondary">
+            Create a session in <Link to="/figma">Sources</Link>.
           </p>
         ) : changes.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
-            No items match this filter. Run an audit to generate proposals.
-          </p>
+          <p className="writer-type-body-compact writer-text-secondary">No items.</p>
         ) : (
           <div className={surfaceBody}>
           <StructuredListWrapper>
@@ -166,17 +172,15 @@ export function ReviewQueuePanel({
                 <StructuredListRow key={change.id}>
                   <StructuredListCell>
                     <Stack gap={3}>
-                      <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--cds-text-secondary)" }}>
-                        {change.sourceId}
+                      <p className="writer-type-helper writer-type-mono">{change.sourceId}</p>
+                      <p className="writer-type-body-compact">
+                        <span className="writer-type-eyebrow">Before</span> {change.before}
                       </p>
-                      <p style={{ margin: 0 }}>
-                        <strong>Before</strong> {change.before}
-                      </p>
-                      <p style={{ margin: 0 }}>
-                        <strong>After</strong> {change.after}
+                      <p className="writer-type-body-compact">
+                        <span className="writer-type-eyebrow">After</span> {change.after}
                       </p>
                       {change.rationale ? (
-                        <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+                        <p className="writer-type-body-compact writer-text-secondary">
                           {change.rationale}
                         </p>
                       ) : null}
@@ -195,7 +199,7 @@ export function ReviewQueuePanel({
                     <Tag type={statusTagType(change.status)}>{change.status}</Tag>
                   </StructuredListCell>
                   <StructuredListCell>
-                    <Stack gap={3} orientation="horizontal" style={{ flexWrap: "wrap" }}>
+                    <div className="writer-row-actions">
                       <Button kind="secondary" size="sm" onClick={() => void act(change.id, "approved")}>
                         Approve
                       </Button>
@@ -220,7 +224,7 @@ export function ReviewQueuePanel({
                       <Button kind="ghost" size="sm" onClick={() => void act(change.id, "skipped")}>
                         Skip
                       </Button>
-                    </Stack>
+                    </div>
                   </StructuredListCell>
                 </StructuredListRow>
               ))}

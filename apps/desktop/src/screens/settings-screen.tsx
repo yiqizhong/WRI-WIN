@@ -1,5 +1,4 @@
-import { Link } from "react-router-dom";
-import { Button, Stack, TextArea } from "@carbon/react";
+import { Button, TextArea } from "@carbon/react";
 
 import { WriterPageGrid, WriterPageGridHalf, WriterPageStack } from "../layout/writer-grid";
 import { fillWidth, hugWidth } from "../layout/writer-sizing";
@@ -13,42 +12,37 @@ export function SettingsScreen() {
     <WriterPageGrid gutterMode="wide">
       <WriterPageGridHalf>
         <WriterPageStack>
-          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
-            Platform setup for the active project. Connection settings live on{" "}
-            <Link to="/agents">Agents</Link>.
-          </p>
-
           <WorkflowNotification />
 
           {workspace.activeProject ? (
-            <Stack gap={2}>
-              <p style={{ margin: 0, fontWeight: 600 }}>{workspace.activeProject.name}</p>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)", wordBreak: "break-all" }}>
+            <div className="writer-active-project">
+              <p className="writer-type-section-title">{workspace.activeProject.name}</p>
+              <p className="writer-type-helper writer-break-word writer-type-mono">
                 {workspace.activeProject.rootPath}
               </p>
-            </Stack>
+            </div>
           ) : (
-            <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>No active project. Use Open project in the header.</p>
+            <p className="writer-type-body writer-text-secondary">No project open.</p>
           )}
 
           <TextArea
             id="brand-voice"
             className={fillWidth}
             labelText="Brand voice"
-            helperText="Friendly, direct, no jargon…"
+            helperText="Tone and terminology for audits."
             rows={4}
-            placeholder="Describe tone and terminology for audits."
+            placeholder="Friendly, direct, no jargon."
             value={workspace.brandVoice}
             onChange={(event) => workspace.setBrandVoice(event.target.value)}
           />
 
           <Button
-            kind="secondary"
+            kind="primary"
             className={hugWidth}
             disabled={!workspace.activeProject}
             onClick={() => void workspace.saveBrandVoice()}
           >
-            Save guidance
+            Save voice
           </Button>
         </WriterPageStack>
       </WriterPageGridHalf>

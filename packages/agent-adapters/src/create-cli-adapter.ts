@@ -4,7 +4,13 @@ import type { AgentAdapter, AgentRun, AgentRunEvent, ConnectionDiagnostic } from
 
 import { commandExists, runCliCommand, spawnCliStream, type CliRunResult } from "./cli-runner";
 import { parseCursorAgentStreamLine } from "./stream-json";
-import type { AgentAdapterImplementation, AgentDetectionResult, AgentRunHandle, AgentRunRequest } from "./types";
+import type {
+  AgentAdapterImplementation,
+  AgentDetectionResult,
+  AgentRunHandle,
+  AgentRunRequest,
+  DetectOptions
+} from "./types";
 
 export type AgentAuthState = "ready" | "needs_auth" | "unknown";
 export type AgentRuntimeKind = "local" | "hybrid";
@@ -30,15 +36,72 @@ const DEFAULT_RUN_TIMEOUT_MS = 120_000;
 const DEFAULT_SMOKE_TIMEOUT_MS = 45_000;
 const SMOKE_PROMPT = "Reply with exactly OK";
 
+/**
+ * TTL for cached detect() results. Detection spawns the CLI (`--version`)
+ * and — for adapters with `probeAuth` like Devin — runs a full LLM smoke
+ * test ("Reply with exactly OK"). Without this cache, every Send re-pays
+ * that cost twice (resolveAdapterForRun + runCliAdapter both detect).
+ *
+ * 60s strikes a balance: stable enough that interactive bursts share one
+ * detection, short enough that a reinstall / login change is picked up
+ * without forcing the user to hit Refresh.
+ */
+const DETECTION_TTL_MS = 60_000;
+
+type CachedDetection = {
+  result: AgentDetectionResult;
+  expiresAt: number;
+};
+
+const detectionCache = new Map<string, CachedDetection>();
+
+/** Test seam — also useful if a host process wants to invalidate after install. */
+export function clearAdapterDetectionCache(adapterId?: string): void {
+  if (adapterId) {
+    detectionCache.delete(adapterId);
+    return;
+  }
+  detectionCache.clear();
+}
+
 export function createCliAdapter(config: CliAdapterConfig): AgentAdapterImplementation {
   return {
     id: config.id,
-    detect: () => detectCliAdapter(config),
+    detect: (options) => detectCliAdapter(config, options),
     run: (request) => runCliAdapter(config, request)
   };
 }
 
-export async function detectCliAdapter(config: CliAdapterConfig): Promise<AgentDetectionResult> {
+export async function detectCliAdapter(
+  config: CliAdapterConfig,
+  options?: DetectOptions
+): Promise<AgentDetectionResult> {
+  if (!options?.force) {
+    const cached = detectionCache.get(config.id);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.result;
+    }
+  }
+
+  const result = await runRealDetection(config);
+
+  // Only cache successful, available detections. Failures (binary missing,
+  // auth needed, broken executable) should be retried on the next call so a
+  // user fix is reflected immediately. Available adapters dominate the hot
+  // path (every Send), so caching them is the win.
+  if (result.adapter.available) {
+    detectionCache.set(config.id, {
+      result,
+      expiresAt: Date.now() + DETECTION_TTL_MS
+    });
+  } else {
+    detectionCache.delete(config.id);
+  }
+
+  return result;
+}
+
+async function runRealDetection(config: CliAdapterConfig): Promise<AgentDetectionResult> {
   const executablePath = await commandExists(config.command);
 
   if (!executablePath) {

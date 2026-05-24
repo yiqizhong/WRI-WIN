@@ -26,6 +26,7 @@ import {
   WriterPageGridHalf,
   WriterPageStack
 } from "./layout/writer-grid";
+import { WriterSectionHeader } from "./layout/writer-headings";
 import {
   classNames,
   fillWidth,
@@ -44,13 +45,8 @@ type AgentsPanelProps = {
   onMessage: (message: string) => void;
 };
 
-const adapterTileStyle = (selected: boolean) => ({
-  border: selected ? "1px solid var(--cds-focus)" : "1px solid var(--cds-border-subtle)",
-  background: selected ? "var(--cds-layer-selected)" : "var(--cds-layer-01)",
-  padding: "var(--cds-spacing-05)",
-  transition: "border-color 150ms ease, background-color 150ms ease",
-  borderRadius: "4px"
-});
+const adapterTileClass = (selected: boolean) =>
+  classNames("writer-agent-tile", selected ? "writer-agent-tile--selected" : null);
 
 function runtimeLabel(adapter: AgentAdapter): string | null {
   if (adapter.runtimeKind === "hybrid") {
@@ -273,14 +269,11 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
   return (
     <WriterPageStack fill>
       <div className={rowBetween}>
-        <Stack gap={2} className={hugHeight}>
-          <p className="writer-intro-copy" style={{ fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-            Choose an LLM provider and manage MCP integrations for local audits and Figma writeback.
-          </p>
-          {agentsRefreshing ? (
-            <InlineLoading description="Refreshing agent detection…" status="active" />
-          ) : null}
-        </Stack>
+        {agentsRefreshing ? (
+          <InlineLoading description="Refreshing agent detection…" status="active" />
+        ) : (
+          <span />
+        )}
         <Button
           kind="secondary"
           className={hugWidth}
@@ -296,14 +289,11 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
       <WriterPageGrid gutterMode="narrow">
         <WriterPageGridHalf>
           <WriterPageStack>
-            <header>
-              <h2 id="llm-providers-heading" style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
-                LLM Providers
-              </h2>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)", marginBlockStart: "var(--cds-spacing-01)" }}>
-                Select the active provider for local audits and generation.
-              </p>
-            </header>
+            <WriterSectionHeader
+              id="llm-providers-heading"
+              title="LLM providers"
+              description="Select the active provider for local audits and generation."
+            />
 
             <WriterPageGrid gutterMode="wide">
               <WriterPageGridFull>
@@ -327,10 +317,9 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                     return (
                       <Tile
                         key={adapter.id}
-                        className={classNames(surface, fillWidth)}
-                        style={adapterTileStyle(isSelected)}
+                        className={classNames(surface, fillWidth, adapterTileClass(isSelected))}
                       >
-                        <Stack gap={4}>
+                        <Stack gap={5}>
                           <div className={rowBetween}>
                             <RadioButton
                               id={`radio-${adapter.id}`}
@@ -340,66 +329,38 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                             />
                             <div className={classNames(row, hugHeight)}>
                               {label ? (
-                                <Tag type="gray" size="sm" className={hugWidth} style={{ margin: 0 }}>
+                                <Tag type="gray" size="sm" className={hugWidth}>
                                   {label}
                                 </Tag>
                               ) : null}
-                              <Tag type={status.type} size="sm" className={hugWidth} style={{ margin: 0 }}>
+                              <Tag type={status.type} size="sm" className={hugWidth}>
                                 {status.label}
                               </Tag>
                             </div>
                           </div>
 
                           {adapter.setupMessage || adapter.executablePath || diagnosticText ? (
-                            <Stack gap={3} style={{ paddingLeft: "var(--cds-spacing-06)" }}>
+                            <div className="writer-agent-tile__detail">
                               {adapter.executablePath ? (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-01)" }}>
-                                  <span
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      color: "var(--cds-text-secondary)",
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.5px",
-                                      fontWeight: 500
-                                    }}
-                                  >
-                                    Executable path
-                                  </span>
-                                  <code
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      fontFamily: "var(--cds-font-family-mono, monospace)",
-                                      color: "var(--cds-text-secondary)",
-                                      wordBreak: "break-all",
-                                      background: "var(--cds-field-01)",
-                                      padding: "var(--cds-spacing-01) var(--cds-spacing-02)",
-                                      borderRadius: "2px",
-                                      border: "1px solid var(--cds-border-subtle)"
-                                    }}
-                                  >
+                                <div className="writer-labeled-code">
+                                  <span className="writer-type-eyebrow">Executable path</span>
+                                  <code className="writer-code-chip writer-break-word">
                                     {adapter.executablePath}
                                   </code>
                                 </div>
                               ) : null}
 
                               {adapter.setupMessage ? (
-                                <p
-                                  style={{
-                                    margin: 0,
-                                    fontSize: "0.875rem",
-                                    color: "var(--cds-text-secondary)",
-                                    lineHeight: 1.4
-                                  }}
-                                >
+                                <p className="writer-type-body-compact writer-text-secondary">
                                   {adapter.setupMessage}
                                 </p>
                               ) : null}
 
                               {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
-                            </Stack>
+                            </div>
                           ) : null}
 
-                          <div className={classNames(rowEnd, hugHeight)} style={{ paddingLeft: "var(--cds-spacing-06)" }}>
+                          <div className={classNames(rowEnd, hugHeight, "writer-agent-tile__actions")}>
                             <Button
                               kind="tertiary"
                               size="md"
@@ -426,19 +387,16 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
 
         <WriterPageGridHalf>
           <WriterPageStack>
-            <header>
-              <h2 id="mcp-servers-heading" style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>
-                MCP Servers
-              </h2>
-              <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)", marginBlockStart: "var(--cds-spacing-01)" }}>
-                Turn integrations on or off and connect external tool servers (including Figma).
-              </p>
-            </header>
+            <WriterSectionHeader
+              id="mcp-servers-heading"
+              title="MCP servers"
+              description="Turn integrations on or off and connect external tool servers (including Figma)."
+            />
 
             <section aria-labelledby="mcp-servers-heading">
               <Stack gap={5}>
                 {mcpLoadState === "loading" && mcpServers.length === 0 ? (
-                  <Tile className={classNames(surface, fillWidth)} style={{ padding: "var(--cds-spacing-05)", textAlign: "center", borderRadius: "4px" }}>
+                  <Tile className={classNames(surface, fillWidth, "writer-mcp-tile writer-mcp-tile--centered")}>
                     <InlineLoading description="Loading MCP servers…" status="active" />
                   </Tile>
                 ) : null}
@@ -451,15 +409,9 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                   return (
                     <Tile
                       key={server.id}
-                      className={classNames(surface, fillWidth)}
-                      style={{
-                        border: "1px solid var(--cds-border-subtle)",
-                        background: "var(--cds-layer-01)",
-                        padding: "var(--cds-spacing-05)",
-                        borderRadius: "4px"
-                      }}
+                      className={classNames(surface, fillWidth, "writer-mcp-tile")}
                     >
-                      <Stack gap={4}>
+                      <Stack gap={5}>
                         <div className={rowBetween}>
                           <Toggle
                             id={`mcp-${server.id}`}
@@ -480,39 +432,18 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                             <ConnectionIssueNotice text={server.errorMessage} />
                           ) : null}
 
-                          <div style={{ display: "flex", flexDirection: "column", gap: "var(--cds-spacing-02)" }}>
-                            <span
-                              style={{
-                                fontSize: "0.75rem",
-                                color: "var(--cds-text-secondary)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.5px",
-                                fontWeight: 500
-                              }}
-                            >
-                              Discovered tools
-                            </span>
+                          <div className="writer-labeled-code">
+                            <span className="writer-type-eyebrow">Discovered tools</span>
                             {server.tools && server.tools.length > 0 ? (
-                              <div className={classNames(row, hugHeight)}>
+                              <div className="writer-code-chip-row">
                                 {server.tools.map((tool) => (
-                                  <code
-                                    key={tool.name}
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      padding: "2px 6px",
-                                      background: "var(--cds-field-01)",
-                                      border: "1px solid var(--cds-border-subtle)",
-                                      borderRadius: "2px",
-                                      fontFamily: "var(--cds-font-family-mono, monospace)",
-                                      color: "var(--cds-text-secondary)"
-                                    }}
-                                  >
+                                  <code key={tool.name} className="writer-code-chip">
                                     {tool.name}
                                   </code>
                                 ))}
                               </div>
                             ) : (
-                              <span style={{ fontSize: "0.875rem", color: "var(--cds-text-secondary)", fontStyle: "italic" }}>
+                              <span className="writer-type-body-compact writer-text-secondary writer-type-italic">
                                 No tools discovered
                               </span>
                             )}
@@ -520,7 +451,7 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                         </Stack>
 
                         {server.id === "figma" ? (
-                          <div className={classNames(rowEnd, hugHeight)} style={{ paddingBlockStart: "var(--cds-spacing-02)" }}>
+                          <div className={classNames(rowEnd, hugHeight, "writer-mcp-tile__actions")}>
                             {figmaAuthPending && busyMcpId === server.id ? (
                               <Button kind="ghost" size="md" onClick={cancelFigmaAuth}>
                                 Cancel sign-in

@@ -25,6 +25,8 @@ export type DaemonFooterProps = {
 export type ProductChromeProps = {
   children: ReactNode;
   pageTitle: string;
+  /** IBM Usage §Basic scaffolding — required leadspace description, never empty. */
+  pageDescription: string;
   daemon: DaemonFooterProps;
   onOpenProject: () => void;
   openProjectDisabled?: boolean;
@@ -44,6 +46,7 @@ function tagType(tone: DaemonFooterProps["tone"]) {
 export function ProductChrome({
   children,
   pageTitle,
+  pageDescription,
   daemon,
   onOpenProject,
   openProjectDisabled,
@@ -78,7 +81,7 @@ export function ProductChrome({
           <Tile>
             <Stack gap={3}>
               <Tag type={tagType(daemon.tone)}>{daemon.label}</Tag>
-              <p style={{ fontSize: "0.75rem", margin: 0, lineHeight: 1.4 }}>{daemon.detail}</p>
+              <p className="writer-type-helper">{daemon.detail}</p>
               <Button kind="ghost" size="sm" renderIcon={Renew} onClick={daemon.onRefresh}>
                 Refresh
               </Button>
@@ -87,22 +90,27 @@ export function ProductChrome({
         </div>
       </SideNav>
 
-      <Stack gap={7} className="writer-product-chrome__main" style={{ padding: "var(--cds-spacing-06)" }}>
+      <Stack gap={7} className="writer-product-chrome__main">
         <div className="writer-product-chrome__content">
           <WriterPageGrid gutterMode="narrow">
             <WriterPageGridFull>
-              <div className="writer-page-header">
-                <h1 style={{ margin: 0, fontWeight: 300, fontSize: "1.75rem", lineHeight: 1.25 }}>{pageTitle}</h1>
-                <Button
-                  kind="primary"
-                  className={hugWidth}
-                  renderIcon={FolderOpen}
-                  disabled={openProjectDisabled}
-                  onClick={onOpenProject}
-                >
-                  {openProjectLoading ? "Opening…" : "Open project"}
-                </Button>
-              </div>
+              <header className="writer-leadspace">
+                <div className="writer-leadspace__body">
+                  <h1 className="writer-type-page-title">{pageTitle}</h1>
+                  <p className="writer-type-page-description">{pageDescription}</p>
+                </div>
+                <div className="writer-leadspace__actions">
+                  <Button
+                    kind="primary"
+                    className={hugWidth}
+                    renderIcon={FolderOpen}
+                    disabled={openProjectDisabled}
+                    onClick={onOpenProject}
+                  >
+                    {openProjectLoading ? "Opening…" : "Open project"}
+                  </Button>
+                </div>
+              </header>
             </WriterPageGridFull>
           </WriterPageGrid>
           {children}

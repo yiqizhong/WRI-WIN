@@ -52,10 +52,13 @@ function getRegistry(): AgentAdapterRegistry {
   return defaultRegistry;
 }
 
-export async function getAgentAdapterList(state: DaemonState): Promise<AgentAdapterList> {
+export async function getAgentAdapterList(
+  state: DaemonState,
+  options?: { force?: boolean }
+): Promise<AgentAdapterList> {
   const registry = getRegistry();
   const adapters = (
-    await Promise.all(registry.list().map((impl) => impl.detect().then((result) => result.adapter)))
+    await Promise.all(registry.list().map((impl) => impl.detect(options).then((result) => result.adapter)))
   ).filter((adapter) => isLlmProviderAdapterId(adapter.id));
   let storedActive = state.store.getActiveAdapterId();
 
@@ -104,7 +107,10 @@ async function resolveAdapterForRun(
 }
 
 export async function refreshAgentDetection(state: DaemonState): Promise<AgentAdapterList> {
-  return getAgentAdapterList(state);
+  // Bypass cache — this entry point is wired to the explicit "Refresh
+  // detection" affordance, so the user is telling us the underlying state
+  // (installs, login) may have changed.
+  return getAgentAdapterList(state, { force: true });
 }
 
 export async function smokeAgentAdapter(state: DaemonState, input: unknown): Promise<AgentSmokeResult> {

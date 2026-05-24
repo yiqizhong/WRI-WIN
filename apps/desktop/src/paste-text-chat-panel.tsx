@@ -13,12 +13,11 @@ import type { AgentRunEvent, PasteTextConversation, PasteTextMessage, Project } 
 
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
+import { WriterSectionHeader } from "./layout/writer-headings";
 import {
   chatBubble,
   chatBubbleEnd,
-  hugHeight,
   hugWidth,
-  rowBetween,
   stackFill,
   surfaceFillHeight
 } from "./layout/writer-sizing";
@@ -157,7 +156,9 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
     };
 
     void poll();
-    const timer = window.setInterval(() => void poll(), 250);
+    // 100ms = perceptually instant for streaming chars while remaining gentle on
+    // the local daemon (each tick is a couple of in-memory reads + one HTTP hop).
+    const timer = window.setInterval(() => void poll(), 100);
 
     return () => {
       cancelled = true;
@@ -262,26 +263,23 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
   return (
     <Tile className={surfaceFillHeight}>
       <Stack gap={5} className={stackFill}>
-        <div className={rowBetween}>
-          <Stack gap={2} className={hugHeight}>
-            <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Paste text rewrite</h2>
-            <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-              Chat-style copy rewrite. Set UI background, paste copy or attach a file, then copy the suggestion.
-            </p>
-          </Stack>
-          {conversation ? (
-            <Button kind="ghost" size="sm" className={hugWidth} onClick={startNewConversation}>
-              New conversation
-            </Button>
-          ) : null}
-        </div>
+        <WriterSectionHeader
+          title="Rewrite copy"
+          actions={
+            conversation ? (
+              <Button kind="ghost" size="sm" className={hugWidth} onClick={startNewConversation}>
+                New conversation
+              </Button>
+            ) : null
+          }
+        />
 
         {!activeProject ? (
           <InlineNotification
             kind="info"
             lowContrast
-            title="Project required"
-            subtitle="Open a project from the header before using paste text rewrite."
+            title="No project open"
+            subtitle="Open a project to continue."
             hideCloseButton
           />
         ) : null}
@@ -300,10 +298,10 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             {showBackground ? (
               <TextArea
                 id="paste-text-background"
-                labelText="UI background and writing rules"
-                helperText="Describe screen context, tone, and terminology constraints before you send copy."
+                labelText="Background"
+                helperText="Screen context, tone, terminology."
                 rows={3}
-                placeholder="e.g. Settings page, confirm destructive action, friendly but direct…"
+                placeholder="Settings page, confirm destructive action, friendly but direct…"
                 value={backgroundContext}
                 onChange={(event) => setBackgroundContext(event.target.value)}
                 disabled={Boolean(conversation?.messages.length)}
@@ -313,7 +311,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
         ) : null}
 
         {attachment ? (
-          <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
+          <p className="writer-type-helper">
             Attached: {attachment.fileName}
             {isStructured ? " · structured file mode" : " · plain text file"}
           </p>
@@ -322,18 +320,17 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
         {isStructured ? (
           <TextInput
             id="paste-text-row-index"
-            labelText="Spreadsheet row index"
-            helperText="Row to rewrite when sending a message (0-based)."
+            labelText="Row index"
+            helperText="0-based row to rewrite."
             value={rowIndex}
             onChange={(event) => setRowIndex(event.target.value)}
-            className={hugWidth}
-            style={{ maxWidth: "12.5rem" }}
+            className={`${hugWidth} writer-row-index-input`}
           />
         ) : null}
 
         <div className="writer-chat-scroll">
           {conversation?.messages.length ? (
-            <Stack gap={4}>
+            <Stack gap={5}>
               {conversation.messages.map((message) => {
                 const isAssistant = message.role === "assistant";
                 const isPending = message.status === "pending";
@@ -345,31 +342,19 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                 return (
                   <Stack
                     key={message.id}
-                    gap={2}
+                    gap={3}
                     className={isAssistant ? chatBubble : chatBubbleEnd}
                   >
-                    <span
-                      style={{
-                        fontSize: "0.75rem",
-                        color: "var(--cds-text-secondary)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.32px"
-                      }}
-                    >
+                    <span className="writer-type-eyebrow">
                       {isAssistant ? (isPending ? "Rewriting" : isFailed ? "Failed" : "Suggestion") : "You"}
                     </span>
                     <div
-                      style={{
-                        padding: "var(--cds-spacing-04)",
-                        background: isAssistant ? "var(--cds-layer-01)" : "var(--cds-layer-accent)",
-                        border: isFailed ? "1px solid var(--cds-support-error)" : "1px solid var(--cds-border-subtle)",
-                        borderRadius: 4,
-                        whiteSpace: "pre-wrap",
-                        fontSize: "0.875rem",
-                        lineHeight: 1.5,
-                        fontStyle: isPending && !streamingText ? "italic" : "normal",
-                        color: isFailed ? "var(--cds-support-error)" : undefined
-                      }}
+                      className={
+                        "writer-chat-message" +
+                        (isAssistant ? " writer-chat-message--assistant" : " writer-chat-message--user") +
+                        (isFailed ? " writer-chat-message--failed" : "") +
+                        (isPending && !streamingText ? " writer-chat-message--placeholder" : "")
+                      }
                     >
                       {body}
                       {showCursor ? "▍" : null}
@@ -391,14 +376,12 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
               <div ref={messagesEndRef} />
             </Stack>
           ) : (
-            <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-              No messages yet. Add background context, then paste UX copy below or attach a spreadsheet.
-            </p>
+            <p className="writer-type-body-compact writer-text-secondary">No messages.</p>
           )}
         </div>
 
         {error ? (
-          <InlineNotification kind="error" lowContrast title="Rewrite failed" subtitle={error} onClose={() => setError(null)} />
+          <InlineNotification kind="error" lowContrast title="Send failed" subtitle={error} onClose={() => setError(null)} />
         ) : null}
 
         <div className="writer-composer-row">
@@ -406,7 +389,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
             id="paste-text-composer"
             className="writer-composer-input"
             labelText="Copy to rewrite"
-            placeholder="Paste UX copy and press Send…"
+            placeholder="Paste copy and send…"
             rows={3}
             value={draftText}
             onChange={(event) => setDraftText(event.target.value)}

@@ -1,6 +1,30 @@
 import { createCliAdapter, smokeCliAdapter, type CliAdapterConfig } from "../create-cli-adapter";
 import { runCliCommand } from "../cli-runner";
 
+/**
+ * Default Devin model.
+ *
+ * On Dell's enterprise Windsurf plan (the one we ship against), `swe-1.6`
+ * is the team-default and runs without consuming personal ACU credits —
+ * verified live with `devin --model swe-1.6 -p ok`. Counter-intuitively,
+ * `swe-1.6-fast` is a **different** model in this plan and DOES require
+ * credits (Permission denied on the same account). Don't "upgrade" the
+ * default to `-fast` without re-probing.
+ *
+ * Override per-session via the `DEVIN_MODEL` env var without touching code
+ * (matches the CLI's own env contract). Run `devin --model X -p ok`
+ * locally to confirm before swapping.
+ */
+const DEFAULT_DEVIN_MODEL = "swe-1.6";
+
+function devinModel(): string {
+  return process.env.DEVIN_MODEL?.trim() || DEFAULT_DEVIN_MODEL;
+}
+
+function buildDevinArgs(prompt: string): string[] {
+  return ["--model", devinModel(), "-p", prompt];
+}
+
 export const devinCliConfig: CliAdapterConfig = {
   id: "devin",
   displayName: "Devin (cloud-backed)",
@@ -9,8 +33,8 @@ export const devinCliConfig: CliAdapterConfig = {
   detectArgs: ["version"],
   unavailableMessage: "Install Devin for Terminal (`devin`) and ensure it is on your PATH.",
   needsAuthMessage: "Run `devin` and complete `/login` before using Devin in Writer.",
-  buildRunArgs: (prompt) => ["-p", prompt],
-  buildSmokeArgs: (prompt) => ["-p", prompt],
+  buildRunArgs: buildDevinArgs,
+  buildSmokeArgs: buildDevinArgs,
   probeAuth: probeDevinAuth
 };
 
@@ -31,7 +55,7 @@ async function probeDevinAuth(executable: string) {
 
   const probe = await runCliCommand({
     executable,
-    args: ["-p", "ok"],
+    args: buildDevinArgs("ok"),
     timeoutMs: 15_000
   });
 

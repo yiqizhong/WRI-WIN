@@ -1,5 +1,10 @@
 import { Link } from "react-router-dom";
-import { Button, Stack, Tag } from "@carbon/react";
+import {
+  Button,
+  OverflowMenu,
+  OverflowMenuItem,
+  Tag
+} from "@carbon/react";
 
 import { ChangelogPanel } from "../changelog-panel";
 import {
@@ -25,6 +30,7 @@ function statusCounts(changes: Array<{ status: string }> | undefined) {
 export function ReviewScreen() {
   const workspace = useWorkspace();
   const counts = statusCounts(workspace.reviewQueue?.changes);
+  const hasSession = Boolean(workspace.activeSessionId);
 
   return (
     <WriterPageGrid gutterMode="condensed" equalRowHeight>
@@ -34,20 +40,24 @@ export function ReviewScreen() {
             <div className="writer-session-strip">
               {workspace.activeProject ? (
                 <span>
-                  Project: <strong>{workspace.activeProject.name}</strong>
+                  Project:{" "}
+                  <strong className="writer-type-body-compact">{workspace.activeProject.name}</strong>
                 </span>
               ) : null}
               {workspace.activeSessionId ? (
                 <span>
-                  Session: <strong>{workspace.activeSessionId.slice(0, 8)}…</strong>
+                  Session:{" "}
+                  <strong className="writer-type-body-compact writer-type-mono">
+                    {workspace.activeSessionId.slice(0, 8)}…
+                  </strong>
                 </span>
               ) : null}
               {workspace.reviewQueue ? (
-                <Stack gap={3} orientation="horizontal">
+                <div className="writer-tag-row">
                   {counts.proposed > 0 ? <Tag type="blue">{counts.proposed} proposed</Tag> : null}
                   {counts.approved > 0 ? <Tag type="green">{counts.approved} approved</Tag> : null}
                   {counts.rejected > 0 ? <Tag type="red">{counts.rejected} rejected</Tag> : null}
-                </Stack>
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -55,50 +65,38 @@ export function ReviewScreen() {
           <WorkflowNotification />
 
           {!workspace.activeProject ? (
-            <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>
-              Open a project to start reviewing copy. Add sources from{" "}
-              <Link to="/figma">Sources</Link>.
+            <p className="writer-type-body writer-text-secondary">
+              No project open. Add sources in <Link to="/figma">Sources</Link>.
             </p>
           ) : null}
 
-          <div className="writer-toolbar-band">
-            <Stack gap={3} orientation="horizontal" className="writer-fill-w writer-hug-h">
-              <Button kind="secondary" size="md" disabled={!workspace.activeSessionId} onClick={() => void workspace.runAudit()}>
-                Run audit
-              </Button>
-              <Button
-                kind="secondary"
-                size="md"
-                disabled={!workspace.activeSessionId}
+          <div className="writer-review-toolbar">
+            <Button kind="tertiary" size="md" disabled={!hasSession} onClick={() => void workspace.runAudit()}>
+              Run audit
+            </Button>
+            <OverflowMenu
+              aria-label="Export"
+              size="md"
+              flipped
+              disabled={!hasSession}
+            >
+              <OverflowMenuItem
+                itemText="Export as Markdown"
                 onClick={() => void workspace.exportSession("markdown")}
-              >
-                Export Markdown
-              </Button>
-              <Button
-                kind="secondary"
-                size="md"
-                disabled={!workspace.activeSessionId}
+              />
+              <OverflowMenuItem
+                itemText="Export as JSON"
                 onClick={() => void workspace.exportSession("json")}
-              >
-                Export JSON
-              </Button>
-              <Button
-                kind="secondary"
-                size="md"
-                disabled={!workspace.activeSessionId}
+              />
+              <OverflowMenuItem
+                itemText="Export as PDF"
                 onClick={() => void workspace.exportSession("pdf")}
-              >
-                Export PDF
-              </Button>
-              <Button
-                kind="ghost"
-                size="md"
-                disabled={!workspace.activeSessionId}
+              />
+              <OverflowMenuItem
+                itemText="Export as spreadsheet"
                 onClick={() => void workspace.exportSpreadsheet()}
-              >
-                Export spreadsheet
-              </Button>
-            </Stack>
+              />
+            </OverflowMenu>
           </div>
         </WriterPageStack>
       </WriterPageGridFull>

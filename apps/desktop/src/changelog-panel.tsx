@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Stack, Tile } from "@carbon/react";
 
 import type { DaemonClient } from "./daemon-client";
+import { WriterSectionHeader } from "./layout/writer-headings";
 import { stackFill, surfaceBody, surfaceFillHeight } from "./layout/writer-sizing";
 
 type ChangelogPanelProps = {
@@ -31,19 +32,19 @@ export function ChangelogPanel({ client, sessionId }: ChangelogPanelProps) {
   return (
     <Tile className={surfaceFillHeight}>
       <Stack gap={5} className={stackFill}>
-        <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 600 }}>Session changelog</h2>
+        <WriterSectionHeader title="Changelog" />
         {!sessionId ? (
-          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>Select a session to view audit events.</p>
+          <p className="writer-type-body-compact writer-text-secondary">No session selected.</p>
         ) : entries.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--cds-text-secondary)" }}>No changelog entries yet for this session.</p>
+          <p className="writer-type-body-compact writer-text-secondary">No changes.</p>
         ) : (
-          <ul className={surfaceBody} style={{ margin: 0, paddingLeft: "1.25rem" }}>
+          <ul className={`${surfaceBody} writer-changelog-list`}>
             {entries.map((entry, index) => (
-              <li key={`${entry.timestamp}-${index}`} style={{ marginBlockEnd: "var(--cds-spacing-03)" }}>
-                <time dateTime={entry.timestamp} style={{ display: "block", fontSize: "0.75rem", color: "var(--cds-text-secondary)" }}>
+              <li key={`${entry.timestamp}-${index}`} className="writer-changelog-list__item">
+                <time dateTime={entry.timestamp} className="writer-type-helper">
                   {new Date(entry.timestamp).toLocaleString()}
                 </time>
-                <span>{entry.summary}</span>
+                <span className="writer-type-body-compact">{entry.summary}</span>
               </li>
             ))}
           </ul>
