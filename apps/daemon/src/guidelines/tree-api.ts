@@ -1,6 +1,12 @@
-import type { GuidelinesTree, GuidelineList, GuidelineListItem, GlossaryList } from "@writer/contracts";
+import type {
+  GuidelinesTree,
+  GuidelineList,
+  GuidelineListItem,
+  GlossaryList,
+  ProductPackage
+} from "@writer/contracts";
 
-import type { GuidelineTreeResult } from "./discovery";
+import type { GuidelineTreeResult, ProductPackageResult } from "./discovery";
 import { buildResolvedTree, collectFlatGuidelines } from "./inheritance";
 
 export function toGuidelinesTreeApi(tree: GuidelineTreeResult): GuidelinesTree {
@@ -114,6 +120,17 @@ export function toLegacyGlossaryList(tree: GuidelineTreeResult): GlossaryList {
       }
     ]
   };
+}
+
+export function listProductPackages(tree: GuidelineTreeResult): ProductPackage[] {
+  return tree.products
+    .filter((p): p is Extract<ProductPackageResult, { status: "ok" }> => p.status === "ok")
+    .map((p) => p.package);
+}
+
+export function findProductPackage(tree: GuidelineTreeResult, productId: string): ProductPackage | null {
+  const entry = tree.products.find((p) => p.status === "ok" && p.package.id === productId);
+  return entry?.status === "ok" ? entry.package : null;
 }
 
 export function findGuidelineFilePath(tree: GuidelineTreeResult, id: string): string | null {

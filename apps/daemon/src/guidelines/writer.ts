@@ -297,6 +297,28 @@ export async function deleteGuideline(filePath: string): Promise<WriteOutcome> {
   }
 }
 
+export async function deleteCompanyGlossary(): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  let removed: string | null = null;
+  for (const ext of ["csv", "md"] as const) {
+    const target = join(dir, `company-glossary.${ext}`);
+    if (!(await exists(target))) continue;
+    if (!assertInsideDir(target, dir)) {
+      return { ok: false, code: "invalid_filename", message: "Path traversal blocked." };
+    }
+    try {
+      await unlink(target);
+      removed = target;
+    } catch (err) {
+      return { ok: false, code: "io_error", message: String(err) };
+    }
+  }
+  if (!removed) {
+    return { ok: false, code: "invalid_filename", message: "Company glossary not found." };
+  }
+  return { ok: true, filePath: removed };
+}
+
 export async function deleteGlossary(filePath: string): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const companyGlossaryCsv = join(dir, "company-glossary.csv");

@@ -1,43 +1,75 @@
-export const GUIDELINE_MD_TEMPLATE = `---
-# Required fields. Do not remove.
-id: my-guideline
-name: My Guideline
-layer: company-base  # company-base | software-writing | product-writing
+export const COMPANY_BASE_MD_TEMPLATE = `---
+id: company-base
+name: Company Base
+layer: company-base
 schema: 1
 version: "1.0.0"
 updatedAt: "${new Date().toISOString()}"
 ---
 
-Free-form prose. Describe your brand voice, audience, writing philosophy.
-The retrieval system uses this text to answer open questions about your standards.
+Describe your brand voice, values, and tone. This prose is injected into audits as brand context.
 
 ## Rules
 
-# Each rule needs: id, do, surfaces, severity.
-# Optional: dont, reason.
-# Surfaces: button | error | empty-state | toast | body | title | other.
-# Severity: must | should | may.
-
-- id: example-rule
-  do: Write clearly and concisely.
-  dont: Avoid jargon and filler words.
-  reason: Clear language reduces cognitive load.
+- id: example-brand-rule
+  do: Match the brand voice described above.
   surfaces:
     - body
-    - title
   severity: should
-
-## Glossary
-
-# Each term needs: id, term, status, caseSensitive.
-# Optional: forbidden (list), forbiddenReplacement, reason.
-
-- id: example-term
-  term: Sign in
-  status: active
-  forbidden:
-    - Login
-    - Log in
-  caseSensitive: false
-  reason: Two-word lowercase form.
 `;
+
+export const SOFTWARE_WRITING_MD_TEMPLATE = `---
+id: software-writing
+name: Software Writing
+layer: software-writing
+schema: 1
+version: "1.0.0"
+updatedAt: "${new Date().toISOString()}"
+---
+
+Cross-product UX writing standards (buttons, errors, empty states, etc.).
+
+## Rules
+
+- id: button-labels-active
+  do: Use active voice in button labels.
+  surfaces:
+    - button
+  severity: must
+`;
+
+export const PRODUCT_BACKGROUND_MD_TEMPLATE = `---
+id: my-product
+name: My Product
+audience: Who uses this product
+environment: Where they use it (web, mobile, etc.)
+purpose: What they are trying to accomplish
+schema: 1
+version: "1.0.0"
+updatedAt: "${new Date().toISOString()}"
+---
+
+Product-specific context prose for audits.
+`;
+
+export const PRODUCT_WRITING_GUIDE_MD_TEMPLATE = `---
+id: my-product-guide
+name: My Product Writing Guide
+layer: product-writing
+productId: my-product
+schema: 1
+version: "1.0.0"
+updatedAt: "${new Date().toISOString()}"
+---
+
+## Rules
+
+- id: product-specific-rule
+  do: Use product-specific terminology consistently.
+  surfaces:
+    - body
+  severity: should
+`;
+
+/** @deprecated use COMPANY_BASE_MD_TEMPLATE */
+export const GUIDELINE_MD_TEMPLATE = COMPANY_BASE_MD_TEMPLATE;
