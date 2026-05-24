@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("writerDesktop", {
   pickPasteTextAttachment: () => ipcRenderer.invoke("writer:pick-paste-text-attachment"),
   pickSaveFile: (options) => ipcRenderer.invoke("writer:pick-save-file", options),
   saveTextFile: (filePath, content) => ipcRenderer.invoke("writer:save-text-file", filePath, content),
-  exportPdfFromHtml: (filePath, html) => ipcRenderer.invoke("writer:export-pdf-from-html", filePath, html)
+  exportPdfFromHtml: (filePath, html) => ipcRenderer.invoke("writer:export-pdf-from-html", filePath, html),
+  pickGuidelineFile: () => ipcRenderer.invoke("writer:pick-guideline-file"),
+  pickGlossaryFile: () => ipcRenderer.invoke("writer:pick-glossary-file")
 });
 

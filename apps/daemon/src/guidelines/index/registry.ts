@@ -1,3 +1,5 @@
+import type { Term } from "@writer/contracts";
+
 import type { ResolvedGuideline } from "../inheritance";
 import { InMemoryFullScanIndex } from "./full-scan-index";
 import type { GuidelineIndex } from "./types";
@@ -9,6 +11,7 @@ export type CorpusWarning = { ruleCount: number; proseBytes: number };
 
 export function buildIndex(
   guidelines: ResolvedGuideline[],
+  standaloneGlossary: Term[] = [],
   onWarning?: (w: CorpusWarning) => void
 ): GuidelineIndex {
   const ruleCount = guidelines.reduce((n, g) => n + g.rules.length, 0);
@@ -21,5 +24,5 @@ export function buildIndex(
     onWarning({ ruleCount, proseBytes });
   }
 
-  return new InMemoryFullScanIndex(guidelines);
+  return new InMemoryFullScanIndex(guidelines, standaloneGlossary);
 }

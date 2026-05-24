@@ -68,9 +68,9 @@ export class InMemoryFullScanIndex implements GuidelineIndex {
   private glossary: Term[];
   private chunks: ProseChunk[];
 
-  constructor(guidelines: ResolvedGuideline[]) {
+  constructor(guidelines: ResolvedGuideline[], standaloneGlossary: Term[] = []) {
     this.rules = guidelines.flatMap((g) => g.rules);
-    this.glossary = guidelines.flatMap((g) => g.glossary);
+    this.glossary = [...guidelines.flatMap((g) => g.glossary), ...standaloneGlossary];
     this.chunks = guidelines.flatMap(buildProseChunks);
   }
 

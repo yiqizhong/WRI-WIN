@@ -5,6 +5,7 @@ import {
   parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseGlossaryList,
   parseGuidelineList,
   parseGuidelineSnapshot,
   parseMcpServerList,
@@ -21,6 +22,7 @@ import {
   type AgentRunResult,
   type ChangeStatus,
   type DirectoryListing,
+  type GlossaryList,
   type Guideline,
   type GuidelineList,
   type GuidelineSnapshot,
@@ -403,11 +405,47 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     listGuidelines: () => request(baseUrl, "/guidelines", undefined, parseGuidelineList),
 
+    listGlossaries: () => request(baseUrl, "/glossaries", undefined, parseGlossaryList),
+
     reloadGuidelines: () =>
       request(baseUrl, "/guidelines/reload", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }),
 
     getGuidelineSnapshot: (id: string) =>
       request(baseUrl, `/guidelines/${encodeURIComponent(id)}/snapshot`, undefined, parseGuidelineSnapshot),
+
+    uploadGuideline: (input: {
+      filename: string;
+      content: string;
+      scope: "company" | "product";
+      overwrite?: boolean;
+    }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/guidelines/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    uploadGlossary: (input: {
+      filename: string;
+      content: string;
+      format: "csv" | "md";
+      overwrite?: boolean;
+    }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/glossary/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    deleteGuideline: (id: string) =>
+      fetchWithTimeout(`${baseUrl}/guidelines/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
+
+    deleteGlossary: (id: string) =>
+      fetchWithTimeout(`${baseUrl}/glossaries/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
 
     setActiveGuidelineId: (projectId: string, guidelineId: string | null) =>
       request(
@@ -419,9 +457,12 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify({ guidelineId })
         },
         parseProject
-      )
+      ),
+
+    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`,
+    glossaryTemplateUrl: () => `${baseUrl}/guidelines/templates/glossary.csv`
   };
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { AgentRunResult, DirectoryListing, Guideline, GuidelineList, GuidelineSnapshot, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };
+export type { AgentRunResult, DirectoryListing, GlossaryList, Guideline, GuidelineList, GuidelineSnapshot, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };

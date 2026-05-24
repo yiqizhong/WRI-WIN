@@ -57,6 +57,41 @@ ipcMain.handle("writer:pick-spreadsheet-file", async () => {
   return result.filePaths[0];
 });
 
+ipcMain.handle("writer:pick-guideline-file", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "Guideline (Markdown)", extensions: ["md"] }]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const fs = require("node:fs/promises");
+  const path = require("node:path");
+  const filePath = result.filePaths[0];
+  const content = await fs.readFile(filePath, "utf8");
+  return { filename: path.basename(filePath), content };
+});
+
+ipcMain.handle("writer:pick-glossary-file", async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openFile"],
+    filters: [{ name: "Glossary (CSV or Markdown)", extensions: ["csv", "md"] }]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null;
+  }
+
+  const fs = require("node:fs/promises");
+  const path = require("node:path");
+  const filePath = result.filePaths[0];
+  const content = await fs.readFile(filePath, "utf8");
+  const ext = path.extname(filePath).slice(1).toLowerCase();
+  return { filename: path.basename(filePath), content, format: ext === "csv" ? "csv" : "md" };
+});
+
 ipcMain.handle("writer:pick-paste-text-attachment", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],

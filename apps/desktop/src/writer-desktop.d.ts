@@ -14,6 +14,8 @@ declare global {
       }) => Promise<string | null>;
       saveTextFile: (filePath: string, content: string) => Promise<string>;
       exportPdfFromHtml: (filePath: string, html: string) => Promise<string>;
+      pickGuidelineFile: () => Promise<{ filename: string; content: string } | null>;
+      pickGlossaryFile: () => Promise<{ filename: string; content: string; format: "csv" | "md" } | null>;
     };
   }
 }

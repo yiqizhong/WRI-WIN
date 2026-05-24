@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
-import type { Guideline } from "@writer/contracts";
+import type { Guideline, Term } from "@writer/contracts";
 
+import { parseGlossaryCsv } from "./glossary/csv-importer";
+import { parseStandaloneGlossaryMd } from "./glossary/md-importer";
 import { findImporter } from "./importers/index";
 import type { ParseError } from "./importers/index";
 
@@ -12,8 +14,22 @@ export type GuidelineEntry =
   | { status: "ok"; guideline: Guideline; filePath: string; contentHash: string }
   | { status: "error"; error: ParseError; filePath: string };
 
+export type GlossaryEntry =
+  | {
+      status: "ok";
+      id: string;
+      name: string;
+      format: "csv" | "md";
+      terms: Term[];
+      filePath: string;
+      contentHash: string;
+      updatedAt: string;
+    }
+  | { status: "error"; error: ParseError; filePath: string; format: "csv" | "md" };
+
 export type GuidelineTreeResult = {
   entries: GuidelineEntry[];
+  glossaries: GlossaryEntry[];
   companyMissing: boolean;
   conflictError?: string;
 };
@@ -75,33 +91,97 @@ function contentHash(content: string): string {
   return createHash("sha256").update(content).digest("hex").slice(0, 16);
 }
 
-async function collectFiles(dir: string): Promise<string[]> {
-  const files: string[] = [];
+async function collectFiles(dir: string): Promise<{ guidelines: string[]; glossaries: string[] }> {
+  const guidelines: string[] = [];
+  const glossaries: string[] = [];
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = join(dir, entry.name);
     if (entry.isDirectory() && entry.name === "products") {
       const sub = await readdir(full, { withFileTypes: true });
       for (const s of sub) {
-        if (s.isFile() && s.name.endsWith(".md")) files.push(join(full, s.name));
+        if (s.isFile() && s.name.endsWith(".md")) guidelines.push(join(full, s.name));
+      }
+    } else if (entry.isDirectory() && entry.name === "glossary") {
+      const sub = await readdir(full, { withFileTypes: true });
+      for (const s of sub) {
+        if (s.isFile() && (s.name.endsWith(".csv") || s.name.endsWith(".md"))) {
+          glossaries.push(join(full, s.name));
+        }
       }
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      files.push(full);
+      guidelines.push(full);
     }
   }
-  return files;
+  return { guidelines, glossaries };
+}
+
+async function parseGlossaryFile(filePath: string): Promise<GlossaryEntry> {
+  const format: "csv" | "md" = filePath.endsWith(".csv") ? "csv" : "md";
+  let raw: string;
+  try {
+    raw = await readFile(filePath, "utf8");
+  } catch (err) {
+    return {
+      status: "error",
+      format,
+      filePath,
+      error: { file: filePath, message: `Cannot read file: ${String(err)}` }
+    };
+  }
+
+  const idFromName = basename(filePath).replace(/\.(csv|md)$/, "");
+  const hash = contentHash(raw);
+  const updatedAt = new Date().toISOString();
+
+  if (format === "csv") {
+    const parsed = parseGlossaryCsv(raw);
+    if (!parsed.ok) {
+      return {
+        status: "error",
+        format,
+        filePath,
+        error: { file: filePath, line: parsed.line || undefined, message: parsed.message }
+      };
+    }
+    return {
+      status: "ok",
+      id: idFromName,
+      name: idFromName,
+      format,
+      terms: parsed.terms,
+      filePath,
+      contentHash: hash,
+      updatedAt
+    };
+  }
+
+  const parsed = parseStandaloneGlossaryMd(raw, filePath);
+  if (!parsed.ok) {
+    return { status: "error", format, filePath, error: parsed.error };
+  }
+  return {
+    status: "ok",
+    id: parsed.id || idFromName,
+    name: parsed.name || idFromName,
+    format,
+    terms: parsed.terms,
+    filePath,
+    contentHash: hash,
+    updatedAt
+  };
 }
 
 export async function discoverGuidelines(): Promise<GuidelineTreeResult> {
   const dir = guidelinesDir();
   await scaffoldIfAbsent(dir);
 
-  const files = await collectFiles(dir);
+  const { guidelines: guidelineFiles, glossaries: glossaryFiles } = await collectFiles(dir);
   const companyPath = join(dir, "company.md");
-  const companyMissing = !files.includes(companyPath);
+  const companyMissing = !guidelineFiles.includes(companyPath);
 
   const entries: GuidelineEntry[] = [];
-  for (const filePath of files) {
+  for (const filePath of guidelineFiles) {
     const importer = findImporter(filePath);
     if (!importer) continue;
 
@@ -124,9 +204,14 @@ export async function discoverGuidelines(): Promise<GuidelineTreeResult> {
     }
   }
 
+  const glossaries: GlossaryEntry[] = [];
+  for (const filePath of glossaryFiles) {
+    glossaries.push(await parseGlossaryFile(filePath));
+  }
+
   const conflictError = detectDuplicateIds(entries);
 
-  return { entries, companyMissing, conflictError };
+  return { entries, glossaries, companyMissing, conflictError };
 }
 
 function detectDuplicateIds(entries: GuidelineEntry[]): string | undefined {

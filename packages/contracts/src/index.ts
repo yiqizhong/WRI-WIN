@@ -201,6 +201,27 @@ export type {
 } from "./guideline";
 
 export {
+  glossaryFileSchema,
+  glossaryListItemSchema,
+  glossaryListSchema,
+  uploadGlossaryInputSchema,
+  uploadGuidelineInputSchema,
+  uploadResultSchema,
+  parseGlossaryList,
+  parseUploadGlossaryInput,
+  parseUploadGuidelineInput,
+  parseUploadResult
+} from "./guideline-upload";
+export type {
+  GlossaryFile,
+  GlossaryList,
+  GlossaryListItem,
+  UploadGlossaryInput,
+  UploadGuidelineInput,
+  UploadResult
+} from "./guideline-upload";
+
+export {
   parseRewriteCandidate,
   rewriteCandidateListSchema,
   rewriteCandidateSchema
