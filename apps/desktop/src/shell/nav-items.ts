@@ -22,6 +22,13 @@ export const NAV_ITEMS: NavItem[] = [
     matchPaths: ["/figma"]
   },
   {
+    label: "Guidelines",
+    path: "/guidelines",
+    title: "Guidelines",
+    description: "UX writing standards that ground every audit.",
+    matchPaths: ["/guidelines"]
+  },
+  {
     label: "Agents",
     path: "/agents",
     title: "Agents",

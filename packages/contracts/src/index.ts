@@ -161,11 +161,44 @@ export type { ChangeStatus, ChangeTransitionInput, ReviewChange, ReviewChangeLis
 export {
   issueSeveritySchema,
   issueTypeSchema,
+  findingEvidenceSchema,
+  findingSourceSchema,
   parseUxCopyFinding,
   uxCopyFindingListSchema,
   uxCopyFindingSchema
 } from "./finding";
-export type { IssueSeverity, IssueType, UxCopyFinding, UxCopyFindingList } from "./finding";
+export type {
+  IssueSeverity,
+  IssueType,
+  FindingEvidence,
+  FindingSource,
+  UxCopyFinding,
+  UxCopyFindingList
+} from "./finding";
+
+export {
+  guidelineListItemSchema,
+  guidelineListSchema,
+  guidelineSchema,
+  guidelineSnapshotSchema,
+  guidelineSeveritySchema,
+  ruleSchema,
+  surfaceSchema,
+  termSchema,
+  parseGuideline,
+  parseGuidelineList,
+  parseGuidelineSnapshot
+} from "./guideline";
+export type {
+  Guideline,
+  GuidelineList,
+  GuidelineListItem,
+  GuidelineSnapshot,
+  GuidelineSeverity,
+  Rule,
+  Surface,
+  Term
+} from "./guideline";
 
 export {
   parseRewriteCandidate,

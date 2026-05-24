@@ -1,6 +1,7 @@
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { AgentsScreen } from "./screens/agents-screen";
+import { GuidelinesScreen } from "./screens/guidelines-screen";
 import { ReviewScreen } from "./screens/review-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { SourcesScreen } from "./screens/sources-screen";
@@ -30,6 +31,7 @@ function RoutedApp() {
       <Routes>
         <Route path="/" element={<ReviewScreen />} />
         <Route path="/figma" element={<SourcesScreen />} />
+        <Route path="/guidelines" element={<GuidelinesScreen />} />
         <Route path="/agents" element={<AgentsScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
       </Routes>

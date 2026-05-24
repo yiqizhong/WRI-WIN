@@ -159,6 +159,21 @@ export class PlatformStore {
     return validated;
   }
 
+  setActiveGuidelineId(projectId: string, guidelineId: string | null): void {
+    const project = this.snapshot.projects.find((p) => p.id === projectId);
+    if (!project) return;
+    if (guidelineId === null) {
+      delete project.activeGuidelineId;
+    } else {
+      project.activeGuidelineId = guidelineId;
+    }
+  }
+
+  getActiveGuidelineId(projectId: string): string | null {
+    const project = this.snapshot.projects.find((p) => p.id === projectId);
+    return project?.activeGuidelineId ?? null;
+  }
+
   listSessions(projectId: string | null): ReviewSessionList {
     const sessions = projectId
       ? this.snapshot.sessions.filter((session) => session.projectId === projectId)

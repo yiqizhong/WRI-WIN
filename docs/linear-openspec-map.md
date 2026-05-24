@@ -208,3 +208,22 @@ OpenSpec `bootstrap-local-platform` task **X.Y** done.
 **Confirmed scope:** selected Figma `/design/` Frame URL only; approval/edit is separate from the explicit `Apply approved to Figma` mutation step.
 
 **Suggested order:** WRI-99 -> WRI-100 -> WRI-101 -> WRI-102 -> close WRI-98
+
+## guidelines-runtime (OpenSpec: `openspec/changes/guidelines-runtime/`)
+
+**Epic:** [WRI-103](https://linear.app/uicb/issue/WRI-103) — Guidelines Runtime: file-backed UX writing guidelines with traceable audit findings
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.6 | [WRI-104](https://linear.app/uicb/issue/WRI-104) | Contracts: `Guideline`, `Rule`, `Term`, `Finding` (citation + evidence), `Snapshot`, `AuditRunSummary` |
+| 2.1–2.5 | [WRI-105](https://linear.app/uicb/issue/WRI-105) | Markdown importer + parser (gray-matter + js-yaml); line-numbered errors; duplicate-id detection |
+| 3.1–3.5 | [WRI-106](https://linear.app/uicb/issue/WRI-106) | Discovery + first-run scaffold (neutral starter `company.md`, no external authority refs — D16) + cache |
+| 3.4 + inheritance | [WRI-107](https://linear.app/uicb/issue/WRI-107) | Chokidar watcher (500ms debounce, SSE) + product→company inheritance view |
+| 4.1–4.4 | [WRI-108](https://linear.app/uicb/issue/WRI-108) | `GuidelineIndex` interface + `InMemoryFullScanIndex`; corpus warning ≥200 rules / 50KB (D15) |
+| 5.1–5.6 | [WRI-109](https://linear.app/uicb/issue/WRI-109) | REST routes + SSE channel + `buildSnapshot()` |
+| 6.1–6.5 | [WRI-110](https://linear.app/uicb/issue/WRI-110) | Storage snapshot persistence + per-project `activeGuidelineId`; prompt injection; finding validator; deterministic glossary |
+| 7.1–7.7 + 8.1–8.4 | [WRI-111](https://linear.app/uicb/issue/WRI-111) | Desktop Guidelines screen + project binding + drop-rate banner (D14) + corpus warning tile; README + PRODUCT + map |
+
+**Suggested order:** WRI-104 → WRI-105 → WRI-106 → WRI-107 → WRI-108 → WRI-109 → WRI-110 → WRI-111 → close WRI-103
+
+**Locked decisions (design.md):** name = Guidelines; `company.md` required, products optional; single tree v1; inheritance = inherited+added only; `Importer` + `Index` interfaces stable; findings must carry citation + evidence with daemon validation; per-project binding; session snapshot for reproducibility.

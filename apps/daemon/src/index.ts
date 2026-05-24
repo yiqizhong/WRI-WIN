@@ -1,4 +1,5 @@
 import { loadDaemonConfig } from "./config";
+import { startGuidelinesWatcher } from "./guidelines/watcher";
 import { createDaemonLogger } from "./logger";
 import { createRequestHandler } from "./router";
 import { createDaemonServer } from "./server";
@@ -15,6 +16,9 @@ async function startDaemon() {
 
   const state = await createDaemonState();
   logger.info("Platform store loaded", { dataDir: state.store.dataDir });
+
+  await startGuidelinesWatcher();
+  logger.info("Guidelines watcher started");
 
   const server = await createDaemonServer(config, logger, createRequestHandler(config, state));
 

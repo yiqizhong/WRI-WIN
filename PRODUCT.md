@@ -13,7 +13,7 @@
 
 ## Product purpose
 
-Help teams audit, propose, approve, and apply UX/UI copy changes from Figma (or pasted text / spreadsheets) with a mandatory human gate before writeback.
+Help teams audit, propose, approve, and apply UX/UI copy changes from Figma (or pasted text / spreadsheets) with a mandatory human gate before writeback. Audits are optionally grounded in file-backed UX writing guidelines — structured rules and glossary terms the team maintains in `~/.writer/guidelines/` — so every finding traces to a named rule or forbidden term.
 
 ## Brand personality
 

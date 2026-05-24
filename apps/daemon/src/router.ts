@@ -5,6 +5,7 @@ import { getDaemonCapabilities } from "./capabilities";
 import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
 import { handleFilesystemRequest } from "./routes/filesystem";
+import { handleGuidelinesRequest } from "./routes/guidelines";
 import { handlePlatformRequest } from "./routes/platform";
 import { handleReviewRequest } from "./routes/review";
 import { createDaemonState, type DaemonState } from "./state";
@@ -61,6 +62,10 @@ async function routeRequest(
   }
 
   if (await handleFilesystemRequest(request, response)) {
+    return;
+  }
+
+  if (await handleGuidelinesRequest(request, response)) {
     return;
   }
 

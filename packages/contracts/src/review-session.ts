@@ -3,6 +3,7 @@ import { z } from "zod";
 import { connectionDiagnosticSchema } from "./connection-diagnostic";
 import { designContextSchema } from "./design-context";
 import { figmaTextExtractionSchema } from "./figma-text-node";
+import { guidelineSnapshotSchema } from "./guideline";
 
 export const reviewSourceTypeSchema = z.enum(["figma", "pasted_text", "spreadsheet"]);
 
@@ -24,6 +25,7 @@ export const reviewSessionSchema = z.object({
   figmaExtraction: figmaTextExtractionSchema.optional(),
   designContext: designContextSchema.optional(),
   diagnostic: connectionDiagnosticSchema.optional(),
+  guidelineSnapshot: guidelineSnapshotSchema.optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 });

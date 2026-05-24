@@ -37,6 +37,17 @@ export {
 export { extractMcpToolText } from "./mcp-tool-text";
 export { runStubAudit, type AuditStubInput, type AuditStubResult } from "./audit-stub";
 export {
+  injectGuidelineContext,
+  buildGuidelinePromptSection,
+  type InjectedGuidelineContext
+} from "./guideline-injector";
+export {
+  validateFindings,
+  buildGlossaryFindings,
+  type AuditRunSummary,
+  type DropReason
+} from "./finding-validator";
+export {
   normalizeReviewChangeSurface,
   normalizeReviewChangesSurface
 } from "./surface-review-change";

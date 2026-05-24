@@ -5,6 +5,8 @@ import {
   parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseGuidelineList,
+  parseGuidelineSnapshot,
   parseMcpServerList,
   parseMcpSmokeResult,
   parseParsedFigmaUrl,
@@ -19,6 +21,9 @@ import {
   type AgentRunResult,
   type ChangeStatus,
   type DirectoryListing,
+  type Guideline,
+  type GuidelineList,
+  type GuidelineSnapshot,
   type ParsedFigmaUrl,
   type PasteTextConversation,
   type PasteTextMessageResult,
@@ -394,9 +399,29 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         },
         parsePasteTextMessageResult,
         120_000
-      ) as Promise<PasteTextMessageResult>
+      ) as Promise<PasteTextMessageResult>,
+
+    listGuidelines: () => request(baseUrl, "/guidelines", undefined, parseGuidelineList),
+
+    reloadGuidelines: () =>
+      request(baseUrl, "/guidelines/reload", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }),
+
+    getGuidelineSnapshot: (id: string) =>
+      request(baseUrl, `/guidelines/${encodeURIComponent(id)}/snapshot`, undefined, parseGuidelineSnapshot),
+
+    setActiveGuidelineId: (projectId: string, guidelineId: string | null) =>
+      request(
+        baseUrl,
+        `/projects/${encodeURIComponent(projectId)}/guideline`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ guidelineId })
+        },
+        parseProject
+      )
   };
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { AgentRunResult, DirectoryListing, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };
+export type { AgentRunResult, DirectoryListing, Guideline, GuidelineList, GuidelineSnapshot, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };

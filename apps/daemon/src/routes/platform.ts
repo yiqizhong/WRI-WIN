@@ -292,6 +292,26 @@ export async function handlePlatformRequest(
     return true;
   }
 
+  if (
+    request.method === "PATCH" &&
+    segments[0] === "projects" &&
+    segments[1] &&
+    segments[2] === "guideline"
+  ) {
+    const projectId = segments[1];
+    const body = (await readJsonBody(request)) as { guidelineId?: string | null };
+    state.store.setActiveGuidelineId(projectId, body.guidelineId ?? null);
+    await state.store.save();
+    const projects = listProjects(state);
+    const project = projects.projects.find((p) => p.id === projectId);
+    if (!project) {
+      notFound(response, "Project not found.");
+      return true;
+    }
+    sendJson(response, 200, project);
+    return true;
+  }
+
   if (request.method === "GET" && path === "/agents/missing-cli") {
     serviceUnavailable(
       response,
