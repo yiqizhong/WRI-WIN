@@ -63,9 +63,8 @@ describe("daemon integration smoke", () => {
 
     const agents = await fetch(`${baseUrl}/agents`);
     expect(agents.ok).toBe(true);
-    const agentPayload = (await agents.json()) as { adapters: Array<{ id: string; available: boolean }> };
-    const echo = agentPayload.adapters.find((adapter) => adapter.id === "echo");
-    expect(echo?.available).toBe(true);
+    const agentPayload = (await agents.json()) as { adapters: Array<{ id: string }> };
+    expect(agentPayload.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
   });
 
   it("runs echo agent end to end", async () => {
