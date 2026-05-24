@@ -38,55 +38,50 @@ export const termSchema = z.object({
   localizations: z.record(z.string(), z.unknown()).optional()
 });
 
-export const guidelineSchema = z
-  .object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    layer: guidelineLayerSchema,
-    productId: z.string().min(1).optional(),
-    parentId: z.string().optional(),
-    body: z.string().optional(),
-    schema: z.number().int().positive(),
-    version: z.string().min(1),
-    updatedAt: z.iso.datetime(),
-    rules: z.array(ruleSchema),
-    glossary: z.array(termSchema)
-  })
-  .superRefine((data, ctx) => {
-    if (data.layer === "product-writing" && !data.productId) {
-      ctx.addIssue({
-        code: "custom",
-        message: "productId is required when layer is product-writing",
-        path: ["productId"]
-      });
-    }
-    if (data.layer !== "product-writing" && data.productId) {
-      ctx.addIssue({
-        code: "custom",
-        message: "productId is only allowed when layer is product-writing",
-        path: ["productId"]
-      });
-    }
-  });
+export const guidelineSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  layer: guidelineLayerSchema.optional(),
+  productId: z.string().min(1).optional(),
+  parentId: z.string().optional(),
+  /** Prose or full markdown file text for LLM consumption. */
+  body: z.string().optional(),
+  schema: z.number().int().positive().optional(),
+  version: z.string().min(1).optional(),
+  updatedAt: z.string().optional(),
+  rules: z.array(ruleSchema).default([]),
+  glossary: z.array(termSchema).default([])
+});
 
+/** Freeform product background — full file text for LLM; no required frontmatter fields. */
 export const productBackgroundSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  audience: z.string().min(1),
-  environment: z.string().min(1),
-  purpose: z.string().min(1),
-  body: z.string(),
-  schema: z.number().int().positive(),
-  version: z.string().min(1),
-  updatedAt: z.iso.datetime()
+  content: z.string(),
+  /** @deprecated prose-only slice; prefer `content` */
+  body: z.string().optional(),
+  audience: z.string().optional(),
+  environment: z.string().optional(),
+  purpose: z.string().optional()
+});
+
+export const productExtraFileSchema = z.object({
+  filename: z.string().min(1),
+  content: z.string()
 });
 
 export const productPackageSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  background: productBackgroundSchema,
-  glossary: z.array(termSchema),
-  writingGuide: guidelineSchema.optional()
+  background: productBackgroundSchema.optional(),
+  /** Parsed terms when present; optional — LLM may use glossaryContent instead. */
+  glossary: z.array(termSchema).default([]),
+  glossaryContent: z.string().optional(),
+  glossaryFormat: z.enum(["csv", "md"]).optional(),
+  writingGuide: guidelineSchema.optional(),
+  /** Raw writing-guide.md text for LLM when structured parse is not used. */
+  writingGuideContent: z.string().optional(),
+  extraFiles: z.array(productExtraFileSchema).default([])
 });
 
 export const parseErrorSchema = z.object({
@@ -118,6 +113,7 @@ export const productPackageListItemSchema = z.object({
   hasBackground: z.boolean(),
   hasGlossary: z.boolean(),
   hasWritingGuide: z.boolean(),
+  extraFileCount: z.number().int().nonnegative().default(0),
   parseStatus: z.enum(["ok", "error", "incomplete"]),
   parseError: parseErrorSchema.optional()
 });
@@ -125,7 +121,6 @@ export const productPackageListItemSchema = z.object({
 export const guidelinesTreeSchema = z.object({
   companyBase: guidelineSchema.nullable(),
   softwareWriting: guidelineSchema.nullable(),
-  companyGlossary: z.array(termSchema),
   products: z.array(productPackageListItemSchema),
   companyBaseMissing: z.boolean(),
   softwareWritingMissing: z.boolean(),
@@ -143,7 +138,6 @@ export const guidelineSnapshotSchema = z.object({
 export const threeLayerGuidelineSnapshotSchema = z.object({
   companyBase: guidelineSchema.nullable(),
   softwareWriting: guidelineSchema.nullable(),
-  companyGlossary: z.array(termSchema),
   activeProductId: z.string().min(1).optional(),
   productPackage: productPackageSchema.optional(),
   contentHashes: z.record(z.string(), z.string()),
@@ -163,6 +157,7 @@ export type Rule = z.infer<typeof ruleSchema>;
 export type Term = z.infer<typeof termSchema>;
 export type Guideline = z.infer<typeof guidelineSchema>;
 export type ProductBackground = z.infer<typeof productBackgroundSchema>;
+export type ProductExtraFile = z.infer<typeof productExtraFileSchema>;
 export type ProductPackage = z.infer<typeof productPackageSchema>;
 export type GuidelineListItem = z.infer<typeof guidelineListItemSchema>;
 export type GuidelineList = z.infer<typeof guidelineListSchema>;
@@ -188,7 +183,24 @@ export function parseGuidelineList(payload: unknown): GuidelineList {
   return guidelineListSchema.parse(payload);
 }
 
+function isLegacyGuidelinesListPayload(
+  payload: unknown
+): payload is GuidelineList & Record<string, unknown> {
+  if (!payload || typeof payload !== "object") return false;
+  const p = payload as Record<string, unknown>;
+  return Array.isArray(p.guidelines) && !("products" in p);
+}
+
 export function parseGuidelinesTree(payload: unknown): GuidelinesTree {
+  if (isLegacyGuidelinesListPayload(payload)) {
+    return guidelinesTreeSchema.parse({
+      companyBase: null,
+      softwareWriting: null,
+      products: [],
+      companyBaseMissing: payload.companyMissing,
+      softwareWritingMissing: true
+    });
+  }
   return guidelinesTreeSchema.parse(payload);
 }
 

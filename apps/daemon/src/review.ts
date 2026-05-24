@@ -28,6 +28,7 @@ import { createSession } from "./state";
 
 const pastedTextInputSchema = z.object({
   projectId: z.string().min(1),
+  productId: z.string().min(1),
   text: z.string().min(1)
 });
 
@@ -75,6 +76,7 @@ export async function extractFigmaNodes(state: DaemonState, input: unknown) {
 
 const figmaSessionInputSchema = z.object({
   projectId: z.string().min(1),
+  productId: z.string().min(1),
   url: z.string().url()
 });
 
@@ -83,6 +85,7 @@ export async function createPastedTextSession(state: DaemonState, input: unknown
 
   return createSession(state, {
     projectId: parsed.projectId,
+    productId: parsed.productId,
     sourceType: "pasted_text",
     scope: {
       text: parsed.text,
@@ -97,6 +100,7 @@ export async function createFigmaReviewSession(state: DaemonState, input: unknow
 
   return createSession(state, {
     projectId: parsed.projectId,
+    productId: parsed.productId,
     sourceType: "figma",
     scope: {
       url: parsed.url,

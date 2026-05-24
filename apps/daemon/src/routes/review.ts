@@ -79,7 +79,7 @@ export async function handleReviewRequest(
         return true;
       }
 
-      invalidRequest(response, "Invalid Figma session payload.", "Provide projectId and url.");
+      invalidRequest(response, "Invalid Figma session payload.", "Provide projectId, productId, and url.");
     }
     return true;
   }
@@ -94,7 +94,7 @@ export async function handleReviewRequest(
         return true;
       }
 
-      invalidRequest(response, "Invalid pasted text payload.", "Provide projectId and text.");
+      invalidRequest(response, "Invalid pasted text payload.", "Provide projectId, productId, and text.");
     }
     return true;
   }

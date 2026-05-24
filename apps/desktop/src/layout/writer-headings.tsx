@@ -1,39 +1,35 @@
 import type { ReactNode } from "react";
 
-/**
- * IBM Usage §Content hierarchy / §Continuity.
- * Tile section header — title (productive-heading-02) + optional description + actions.
- * Use this in every Tile that needs a heading. Never hand-roll <h2 style={{ fontSize }}>.
- */
-type WriterSectionHeaderProps = {
-  title: string;
-  description?: ReactNode;
-  actions?: ReactNode;
-  id?: string;
-  /** Render as h2 (default) or h3 — controls semantics, not size. */
-  as?: "h2" | "h3";
-};
+import { cn } from "@/lib/utils";
 
 export function WriterSectionHeader({
   title,
   description,
   actions,
-  id,
-  as = "h2"
-}: WriterSectionHeaderProps) {
-  const Heading = as;
-
+  className
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="writer-section-header">
-      <div className="writer-section-header__body">
-        <Heading id={id} className="writer-type-section-title">
-          {title}
-        </Heading>
-        {description ? (
-          <p className="writer-type-section-description">{description}</p>
-        ) : null}
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", className)}>
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
-      {actions ? <div className="writer-section-header__actions">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </div>
   );
+}
+
+export function WriterSectionDescription({
+  children,
+  className
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <p className={cn("text-sm text-muted-foreground", className)}>{children}</p>;
 }

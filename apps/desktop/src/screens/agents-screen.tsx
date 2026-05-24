@@ -7,7 +7,7 @@ export function AgentsScreen() {
   const workspace = useWorkspace();
 
   return (
-    <WriterPageGrid gutterMode="narrow">
+    <WriterPageGrid gutterMode="narrow" className="h-full">
       <WriterPageGridFull>
         <WriterPageStack gap={5} fill>
           <WorkflowNotification />

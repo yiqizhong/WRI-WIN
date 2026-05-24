@@ -4,6 +4,7 @@ import { basename, join, resolve } from "node:path";
 import type { GuidelineLayer } from "@writer/contracts";
 
 import { guidelinesDir } from "./discovery";
+import { classifyProductFilename } from "./product-files";
 
 export type WriteOutcome = { ok: true; filePath: string } | { ok: false; code: "conflict" | "invalid_filename" | "io_error"; message: string };
 
@@ -108,9 +109,53 @@ export async function writeCompanyGlossary(input: {
   return result;
 }
 
+export async function writeProductExtraFile(input: {
+  productId: string;
+  filename: string;
+  content: string;
+  overwrite?: boolean;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, input.productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  const safeName = sanitizeFilename(input.filename, [""]);
+  if (!safeName) {
+    return { ok: false, code: "invalid_filename", message: "Invalid filename." };
+  }
+  await mkdir(dirPath, { recursive: true });
+  const target = join(dirPath, safeName);
+  return writeFileAt(target, dir, input.content, input.overwrite ?? true);
+}
+
+async function writeClassifiedProductFile(
+  productId: string,
+  filename: string,
+  content: string
+): Promise<WriteOutcome> {
+  const slot = classifyProductFilename(filename);
+  if (slot.kind === "background") {
+    return writeProductBackground({ productId, content, overwrite: true });
+  }
+  if (slot.kind === "glossary") {
+    return writeProductGlossary({
+      productId,
+      content,
+      format: slot.format ?? (filename.endsWith(".csv") ? "csv" : "md"),
+      overwrite: true
+    });
+  }
+  if (slot.kind === "writing-guide") {
+    return writeProductWritingGuide({ productId, content, overwrite: true });
+  }
+  return writeProductExtraFile({ productId, filename: slot.targetName ?? filename, content, overwrite: true });
+}
+
 export async function createProduct(input: {
   productId: string;
-  backgroundContent: string;
+  backgroundContent?: string;
+  files?: Array<{ filename: string; content: string }>;
 }): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const dirPath = productDir(dir, input.productId);
@@ -121,11 +166,22 @@ export async function createProduct(input: {
     return { ok: false, code: "conflict", message: `Product already exists: ${dirPath}` };
   }
   await mkdir(dirPath, { recursive: true });
-  return writeProductBackground({
-    productId: basename(dirPath),
-    content: input.backgroundContent,
-    overwrite: true
-  });
+
+  if (input.backgroundContent) {
+    const bg = await writeProductBackground({
+      productId: basename(dirPath),
+      content: input.backgroundContent,
+      overwrite: true
+    });
+    if (!bg.ok) return bg;
+  }
+
+  for (const file of input.files ?? []) {
+    const result = await writeClassifiedProductFile(basename(dirPath), file.filename, file.content);
+    if (!result.ok) return result;
+  }
+
+  return { ok: true, filePath: dirPath };
 }
 
 export async function writeProductBackground(input: {

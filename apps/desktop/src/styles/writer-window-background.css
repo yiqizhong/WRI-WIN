@@ -1,0 +1,133 @@
+/**
+ * Figma frame 2147253461 (node 1060:829) — exact gradient stops; 50px blur + 8px frame radius.
+ */
+
+:root {
+  --writer-blue-200: #9dcafb;
+  --writer-border-radius: 8px;
+  --writer-backdrop-blur: 50px;
+
+  /* Figma backgroundImage layers (do not change RGB or stop alphas) */
+  --writer-figma-overlay: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.09) 0%,
+    rgba(0, 0, 0, 0.09) 100%
+  );
+  --writer-figma-fill: linear-gradient(
+    177.40594763897417deg,
+    rgba(26, 61, 76, 0.779) 3.0404%,
+    rgba(14, 26, 62, 0.95) 41.611%,
+    rgba(1, 3, 17, 0.95) 96.948%
+  );
+  --writer-figma-background-image: var(--writer-figma-overlay), var(--writer-figma-fill);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+/* Full app frame: 8px corners + Figma Blue/200 inset stroke */
+.writer-window-frame {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: var(--writer-border-radius);
+  background: transparent;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--writer-blue-200);
+}
+
+.writer-window-frame__inner {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: calc(var(--writer-border-radius) - 1px);
+  overflow: hidden;
+}
+
+/* 50px frosted glass: blur wallpaper, then Figma tint (needs slight alpha for Chromium) */
+.writer-window-frame__glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-color: rgba(1, 3, 17, 0.06);
+  background-image: var(--writer-figma-background-image);
+  background-repeat: no-repeat;
+  background-size: cover;
+  -webkit-backdrop-filter: blur(var(--writer-backdrop-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--writer-backdrop-blur)) saturate(1.2);
+  transform: translateZ(0);
+}
+
+.writer-window-frame__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.writer-window-frame__clip {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+html[data-window-chrome="transparent"],
+html[data-window-chrome="transparent"] body,
+html[data-window-chrome="transparent"] #root {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+html[data-window-chrome="transparent"] .writer-window-frame {
+  border: none !important;
+  box-shadow: inset 0 0 0 1px var(--writer-blue-200) !important;
+}
+
+html[data-window-chrome="transparent"] .writer-app-viewport {
+  border-radius: calc(var(--writer-border-radius) - 1px);
+  overflow: hidden;
+}
+
+html[data-window-chrome="transparent"] .writer-window-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+html[data-window-chrome="transparent"] a,
+html[data-window-chrome="transparent"] button,
+html[data-window-chrome="transparent"] input,
+html[data-window-chrome="transparent"] textarea,
+html[data-window-chrome="transparent"] select,
+html[data-window-chrome="transparent"] [role="button"],
+html[data-window-chrome="transparent"] [data-slot="sidebar"] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+html[data-window-chrome="transparent"] [data-slot="sidebar-inset"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-wrapper"],
+html[data-window-chrome="transparent"] .bg-background {
+  background-color: transparent !important;
+}

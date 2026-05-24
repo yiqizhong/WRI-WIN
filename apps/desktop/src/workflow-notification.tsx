@@ -1,22 +1,9 @@
-import { InlineNotification } from "@carbon/react";
+import { InlineAlert } from "@/components/writer/inline-alert";
 
 import { useWorkspace } from "./workspace-context";
 
 export function WorkflowNotification() {
-  const { workflowMessage, workflowRecovery, projectError, setWorkflowMessage, clearProjectError, clearWorkflowRecovery } =
-    useWorkspace();
-
-  if (projectError) {
-    return (
-      <InlineNotification
-        kind="error"
-        lowContrast
-        title="Project error"
-        subtitle={projectError}
-        onClose={clearProjectError}
-      />
-    );
-  }
+  const { workflowMessage, workflowRecovery, setWorkflowMessage, clearWorkflowRecovery } = useWorkspace();
 
   if (!workflowMessage) {
     return null;
@@ -27,9 +14,8 @@ export function WorkflowNotification() {
     : workflowMessage;
 
   return (
-    <InlineNotification
+    <InlineAlert
       kind={workflowRecovery ? "warning" : "info"}
-      lowContrast
       title=""
       subtitle={subtitle}
       onClose={() => {

@@ -1,4 +1,4 @@
-import type { Guideline, ProductPackage, Term } from "@writer/contracts";
+import type { Guideline, ProductPackage } from "@writer/contracts";
 
 import type { FileParseResult, GuidelineTreeResult, ProductPackageResult } from "./discovery";
 
@@ -9,18 +9,16 @@ export type ResolvedGuideline = Guideline & {
 };
 
 export type ResolvedProductPackage = ProductPackage & {
-  _filePaths: { background: string; glossary?: string; writingGuide?: string };
+  _filePaths: { background?: string; glossary?: string; writingGuide?: string };
   _contentHashes: Record<string, string>;
 };
 
 export type ResolvedTree = {
   companyBase: ResolvedGuideline | null;
   softwareWriting: ResolvedGuideline | null;
-  companyGlossary: Term[];
   products: ResolvedProductPackage[];
   companyBaseMissing: boolean;
   softwareWritingMissing: boolean;
-  companyGlossaryMissing: boolean;
   conflictError?: string;
   errors: GuidelineTreeResult["errors"];
 };
@@ -45,17 +43,12 @@ function resolveProduct(product: ProductPackageResult): ResolvedProductPackage |
 }
 
 export function buildResolvedTree(treeResult: GuidelineTreeResult): ResolvedTree {
-  const companyGlossary =
-    treeResult.companyGlossary?.status === "ok" ? treeResult.companyGlossary.value : [];
-
   return {
     companyBase: treeResult.companyBase ? resolveGuideline(treeResult.companyBase) : null,
     softwareWriting: treeResult.softwareWriting ? resolveGuideline(treeResult.softwareWriting) : null,
-    companyGlossary,
     products: treeResult.products.map(resolveProduct).filter((p): p is ResolvedProductPackage => p !== null),
     companyBaseMissing: treeResult.companyBaseMissing,
     softwareWritingMissing: treeResult.softwareWritingMissing,
-    companyGlossaryMissing: treeResult.companyGlossaryMissing,
     conflictError: treeResult.conflictError,
     errors: treeResult.errors
   };
@@ -71,8 +64,11 @@ export function collectFlatGuidelines(tree: ResolvedTree): ResolvedGuideline[] {
       list.push({
         ...product.writingGuide,
         productId: product.id,
-        _filePath: product._filePaths.writingGuide ?? product._filePaths.background,
-        _contentHash: product._contentHashes[product._filePaths.writingGuide ?? product._filePaths.background] ?? "",
+        _filePath: product._filePaths.writingGuide ?? product._filePaths.background ?? `products/${product.id}`,
+        _contentHash:
+          product._contentHashes[
+            product._filePaths.writingGuide ?? product._filePaths.background ?? ""
+          ] ?? "",
         _prose: product.writingGuide.body
       });
     }

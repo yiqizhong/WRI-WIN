@@ -18,6 +18,7 @@ export const reviewSessionStatusSchema = z.enum([
 export const reviewSessionSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
+  productId: z.string().min(1).optional(),
   sourceType: reviewSourceTypeSchema,
   scope: z.record(z.string(), z.unknown()),
   status: reviewSessionStatusSchema,
@@ -32,6 +33,7 @@ export const reviewSessionSchema = z.object({
 
 export const createReviewSessionInputSchema = z.object({
   projectId: z.string().min(1),
+  productId: z.string().min(1).optional(),
   sourceType: reviewSourceTypeSchema,
   scope: z.record(z.string(), z.unknown()).default({})
 });

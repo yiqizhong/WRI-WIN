@@ -26,54 +26,34 @@ describe("guideline 3-layer contracts", () => {
     expect(parsed.layer).toBe("company-base");
   });
 
-  it("requires productId for product-writing layer", () => {
-    expect(() =>
-      guidelineSchema.parse({
-        id: "checkout-rules",
-        name: "Checkout",
-        layer: "product-writing",
-        schema: 1,
-        version: "1.0.0",
-        updatedAt: "2024-01-01T00:00:00Z",
-        rules: [],
-        glossary: []
-      })
-    ).toThrow();
+  it("accepts product-writing layer without strict productId requirement", () => {
+    const parsed = guidelineSchema.parse({
+      id: "checkout-rules",
+      name: "Checkout",
+      layer: "product-writing",
+      body: "Freeform writing guide text.",
+      rules: [],
+      glossary: []
+    });
+    expect(parsed.layer).toBe("product-writing");
   });
 
-  it("accepts product background with required context fields", () => {
+  it("accepts freeform product background content", () => {
     const bg = productBackgroundSchema.parse({
       id: "checkout",
       name: "Checkout",
-      audience: "Merchants",
-      environment: "Web dashboard",
-      purpose: "Complete a purchase",
-      body: "Context prose.",
-      schema: 1,
-      version: "1.0.0",
-      updatedAt: "2024-01-01T00:00:00Z"
+      content: "Any notes the team wants — no YAML required."
     });
-    expect(bg.audience).toBe("Merchants");
+    expect(bg.content).toContain("Any notes");
   });
 
-  it("accepts product package", () => {
+  it("accepts product package with glossary text", () => {
     const pkg = productPackageSchema.parse({
       id: "checkout",
       name: "Checkout",
-      background: {
-        id: "checkout",
-        name: "Checkout",
-        audience: "Merchants",
-        environment: "Web dashboard",
-        purpose: "Complete a purchase",
-        body: "",
-        schema: 1,
-        version: "1.0.0",
-        updatedAt: "2024-01-01T00:00:00Z"
-      },
-      glossary: []
+      glossaryContent: "term,preferred\nSign in,Sign in\n"
     });
-    expect(pkg.writingGuide).toBeUndefined();
+    expect(pkg.glossaryContent).toContain("Sign in");
   });
 
   it("accepts upload inputs for fixed slots", () => {
@@ -84,17 +64,7 @@ describe("guideline 3-layer contracts", () => {
     expect(
       createProductInputSchema.parse({
         id: "checkout",
-        background: {
-          id: "checkout",
-          name: "Checkout",
-          audience: "Merchants",
-          environment: "Web",
-          purpose: "Buy",
-          body: "",
-          schema: 1,
-          version: "1.0.0",
-          updatedAt: "2024-01-01T00:00:00Z"
-        }
+        files: [{ filename: "background.md", content: "# Checkout\n\nNotes." }]
       }).id
     ).toBe("checkout");
   });

@@ -1,6 +1,13 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import type { ChangeStatus, Project, SpreadsheetMappingInput, SpreadsheetParseResult, AgentAdapter, McpServer } from "@writer/contracts";
+import type {
+  AgentAdapter,
+  ChangeStatus,
+  McpServer,
+  ProductPackageListItem,
+  SpreadsheetMappingInput,
+  SpreadsheetParseResult
+} from "@writer/contracts";
 
 import {
   applyAgentAdapterList,
@@ -17,10 +24,12 @@ export type WorkspaceContextValue = {
   daemonState: DaemonConnectionState;
   statusView: ReturnType<typeof getDaemonStatusView>;
   daemonConnected: boolean;
-  activeProject: Project | null;
-  projectError: string | null;
-  clearProjectError: () => void;
-  isOpeningProject: boolean;
+  workspaceReady: boolean;
+  workspaceProjectId: string | null;
+  products: ProductPackageListItem[];
+  selectedProductId: string | null;
+  setSelectedProductId: (productId: string) => Promise<void>;
+  selectedProductName: string | null;
   figmaUrl: string;
   setFigmaUrl: (value: string) => void;
   pastedText: string;
@@ -40,7 +49,8 @@ export type WorkspaceContextValue = {
   setSpreadsheetMapping: (mapping: SpreadsheetMappingInput | null) => void;
   parsedFigmaScope: string | null;
   refreshQueue: () => Promise<void>;
-  runAudit: () => Promise<void>;
+  runAudit: (sessionId?: string) => Promise<boolean>;
+  runFigmaAudit: () => Promise<boolean>;
   saveBrandVoice: () => Promise<void>;
   importSpreadsheet: () => Promise<void>;
   createSpreadsheetSession: () => Promise<void>;
@@ -48,9 +58,7 @@ export type WorkspaceContextValue = {
   exportSession: (format: "markdown" | "json" | "pdf") => Promise<void>;
   refreshDaemonStatus: () => Promise<void>;
   connectFigma: () => Promise<void>;
-  startFigmaSession: () => Promise<void>;
   startPastedTextReview: () => Promise<void>;
-  openProject: () => Promise<void>;
   llmAdapters: AgentAdapter[];
   activeAdapterId: string | null;
   agentsLoadState: AgentsLoadState;
@@ -74,9 +82,9 @@ export function useWorkspace(): WorkspaceContextValue {
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [daemonState, setDaemonState] = useState<DaemonConnectionState>({ kind: "checking" });
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [projectError, setProjectError] = useState<string | null>(null);
-  const [isOpeningProject, setIsOpeningProject] = useState(false);
+  const [workspaceProjectId, setWorkspaceProjectId] = useState<string | null>(null);
+  const [products, setProducts] = useState<ProductPackageListItem[]>([]);
+  const [selectedProductId, setSelectedProductIdState] = useState<string | null>(null);
   const [figmaUrl, setFigmaUrl] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
@@ -98,6 +106,30 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
   const daemonConnected = daemonState.kind === "connected" || daemonState.kind === "degraded";
+  const workspaceReady = daemonConnected && workspaceProjectId != null;
+
+  const selectedProductName = useMemo(() => {
+    if (!selectedProductId) {
+      return null;
+    }
+    return products.find((product) => product.id === selectedProductId)?.name ?? selectedProductId;
+  }, [products, selectedProductId]);
+
+  const setSelectedProductId = useCallback(
+    async (productId: string) => {
+      setSelectedProductIdState(productId);
+      if (!workspaceProjectId) {
+        return;
+      }
+
+      try {
+        await daemonClient.setActiveProductId(workspaceProjectId, productId);
+      } catch {
+        // Selection still applies to the current session; persistence is best-effort.
+      }
+    },
+    [daemonClient, workspaceProjectId]
+  );
 
   async function refreshQueue() {
     if (!activeSessionId) {
@@ -112,13 +144,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function runAudit() {
-    if (!activeSessionId) {
-      return;
+  async function runAudit(sessionId?: string): Promise<boolean> {
+    const targetSessionId = sessionId ?? activeSessionId;
+    if (!targetSessionId) {
+      return false;
     }
 
     try {
-      const result = await daemonClient.runAudit(activeSessionId);
+      const result = await daemonClient.runAudit(targetSessionId);
       setReviewQueue(result);
       setWorkflowRecovery(null);
 
@@ -129,35 +162,57 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           setWorkflowRecovery({ label: "Connect Figma", path: "/agents" });
         }
 
-        return;
+        return false;
       }
 
       setWorkflowMessage(`Audit generated ${result.changes.length} proposed changes.`);
+      return true;
     } catch (error) {
       setWorkflowRecovery(null);
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Audit run failed.");
+      return false;
+    }
+  }
+
+  async function runFigmaAudit(): Promise<boolean> {
+    if (!workspaceProjectId || !selectedProductId || !figmaUrl.trim()) {
+      return false;
+    }
+
+    setWorkflowMessage(null);
+
+    try {
+      const session = await daemonClient.createFigmaSession({
+        projectId: workspaceProjectId,
+        productId: selectedProductId,
+        url: figmaUrl.trim()
+      });
+      setActiveSessionId(session.id);
+      return runAudit(session.id);
+    } catch (error) {
+      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not start Figma audit.");
+      return false;
     }
   }
 
   async function saveBrandVoice() {
-    if (!activeProject) {
+    if (!workspaceProjectId) {
       return;
     }
 
     try {
-      const project = await daemonClient.updateProjectGuidance({
-        projectId: activeProject.id,
+      await daemonClient.updateProjectGuidance({
+        projectId: workspaceProjectId,
         brandVoice: brandVoice.trim() || undefined
       });
-      setActiveProject(project);
-      setWorkflowMessage("Brand voice saved for this project.");
+      setWorkflowMessage("Brand voice saved.");
     } catch (error) {
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not save brand voice.");
     }
   }
 
   async function importSpreadsheet() {
-    if (!activeProject) {
+    if (!workspaceProjectId) {
       return;
     }
 
@@ -184,13 +239,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function createSpreadsheetSession() {
-    if (!activeProject || !parsedSpreadsheet || !spreadsheetMapping) {
+    if (!workspaceProjectId || !parsedSpreadsheet || !spreadsheetMapping) {
       return;
     }
 
     try {
       const session = await daemonClient.createSession({
-        projectId: activeProject.id,
+        projectId: workspaceProjectId,
+        productId: selectedProductId ?? undefined,
         sourceType: "spreadsheet",
         scope: {
           fileName: parsedSpreadsheet.fileName,
@@ -305,25 +361,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function startFigmaSession() {
-    if (!activeProject || !figmaUrl.trim()) {
-      return;
-    }
-
-    try {
-      const session = await daemonClient.createFigmaSession({
-        projectId: activeProject.id,
-        url: figmaUrl.trim()
-      });
-      setActiveSessionId(session.id);
-      setWorkflowMessage(`Figma session created (${session.id.slice(0, 8)}…).`);
-    } catch (error) {
-      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not create Figma session.");
-    }
-  }
-
   async function startPastedTextReview() {
-    if (!activeProject || !pastedText.trim()) {
+    if (!workspaceProjectId || !selectedProductId || !pastedText.trim()) {
       return;
     }
 
@@ -331,49 +370,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     try {
       const session = await daemonClient.createPastedTextSession({
-        projectId: activeProject.id,
+        projectId: workspaceProjectId,
+        productId: selectedProductId,
         text: pastedText.trim()
       });
       setActiveSessionId(session.id);
-      setWorkflowMessage(
-        `Pasted text session created (${session.id.slice(0, 8)}…). Run audit to populate the queue.`
-      );
+      const ok = await runAudit(session.id);
+      if (ok) {
+        setWorkflowMessage(`Audit ready (${session.id.slice(0, 8)}…). Review proposed changes.`);
+      }
     } catch (error) {
       const message =
         error instanceof DaemonClientError
           ? error.message
           : "Could not create a pasted text review session.";
       setWorkflowMessage(message);
-    }
-  }
-
-  async function openProject() {
-    setProjectError(null);
-    setIsOpeningProject(true);
-
-    try {
-      const folderPath = await window.writerDesktop.pickProjectFolder();
-      if (!folderPath) {
-        return;
-      }
-
-      const folderName = folderPath.split(/[/\\]/).filter(Boolean).pop() ?? "Project";
-      const project = await daemonClient.openProject({
-        name: folderName,
-        rootPath: folderPath
-      });
-
-      await daemonClient.listDirectory(project.rootPath);
-      setActiveProject(project);
-      setBrandVoice(project.brandVoice ?? "");
-    } catch (error) {
-      const message =
-        error instanceof DaemonClientError
-          ? error.message
-          : "Could not open the project through the local daemon.";
-      setProjectError(message);
-    } finally {
-      setIsOpeningProject(false);
     }
   }
 
@@ -415,14 +426,23 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
+        const workspace = await daemonClient.getWorkspace();
+        setWorkspaceProjectId(workspace.projectId);
+        setProducts(workspace.products);
+
+        const preferred =
+          workspace.lastProductId && workspace.products.some((p) => p.id === workspace.lastProductId)
+            ? workspace.lastProductId
+            : (workspace.products[0]?.id ?? null);
+        setSelectedProductIdState(preferred);
+
         const list = await daemonClient.listProjects();
-        const active = list.projects.find((project) => project.id === list.activeProjectId);
-        if (active) {
-          setActiveProject(active);
-          setBrandVoice(active.brandVoice ?? "");
+        const project = list.projects.find((item) => item.id === workspace.projectId);
+        if (project?.brandVoice) {
+          setBrandVoice(project.brandVoice);
         }
       } catch {
-        // Keep UI usable when project restore fails.
+        // Keep UI usable when workspace bootstrap fails.
       }
     })();
   }, [daemonClient, daemonConnected]);
@@ -478,10 +498,12 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     daemonState,
     statusView,
     daemonConnected,
-    activeProject,
-    projectError,
-    clearProjectError: () => setProjectError(null),
-    isOpeningProject,
+    workspaceReady,
+    workspaceProjectId,
+    products,
+    selectedProductId,
+    setSelectedProductId,
+    selectedProductName,
     figmaUrl,
     setFigmaUrl,
     pastedText,
@@ -502,6 +524,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     parsedFigmaScope,
     refreshQueue,
     runAudit,
+    runFigmaAudit,
     saveBrandVoice,
     importSpreadsheet,
     createSpreadsheetSession,
@@ -509,9 +532,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     exportSession,
     refreshDaemonStatus,
     connectFigma,
-    startFigmaSession,
     startPastedTextReview,
-    openProject,
     llmAdapters,
     activeAdapterId,
     agentsLoadState,

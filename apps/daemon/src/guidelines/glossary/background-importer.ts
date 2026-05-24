@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-import { productBackgroundSchema, type ProductBackground } from "@writer/contracts";
+import type { ProductBackground } from "@writer/contracts";
 import matter from "gray-matter";
 
 import type { ParseError } from "../importers/index";
@@ -8,12 +8,6 @@ import type { ParseError } from "../importers/index";
 export type BackgroundParseResult =
   | { ok: true; background: ProductBackground }
   | { ok: false; error: ParseError };
-
-function lineOf(content: string, searchStr: string): number | undefined {
-  const idx = content.indexOf(searchStr);
-  if (idx === -1) return undefined;
-  return content.slice(0, idx).split("\n").length;
-}
 
 export async function parseProductBackgroundFile(
   filePath: string,
@@ -29,38 +23,36 @@ export async function parseProductBackgroundFile(
     };
   }
 
-  let frontmatter: Record<string, unknown>;
-  let body: string;
+  let id = productId;
+  let name = productId;
+  let audience: string | undefined;
+  let environment: string | undefined;
+  let purpose: string | undefined;
+  let body: string | undefined;
+
   try {
     const parsed = matter(raw);
-    frontmatter = parsed.data as Record<string, unknown>;
-    body = parsed.content.trim();
-  } catch (err) {
-    return {
-      ok: false,
-      error: { file: filePath, line: 1, message: `YAML frontmatter parse error: ${String(err)}` }
-    };
+    const fm = parsed.data as Record<string, unknown>;
+    if (typeof fm.id === "string" && fm.id.trim()) id = fm.id.trim();
+    if (typeof fm.name === "string" && fm.name.trim()) name = fm.name.trim();
+    if (typeof fm.audience === "string") audience = fm.audience;
+    if (typeof fm.environment === "string") environment = fm.environment;
+    if (typeof fm.purpose === "string") purpose = fm.purpose;
+    body = parsed.content.trim() || undefined;
+  } catch {
+    body = raw.trim() || undefined;
   }
 
-  const payload = {
-    ...frontmatter,
-    id: typeof frontmatter.id === "string" ? frontmatter.id : productId,
-    body
+  return {
+    ok: true,
+    background: {
+      id,
+      name,
+      content: raw,
+      body,
+      audience,
+      environment,
+      purpose
+    }
   };
-
-  const result = productBackgroundSchema.safeParse(payload);
-  if (!result.success) {
-    const firstIssue = result.error.issues[0];
-    const fieldPath = firstIssue.path.join(".");
-    return {
-      ok: false,
-      error: {
-        file: filePath,
-        line: fieldPath ? lineOf(raw, fieldPath) : undefined,
-        message: `Validation error at ${fieldPath || "root"}: ${firstIssue.message}`
-      }
-    };
-  }
-
-  return { ok: true, background: result.data };
 }

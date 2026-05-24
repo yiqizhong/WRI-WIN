@@ -20,6 +20,7 @@ import {
   parseProject,
   parseProjectList,
   parseReviewSession,
+  parseWorkspaceInfo,
   parsePermissionRequest,
   parseWritebackResult,
   parseSpreadsheetParseResult,
@@ -97,6 +98,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     listProjects: () => request(baseUrl, "/projects", undefined, parseProjectList),
 
+    getWorkspace: () => request(baseUrl, "/workspace", undefined, parseWorkspaceInfo),
+
     openProject: (input: { name: string; rootPath: string }) =>
       request(
         baseUrl,
@@ -149,7 +152,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseParsedFigmaUrl
       ),
 
-    createPastedTextSession: (input: { projectId: string; text: string }) =>
+    createPastedTextSession: (input: { projectId: string; productId: string; text: string }) =>
       request(
         baseUrl,
         "/sessions/pasted-text",
@@ -161,7 +164,12 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseReviewSession
       ),
 
-    createSession: (input: { projectId: string; sourceType: string; scope: Record<string, unknown> }) =>
+    createSession: (input: {
+      projectId: string;
+      productId?: string;
+      sourceType: string;
+      scope: Record<string, unknown>;
+    }) =>
       request(
         baseUrl,
         "/sessions",
@@ -259,7 +267,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         `/review/changelog?sessionId=${encodeURIComponent(sessionId)}`
       ),
 
-    createFigmaSession: (input: { projectId: string; url: string }) =>
+    createFigmaSession: (input: { projectId: string; productId: string; url: string }) =>
       request(
         baseUrl,
         "/sessions/figma",
@@ -455,7 +463,11 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     getProduct: (id: string) =>
       request(baseUrl, `/products/${encodeURIComponent(id)}`, undefined, parseProductPackage),
 
-    createProduct: (input: { id: string; content: string }) =>
+    createProduct: (input: {
+      id: string;
+      content?: string;
+      files?: Array<{ filename: string; content: string }>;
+    }) =>
       request<{ ok: boolean; filePath: string }>(baseUrl, "/products", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -503,6 +515,20 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       request<{ ok: boolean; filePath: string }>(
         baseUrl,
         `/products/${encodeURIComponent(productId)}/writing-guide/upload`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        }
+      ),
+
+    uploadProductFile: (
+      productId: string,
+      input: { filename: string; content: string; overwrite?: boolean }
+    ) =>
+      request<{ ok: boolean; filePath: string }>(
+        baseUrl,
+        `/products/${encodeURIComponent(productId)}/files/upload`,
         {
           method: "POST",
           headers: { "content-type": "application/json" },

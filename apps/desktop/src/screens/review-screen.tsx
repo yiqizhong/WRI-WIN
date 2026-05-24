@@ -1,10 +1,14 @@
 import { Link } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Button,
-  OverflowMenu,
-  OverflowMenuItem,
-  Tag
-} from "@carbon/react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 import { ChangelogPanel } from "../changelog-panel";
 import {
@@ -33,15 +37,15 @@ export function ReviewScreen() {
   const hasSession = Boolean(workspace.activeSessionId);
 
   return (
-    <WriterPageGrid gutterMode="condensed" equalRowHeight>
+    <WriterPageGrid gutterMode="condensed" equalRowHeight className="h-full">
       <WriterPageGridFull>
         <WriterPageStack>
-          {workspace.activeProject || workspace.activeSessionId ? (
+          {workspace.selectedProductName || workspace.activeSessionId ? (
             <div className="writer-session-strip">
-              {workspace.activeProject ? (
+              {workspace.selectedProductName ? (
                 <span>
-                  Project:{" "}
-                  <strong className="writer-type-body-compact">{workspace.activeProject.name}</strong>
+                  Product:{" "}
+                  <strong className="writer-type-body-compact">{workspace.selectedProductName}</strong>
                 </span>
               ) : null}
               {workspace.activeSessionId ? (
@@ -54,9 +58,13 @@ export function ReviewScreen() {
               ) : null}
               {workspace.reviewQueue ? (
                 <div className="writer-tag-row">
-                  {counts.proposed > 0 ? <Tag type="blue">{counts.proposed} proposed</Tag> : null}
-                  {counts.approved > 0 ? <Tag type="green">{counts.approved} approved</Tag> : null}
-                  {counts.rejected > 0 ? <Tag type="red">{counts.rejected} rejected</Tag> : null}
+                  {counts.proposed > 0 ? (
+                    <Badge variant="secondary">{counts.proposed} proposed</Badge>
+                  ) : null}
+                  {counts.approved > 0 ? <Badge>{counts.approved} approved</Badge> : null}
+                  {counts.rejected > 0 ? (
+                    <Badge variant="destructive">{counts.rejected} rejected</Badge>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -64,44 +72,43 @@ export function ReviewScreen() {
 
           <WorkflowNotification />
 
-          {!workspace.activeProject ? (
+          {!hasSession ? (
             <p className="writer-type-body writer-text-secondary">
-              No project open. Add sources in <Link to="/figma">Sources</Link>.
+              No active audit. Paste a Figma link and run an audit from{" "}
+              <Link to="/figma">Sources</Link>.
             </p>
           ) : null}
 
           <div className="writer-review-toolbar">
-            <Button kind="tertiary" size="md" disabled={!hasSession} onClick={() => void workspace.runAudit()}>
-              Run audit
+            <Button variant="secondary" disabled={!hasSession} onClick={() => void workspace.runAudit()}>
+              Run audit again
             </Button>
             {workspace.workflowRecovery ? (
-              <Button kind="ghost" size="md" as={Link} to={workspace.workflowRecovery.path}>
+              <Button variant="ghost" render={<Link to={workspace.workflowRecovery.path} />}>
                 {workspace.workflowRecovery.label}
               </Button>
             ) : null}
-            <OverflowMenu
-              aria-label="Export"
-              size="md"
-              flipped
-              disabled={!hasSession}
-            >
-              <OverflowMenuItem
-                itemText="Export as Markdown"
-                onClick={() => void workspace.exportSession("markdown")}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="outline" disabled={!hasSession}>
+                    Export
+                    <ChevronDown className="size-4 opacity-60" />
+                  </Button>
+                }
               />
-              <OverflowMenuItem
-                itemText="Export as JSON"
-                onClick={() => void workspace.exportSession("json")}
-              />
-              <OverflowMenuItem
-                itemText="Export as PDF"
-                onClick={() => void workspace.exportSession("pdf")}
-              />
-              <OverflowMenuItem
-                itemText="Export as spreadsheet"
-                onClick={() => void workspace.exportSpreadsheet()}
-              />
-            </OverflowMenu>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void workspace.exportSession("markdown")}>
+                  Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void workspace.exportSession("json")}>
+                  JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void workspace.exportSession("pdf")}>
+                  PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </WriterPageStack>
       </WriterPageGridFull>

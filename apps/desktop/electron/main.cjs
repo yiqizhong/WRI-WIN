@@ -1,23 +1,17 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } = require("electron");
 const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
+const { createMainWindow } = require("./create-main-window.cjs");
+
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
 
+/** @type {import("electron").BrowserWindow | null} */
+let mainWindow = null;
+
 function createWindow() {
-  const window = new BrowserWindow({
-    width: 1280,
-    height: 820,
-    minWidth: 1040,
-    minHeight: 680,
-    title: "Writer",
-    backgroundColor: "#f7f6f2",
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      nodeIntegration: false
-    }
-  });
+  const window = createMainWindow();
+  mainWindow = window;
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -25,6 +19,8 @@ function createWindow() {
   });
 
   window.loadURL(devServerUrl);
+
+  return window;
 }
 
 ipcMain.handle("writer:open-external", async (_event, url) => {
@@ -145,11 +141,14 @@ ipcMain.handle("writer:export-pdf-from-html", async (_event, filePath, html) => 
 });
 
 app.whenReady().then(() => {
+  nativeTheme.themeSource = "dark";
   createWindow();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (mainWindow === null || mainWindow.isDestroyed()) {
       createWindow();
+    } else {
+      mainWindow.focus();
     }
   });
 });

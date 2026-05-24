@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Stack, Tile } from "@carbon/react";
+
+import { Card, CardContent } from "@/components/ui/card";
 
 import type { DaemonClient } from "./daemon-client";
 import { WriterSectionHeader } from "./layout/writer-headings";
@@ -30,8 +31,8 @@ export function ChangelogPanel({ client, sessionId }: ChangelogPanelProps) {
   }, [client, sessionId]);
 
   return (
-    <Tile className={surfaceFillHeight}>
-      <Stack gap={5} className={stackFill}>
+    <Card className={surfaceFillHeight}>
+      <CardContent className={`flex flex-col gap-5 pt-6 ${stackFill}`}>
         <WriterSectionHeader title="Changelog" />
         {!sessionId ? (
           <p className="writer-type-body-compact writer-text-secondary">No session selected.</p>
@@ -49,7 +50,7 @@ export function ChangelogPanel({ client, sessionId }: ChangelogPanelProps) {
             ))}
           </ul>
         )}
-      </Stack>
-    </Tile>
+      </CardContent>
+    </Card>
   );
 }

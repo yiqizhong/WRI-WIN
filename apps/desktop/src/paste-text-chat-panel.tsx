@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Button,
-  IconButton,
-  InlineNotification,
-  Stack,
-  TextArea,
-  TextInput,
-  Tile
-} from "@carbon/react";
-import { Attachment, Copy } from "@carbon/icons-react";
-import type { AgentRunEvent, PasteTextConversation, PasteTextMessage, Project } from "@writer/contracts";
+import { Copy, Paperclip } from "lucide-react";
+import type { AgentRunEvent, PasteTextConversation, PasteTextMessage } from "@writer/contracts";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
+import { useWorkspace } from "./workspace-context";
 import { WriterSectionHeader } from "./layout/writer-headings";
 import {
   chatBubble,
@@ -24,7 +23,6 @@ import {
 
 type PasteTextChatPanelProps = {
   client: DaemonClient;
-  activeProject: Project | null;
   daemonConnected: boolean;
 };
 
@@ -69,7 +67,8 @@ function hasPendingAssistant(conversation: PasteTextConversation | null): boolea
   );
 }
 
-export function PasteTextChatPanel({ client, activeProject, daemonConnected }: PasteTextChatPanelProps) {
+export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPanelProps) {
+  const { workspaceProjectId, selectedProductId, workspaceReady } = useWorkspace();
   const [backgroundContext, setBackgroundContext] = useState("");
   const [showBackground, setShowBackground] = useState(true);
   const [conversation, setConversation] = useState<PasteTextConversation | null>(null);
@@ -99,7 +98,7 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
     setDraftText("");
     setError(null);
     setStreamingText(null);
-  }, [activeProject?.id]);
+  }, [workspaceProjectId, selectedProductId]);
 
   useEffect(() => {
     if (!conversation?.id || !pendingAssistant) {
@@ -156,8 +155,6 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
     };
 
     void poll();
-    // 100ms = perceptually instant for streaming chars while remaining gentle on
-    // the local daemon (each tick is a couple of in-memory reads + one HTTP hop).
     const timer = window.setInterval(() => void poll(), 100);
 
     return () => {
@@ -171,23 +168,23 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
       return conversation;
     }
 
-    if (!activeProject) {
-      throw new Error("Open a project before starting paste text rewrite.");
+    if (!workspaceProjectId) {
+      throw new Error("App workspace is not ready yet.");
     }
 
     const created = await client.createPasteTextConversation({
-      projectId: activeProject.id,
+      projectId: workspaceProjectId,
       backgroundContext: backgroundContext.trim() || undefined
     });
     setConversation(created);
     return created;
-  }, [activeProject, backgroundContext, client, conversation]);
+  }, [workspaceProjectId, backgroundContext, client, conversation]);
 
   const pendingRewrite = hasPendingAssistant(conversation);
 
   async function handleSend() {
     const text = draftText.trim();
-    if (!text || !daemonConnected || !activeProject) {
+    if (!text || !daemonConnected || !workspaceReady || !selectedProductId) {
       return;
     }
 
@@ -210,14 +207,20 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
       setDraftText("");
       setShowBackground(false);
     } catch (err) {
-      setError(err instanceof DaemonClientError ? err.message : err instanceof Error ? err.message : "Could not send message.");
+      setError(
+        err instanceof DaemonClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Could not send message."
+      );
     } finally {
       setSending(false);
     }
   }
 
   async function handleAttach() {
-    if (!daemonConnected || !activeProject) {
+    if (!daemonConnected || !workspaceReady) {
       return;
     }
 
@@ -238,7 +241,13 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
       setConversation(updated);
       setShowBackground(false);
     } catch (err) {
-      setError(err instanceof DaemonClientError ? err.message : err instanceof Error ? err.message : "Could not attach file.");
+      setError(
+        err instanceof DaemonClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Could not attach file."
+      );
     } finally {
       setAttaching(false);
     }
@@ -261,33 +270,31 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
   }
 
   return (
-    <Tile className={surfaceFillHeight}>
-      <Stack gap={5} className={stackFill}>
+    <Card className={surfaceFillHeight}>
+      <CardContent className={`flex flex-col gap-5 pt-6 ${stackFill}`}>
         <WriterSectionHeader
           title="Rewrite copy"
           actions={
             conversation ? (
-              <Button kind="ghost" size="sm" className={hugWidth} onClick={startNewConversation}>
+              <Button variant="ghost" size="sm" className={hugWidth} onClick={startNewConversation}>
                 New conversation
               </Button>
             ) : null
           }
         />
 
-        {!activeProject ? (
-          <InlineNotification
+        {!selectedProductId ? (
+          <InlineAlert
             kind="info"
-            lowContrast
-            title="No project open"
-            subtitle="Open a project to continue."
-            hideCloseButton
+            title="Select a product"
+            subtitle="Choose a product in the Figma audit panel before rewriting copy."
           />
         ) : null}
 
         {showBackground || !conversation ? (
-          <Stack gap={3}>
+          <div className="flex flex-col gap-3">
             <Button
-              kind="ghost"
+              variant="ghost"
               size="sm"
               className={hugWidth}
               onClick={() => setShowBackground((value) => !value)}
@@ -296,18 +303,20 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
               {showBackground ? "Hide background" : "Show background"}
             </Button>
             {showBackground ? (
-              <TextArea
-                id="paste-text-background"
-                labelText="Background"
-                helperText="Screen context, tone, terminology."
-                rows={3}
-                placeholder="Settings page, confirm destructive action, friendly but direct…"
-                value={backgroundContext}
-                onChange={(event) => setBackgroundContext(event.target.value)}
-                disabled={Boolean(conversation?.messages.length)}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="paste-text-background">Background</Label>
+                <p className="text-sm text-muted-foreground">Screen context, tone, terminology.</p>
+                <Textarea
+                  id="paste-text-background"
+                  rows={3}
+                  placeholder="Settings page, confirm destructive action, friendly but direct…"
+                  value={backgroundContext}
+                  onChange={(event) => setBackgroundContext(event.target.value)}
+                  disabled={Boolean(conversation?.messages.length)}
+                />
+              </div>
             ) : null}
-          </Stack>
+          </div>
         ) : null}
 
         {attachment ? (
@@ -318,19 +327,21 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
         ) : null}
 
         {isStructured ? (
-          <TextInput
-            id="paste-text-row-index"
-            labelText="Row index"
-            helperText="0-based row to rewrite."
-            value={rowIndex}
-            onChange={(event) => setRowIndex(event.target.value)}
-            className={`${hugWidth} writer-row-index-input`}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="paste-text-row-index">Row index</Label>
+            <p className="text-sm text-muted-foreground">0-based row to rewrite.</p>
+            <Input
+              id="paste-text-row-index"
+              value={rowIndex}
+              onChange={(event) => setRowIndex(event.target.value)}
+              className={`${hugWidth} writer-row-index-input`}
+            />
+          </div>
         ) : null}
 
         <div className="writer-chat-scroll">
           {conversation?.messages.length ? (
-            <Stack gap={5}>
+            <div className="flex flex-col gap-5">
               {conversation.messages.map((message) => {
                 const isAssistant = message.role === "assistant";
                 const isPending = message.status === "pending";
@@ -340,10 +351,9 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                 const showCursor = showStream && Boolean(streamingText);
 
                 return (
-                  <Stack
+                  <div
                     key={message.id}
-                    gap={3}
-                    className={isAssistant ? chatBubble : chatBubbleEnd}
+                    className={`flex flex-col gap-3 ${isAssistant ? chatBubble : chatBubbleEnd}`}
                   >
                     <span className="writer-type-eyebrow">
                       {isAssistant ? (isPending ? "Rewriting" : isFailed ? "Failed" : "Suggestion") : "You"}
@@ -361,65 +371,75 @@ export function PasteTextChatPanel({ client, activeProject, daemonConnected }: P
                     </div>
                     {isAssistant && !isPending && !isFailed ? (
                       <Button
-                        kind="ghost"
+                        variant="ghost"
                         size="sm"
                         className={hugWidth}
-                        renderIcon={Copy}
                         onClick={() => void copySuggestion(message)}
                       >
+                        <Copy className="size-4" />
                         {copiedId === message.id ? "Copied" : "Copy suggestion"}
                       </Button>
                     ) : null}
-                  </Stack>
+                  </div>
                 );
               })}
               <div ref={messagesEndRef} />
-            </Stack>
+            </div>
           ) : (
             <p className="writer-type-body-compact writer-text-secondary">No messages.</p>
           )}
         </div>
 
         {error ? (
-          <InlineNotification kind="error" lowContrast title="Send failed" subtitle={error} onClose={() => setError(null)} />
+          <InlineAlert kind="error" title="Send failed" subtitle={error} onClose={() => setError(null)} />
         ) : null}
 
         <div className="writer-composer-row">
-          <TextArea
-            id="paste-text-composer"
-            className="writer-composer-input"
-            labelText="Copy to rewrite"
-            placeholder="Paste copy and send…"
-            rows={3}
-            value={draftText}
-            onChange={(event) => setDraftText(event.target.value)}
-            disabled={!activeProject || !daemonConnected || sending || pendingRewrite}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                void handleSend();
-              }
-            }}
-          />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Label htmlFor="paste-text-composer">Copy to rewrite</Label>
+            <Textarea
+              id="paste-text-composer"
+              className="writer-composer-input"
+              placeholder="Paste copy and send…"
+              rows={3}
+              value={draftText}
+              onChange={(event) => setDraftText(event.target.value)}
+              disabled={!workspaceReady || !selectedProductId || !daemonConnected || sending || pendingRewrite}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  void handleSend();
+                }
+              }}
+            />
+          </div>
           <div className="writer-composer-actions">
-            <IconButton
-              kind="ghost"
-              label="Attach file"
-              onClick={() => void handleAttach()}
-              disabled={!activeProject || !daemonConnected || attaching || sending || pendingRewrite}
-            >
-              <Attachment />
-            </IconButton>
             <Button
-              kind="primary"
-              disabled={!activeProject || !daemonConnected || sending || pendingRewrite || !draftText.trim()}
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Attach file"
+              onClick={() => void handleAttach()}
+              disabled={!workspaceReady || !daemonConnected || attaching || sending || pendingRewrite}
+            >
+              <Paperclip className="size-4" />
+            </Button>
+            <Button
+              disabled={
+                !workspaceReady ||
+                !selectedProductId ||
+                !daemonConnected ||
+                sending ||
+                pendingRewrite ||
+                !draftText.trim()
+              }
               onClick={() => void handleSend()}
             >
               {sending ? "Sending…" : "Send"}
             </Button>
           </div>
         </div>
-      </Stack>
-    </Tile>
+      </CardContent>
+    </Card>
   );
 }

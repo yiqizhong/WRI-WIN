@@ -1,0 +1,61 @@
+/**
+ * Naked UI: all chrome is transparent — only Figma window background shows through.
+ * No sidebar panels, cards, headers, or section fills.
+ */
+
+html[data-window-chrome="transparent"] [data-slot="sidebar-wrapper"],
+html[data-window-chrome="transparent"] [data-slot="sidebar"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-container"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-inner"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-header"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-footer"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-content"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-inset"],
+html[data-window-chrome="transparent"] [data-slot="card"],
+html[data-window-chrome="transparent"] [data-slot="card-header"],
+html[data-window-chrome="transparent"] [data-slot="card-content"],
+html[data-window-chrome="transparent"] [data-slot="card-footer"],
+html[data-window-chrome="transparent"] .writer-page-header,
+html[data-window-chrome="transparent"] .bg-card,
+html[data-window-chrome="transparent"] .bg-background,
+html[data-window-chrome="transparent"] .bg-muted,
+html[data-window-chrome="transparent"] .bg-sidebar,
+html[data-window-chrome="transparent"] .bg-accent {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+html[data-window-chrome="transparent"] [data-slot="sidebar-container"],
+html[data-window-chrome="transparent"] [data-slot="sidebar-inner"],
+html[data-window-chrome="transparent"] [data-slot="sidebar"],
+html[data-window-chrome="transparent"] [data-slot="card"],
+html[data-window-chrome="transparent"] .writer-page-header {
+  border: none !important;
+}
+
+html[data-window-chrome="transparent"] [data-sidebar="menu-button"] {
+  background: transparent !important;
+}
+
+html[data-window-chrome="transparent"] [data-sidebar="menu-button"][data-active="true"] {
+  background: transparent !important;
+  color: var(--foreground) !important;
+  font-weight: 600;
+}
+
+html[data-window-chrome="transparent"] [data-sidebar="menu-button"]:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* List row separators: hairline only, not a box */
+html[data-window-chrome="transparent"] .writer-naked-hairline {
+  border-color: rgba(157, 202, 251, 0.12) !important;
+}
+
+html[data-window-chrome="transparent"] [data-slot="accordion-item"] {
+  border-color: rgba(157, 202, 251, 0.12) !important;
+  background: transparent !important;
+}

@@ -27,6 +27,7 @@ import {
 import { createDefaultMcpState, getMcpServerList, setMcpServerEnabled, smokeFigmaRead, smokeFigmaWrite, startFigmaMcpAuth } from "./mcp";
 import type { McpRuntimeState } from "./mcp";
 import { createPermissionRequest, executeTool, getToolList } from "./tools";
+import { ensureDefaultWorkspace } from "./workspace";
 
 export type DaemonState = {
   store: PlatformStore;
@@ -46,6 +47,7 @@ export async function createDaemonState(): Promise<DaemonState> {
   };
 
   await refreshAgentDetection(state);
+  await ensureDefaultWorkspace(state);
   return state;
 }
 
@@ -79,6 +81,7 @@ export async function createSession(state: DaemonState, input: unknown): Promise
   const session = state.store.upsertSession({
     id: randomUUID(),
     projectId: parsed.projectId,
+    productId: parsed.productId,
     sourceType: parsed.sourceType,
     scope: parsed.scope,
     status: "draft",

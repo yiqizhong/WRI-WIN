@@ -77,6 +77,14 @@ describe("daemon integration smoke", () => {
     expect(agentPayload.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
   });
 
+  it("exposes implicit workspace without folder pick", async () => {
+    const workspaceRes = await fetch(`${baseUrl}/workspace`);
+    expect(workspaceRes.ok).toBe(true);
+    const workspace = (await workspaceRes.json()) as { projectId: string; products: unknown[] };
+    expect(workspace.projectId).toBeTruthy();
+    expect(Array.isArray(workspace.products)).toBe(true);
+  });
+
   it("runs echo agent end to end", async () => {
     const projectRes = await fetch(`${baseUrl}/projects`, {
       method: "POST",
@@ -185,6 +193,7 @@ describe("daemon integration smoke", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         projectId: project.id,
+        productId: "checkout",
         url: "https://www.figma.com/design/abc123/Demo?node-id=1-10"
       })
     });

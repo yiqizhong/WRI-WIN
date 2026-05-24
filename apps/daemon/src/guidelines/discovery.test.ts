@@ -98,7 +98,6 @@ describe("discoverGuidelines", () => {
     const tree = await discoverGuidelines(testDir);
     expect(tree.companyBaseMissing).toBe(true);
     expect(tree.softwareWritingMissing).toBe(true);
-    expect(tree.companyGlossaryMissing).toBe(true);
     expect(tree.products).toHaveLength(0);
   });
 
@@ -118,12 +117,12 @@ describe("discoverGuidelines", () => {
     expect(pkg.status).toBe("ok");
     if (pkg.status !== "ok") return;
     expect(pkg.package.id).toBe("checkout");
-    expect(pkg.package.background.audience).toBe("Shoppers");
-    expect(pkg.package.glossary).toHaveLength(1);
+    expect(pkg.package.background?.audience).toBe("Shoppers");
+    expect(pkg.package.glossaryContent).toContain("Checkout");
     expect(pkg.package.writingGuide?.id).toBe("checkout-guide");
   });
 
-  it("ignores product directories without background.md", async () => {
+  it("discovers product directories with only glossary file", async () => {
     const orphanDir = join(testDir, "products", "orphan");
     await mkdir(orphanDir, { recursive: true });
     await writeFile(
@@ -132,16 +131,19 @@ describe("discoverGuidelines", () => {
     );
 
     const tree = await discoverGuidelines(testDir);
-    expect(tree.products).toHaveLength(0);
+    expect(tree.products).toHaveLength(1);
+    if (tree.products[0]?.status === "ok") {
+      expect(tree.products[0].package.glossaryContent).toBeTruthy();
+    }
   });
 
-  it("marks background parse errors as product errors", async () => {
+  it("accepts freeform background without required frontmatter", async () => {
     const productDir = join(testDir, "products", "bad");
     await mkdir(productDir, { recursive: true });
-    await writeFile(join(productDir, "background.md"), "---\nid: bad\n---\n");
+    await writeFile(join(productDir, "background.md"), "Plain product notes — no YAML required.\n");
 
     const tree = await discoverGuidelines(testDir);
     expect(tree.products).toHaveLength(1);
-    expect(tree.products[0]?.status).toBe("error");
+    expect(tree.products[0]?.status).toBe("ok");
   });
 });

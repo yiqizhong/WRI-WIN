@@ -1,18 +1,18 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import {
-  Button,
-  Dropdown,
-  Stack,
-  StructuredListBody,
-  StructuredListCell,
-  StructuredListHead,
-  StructuredListRow,
-  StructuredListWrapper,
-  Tag,
-  TextArea,
-  Tile
-} from "@carbon/react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 import type { ChangeStatus, ReviewChange } from "@writer/contracts";
 
@@ -39,20 +39,22 @@ const STATUS_ITEMS: Array<{ id: ChangeStatus | "all"; label: string }> = [
   { id: "edited", label: "Edited" }
 ];
 
-function statusTagType(status: ChangeStatus): "blue" | "green" | "red" | "gray" | "purple" {
+function statusBadgeVariant(
+  status: ChangeStatus
+): "default" | "destructive" | "secondary" | "outline" {
   if (status === "approved") {
-    return "green";
+    return "default";
   }
   if (status === "rejected") {
-    return "red";
+    return "destructive";
   }
   if (status === "skipped") {
-    return "gray";
+    return "secondary";
   }
   if (status === "edited") {
-    return "purple";
+    return "outline";
   }
-  return "blue";
+  return "default";
 }
 
 export function ReviewQueuePanel({
@@ -67,11 +69,6 @@ export function ReviewQueuePanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftAfter, setDraftAfter] = useState("");
   const [pendingWritePermissionId, setPendingWritePermissionId] = useState<string | null>(null);
-
-  const selectedStatus = useMemo(
-    () => STATUS_ITEMS.find((item) => item.id === statusFilter) ?? STATUS_ITEMS[1],
-    [statusFilter]
-  );
 
   const changes = (queue?.changes ?? []).filter(
     (change) => statusFilter === "all" || change.status === statusFilter
@@ -193,29 +190,39 @@ export function ReviewQueuePanel({
   const hasEligibleWriteback = getWritebackEligibleChanges().length > 0;
 
   return (
-    <Tile className={surfaceFillHeight}>
-      <Stack gap={5} className={stackFill}>
+    <Card className={surfaceFillHeight}>
+      <CardContent className={`flex flex-col gap-5 pt-6 ${stackFill}`}>
         <WriterSectionHeader
           title="Review queue"
           actions={
             <div className="writer-queue-filter">
-              <Dropdown
-                id="status-filter"
-                titleText="Status"
-                label={selectedStatus.label}
-                items={STATUS_ITEMS}
-                itemToString={(item) => item?.label ?? ""}
-                selectedItem={selectedStatus}
-                onChange={({ selectedItem }) => {
-                  if (selectedItem) {
-                    onStatusFilterChange(selectedItem.id);
-                  }
-                }}
-                size="md"
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="status-filter" className="sr-only">
+                  Status
+                </Label>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    if (value) {
+                      onStatusFilterChange(value as ChangeStatus | "all");
+                    }
+                  }}
+                >
+                  <SelectTrigger id="status-filter" size="sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_ITEMS.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
-                kind="secondary"
-                size="md"
+                variant="secondary"
+                size="sm"
                 disabled={!sessionId || changes.length === 0}
                 onClick={() => void bulkApprove()}
               >
@@ -223,8 +230,7 @@ export function ReviewQueuePanel({
               </Button>
               {pendingWritePermissionId ? (
                 <Button
-                  kind="primary"
-                  size="md"
+                  size="sm"
                   disabled={!sessionId || !hasEligibleWriteback}
                   onClick={() => void allowFigmaWriteAndApply()}
                 >
@@ -232,8 +238,7 @@ export function ReviewQueuePanel({
                 </Button>
               ) : (
                 <Button
-                  kind="primary"
-                  size="md"
+                  size="sm"
                   disabled={!sessionId || !hasEligibleWriteback}
                   onClick={() => void applyApprovedToFigma()}
                 >
@@ -252,19 +257,23 @@ export function ReviewQueuePanel({
           <p className="writer-type-body-compact writer-text-secondary">No items.</p>
         ) : (
           <div className={surfaceBody}>
-          <StructuredListWrapper>
-            <StructuredListHead>
-              <StructuredListRow head>
-                <StructuredListCell head>Change</StructuredListCell>
-                <StructuredListCell head>Status</StructuredListCell>
-                <StructuredListCell head>Actions</StructuredListCell>
-              </StructuredListRow>
-            </StructuredListHead>
-            <StructuredListBody>
+            <div className="flex flex-col gap-4" role="table">
+              <div
+                className="writer-naked-hairline hidden gap-4 border-b pb-2 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                role="row"
+              >
+                <span role="columnheader">Change</span>
+                <span role="columnheader">Status</span>
+                <span role="columnheader">Actions</span>
+              </div>
               {changes.map((change) => (
-                <StructuredListRow key={change.id}>
-                  <StructuredListCell>
-                    <Stack gap={3}>
+                <div
+                  key={change.id}
+                  className="writer-naked-hairline flex flex-col gap-4 border-b pb-4 last:border-b-0 sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-start"
+                  role="row"
+                >
+                  <div role="cell">
+                    <div className="flex flex-col gap-3">
                       <p className="writer-type-body-compact">
                         <span className="writer-type-eyebrow">Before</span> {change.before}
                       </p>
@@ -272,31 +281,31 @@ export function ReviewQueuePanel({
                         <span className="writer-type-eyebrow">After</span> {change.after}
                       </p>
                       {change.rationale ? (
-                        <p className="writer-type-body-compact writer-text-secondary">
-                          {change.rationale}
-                        </p>
+                        <p className="writer-type-body-compact writer-text-secondary">{change.rationale}</p>
                       ) : null}
                       {editingId === change.id ? (
-                        <TextArea
-                          id={`edit-${change.id}`}
-                          labelText="Edited copy"
-                          rows={2}
-                          value={draftAfter}
-                          onChange={(event) => setDraftAfter(event.target.value)}
-                        />
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor={`edit-${change.id}`}>Edited copy</Label>
+                          <Textarea
+                            id={`edit-${change.id}`}
+                            rows={2}
+                            value={draftAfter}
+                            onChange={(event) => setDraftAfter(event.target.value)}
+                          />
+                        </div>
                       ) : null}
-                    </Stack>
-                  </StructuredListCell>
-                  <StructuredListCell>
-                    <Tag type={statusTagType(change.status)}>{change.status}</Tag>
-                  </StructuredListCell>
-                  <StructuredListCell>
+                    </div>
+                  </div>
+                  <div role="cell">
+                    <Badge variant={statusBadgeVariant(change.status)}>{change.status}</Badge>
+                  </div>
+                  <div role="cell">
                     <div className="writer-row-actions">
-                      <Button kind="secondary" size="sm" onClick={() => void act(change.id, "approved")}>
+                      <Button variant="secondary" size="sm" onClick={() => void act(change.id, "approved")}>
                         Approve
                       </Button>
                       <Button
-                        kind="secondary"
+                        variant="secondary"
                         size="sm"
                         onClick={() => {
                           setEditingId(change.id);
@@ -306,25 +315,24 @@ export function ReviewQueuePanel({
                         Edit
                       </Button>
                       {editingId === change.id ? (
-                        <Button kind="primary" size="sm" onClick={() => void saveEdit(change)}>
+                        <Button size="sm" onClick={() => void saveEdit(change)}>
                           Save edit
                         </Button>
                       ) : null}
-                      <Button kind="ghost" size="sm" onClick={() => void act(change.id, "rejected")}>
+                      <Button variant="ghost" size="sm" onClick={() => void act(change.id, "rejected")}>
                         Reject
                       </Button>
-                      <Button kind="ghost" size="sm" onClick={() => void act(change.id, "skipped")}>
+                      <Button variant="ghost" size="sm" onClick={() => void act(change.id, "skipped")}>
                         Skip
                       </Button>
                     </div>
-                  </StructuredListCell>
-                </StructuredListRow>
+                  </div>
+                </div>
               ))}
-            </StructuredListBody>
-          </StructuredListWrapper>
+            </div>
           </div>
         )}
-      </Stack>
-    </Tile>
+      </CardContent>
+    </Card>
   );
 }

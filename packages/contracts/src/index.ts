@@ -120,6 +120,9 @@ export {
 } from "./project";
 export type { CreateProjectInput, Project, ProjectList } from "./project";
 
+export { parseWorkspaceInfo, workspaceInfoSchema } from "./workspace";
+export type { WorkspaceInfo } from "./workspace";
+
 export {
   createReviewSessionInputSchema,
   parseReviewSession,
@@ -185,6 +188,7 @@ export {
   guidelineSeveritySchema,
   guidelinesTreeSchema,
   productBackgroundSchema,
+  productExtraFileSchema,
   productPackageListItemSchema,
   productPackageSchema,
   ruleSchema,
@@ -211,6 +215,7 @@ export type {
   GuidelineSeverity,
   GuidelinesTree,
   ProductBackground,
+  ProductExtraFile,
   ProductPackage,
   ProductPackageListItem,
   Rule,

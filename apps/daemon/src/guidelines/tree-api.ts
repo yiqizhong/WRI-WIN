@@ -9,21 +9,30 @@ import type {
 import type { GuidelineTreeResult, ProductPackageResult } from "./discovery";
 import { buildResolvedTree, collectFlatGuidelines } from "./inheritance";
 
+function productListItemFromPackage(pkg: ProductPackage) {
+  const hasAnyFile =
+    Boolean(pkg.background) ||
+    Boolean(pkg.glossaryContent) ||
+    Boolean(pkg.writingGuideContent) ||
+    pkg.extraFiles.length > 0;
+  return {
+    id: pkg.id,
+    name: pkg.name,
+    hasBackground: Boolean(pkg.background),
+    hasGlossary: Boolean(pkg.glossaryContent),
+    hasWritingGuide: Boolean(pkg.writingGuideContent || pkg.writingGuide),
+    extraFileCount: pkg.extraFiles.length,
+    parseStatus: hasAnyFile ? ("ok" as const) : ("incomplete" as const)
+  };
+}
+
 export function toGuidelinesTreeApi(tree: GuidelineTreeResult): GuidelinesTree {
   return {
     companyBase: tree.companyBase?.status === "ok" ? tree.companyBase.value : null,
     softwareWriting: tree.softwareWriting?.status === "ok" ? tree.softwareWriting.value : null,
-    companyGlossary: tree.companyGlossary?.status === "ok" ? tree.companyGlossary.value : [],
     products: tree.products.map((p) => {
       if (p.status === "ok") {
-        return {
-          id: p.package.id,
-          name: p.package.name,
-          hasBackground: true,
-          hasGlossary: p.package.glossary.length > 0,
-          hasWritingGuide: Boolean(p.package.writingGuide),
-          parseStatus: "ok" as const
-        };
+        return productListItemFromPackage(p.package);
       }
       return {
         id: p.productId,
@@ -31,6 +40,7 @@ export function toGuidelinesTreeApi(tree: GuidelineTreeResult): GuidelinesTree {
         hasBackground: false,
         hasGlossary: false,
         hasWritingGuide: false,
+        extraFileCount: 0,
         parseStatus: "error" as const,
         parseError: p.error
       };
@@ -46,9 +56,9 @@ export function toLegacyGuidelineList(tree: GuidelineTreeResult): GuidelineList 
   const resolved = buildResolvedTree(tree);
   const guidelines: GuidelineListItem[] = collectFlatGuidelines(resolved).map((g) => ({
     id: g.id,
-    layer: g.layer,
+    layer: g.layer ?? "company-base",
     ...(g.productId ? { productId: g.productId } : {}),
-    version: g.version,
+    version: g.version ?? "0",
     ruleCount: g.rules.length,
     termCount: g.glossary.length,
     parseStatus: "ok" as const
@@ -89,37 +99,21 @@ export function toLegacyGuidelineList(tree: GuidelineTreeResult): GuidelineList 
   };
 }
 
+/** @deprecated company glossary removed — returns product glossaries only */
 export function toLegacyGlossaryList(tree: GuidelineTreeResult): GlossaryList {
-  if (!tree.companyGlossary) {
-    return { glossaries: [] };
+  const glossaries: GlossaryList["glossaries"] = [];
+  for (const p of tree.products) {
+    if (p.status !== "ok" || !p.filePaths.glossary) continue;
+    glossaries.push({
+      id: `${p.package.id}-glossary`,
+      name: `${p.package.name} glossary`,
+      format: p.filePaths.glossary.endsWith(".csv") ? "csv" : "md",
+      termCount: p.package.glossary.length,
+      filePath: p.filePaths.glossary,
+      parseStatus: "ok"
+    });
   }
-  if (tree.companyGlossary.status === "error") {
-    return {
-      glossaries: [
-        {
-          id: "company-glossary",
-          name: "Company Glossary",
-          format: tree.companyGlossary.filePath.endsWith(".csv") ? "csv" : "md",
-          termCount: 0,
-          filePath: tree.companyGlossary.filePath,
-          parseStatus: "error",
-          parseError: tree.companyGlossary.error
-        }
-      ]
-    };
-  }
-  return {
-    glossaries: [
-      {
-        id: "company-glossary",
-        name: "Company Glossary",
-        format: tree.companyGlossary.filePath.endsWith(".csv") ? "csv" : "md",
-        termCount: tree.companyGlossary.value.length,
-        filePath: tree.companyGlossary.filePath,
-        parseStatus: "ok"
-      }
-    ]
-  };
+  return { glossaries };
 }
 
 export function listProductPackages(tree: GuidelineTreeResult): ProductPackage[] {

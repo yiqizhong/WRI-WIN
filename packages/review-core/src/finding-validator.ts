@@ -34,7 +34,6 @@ function collectTerms(snapshot: SessionGuidelineSnapshot): Term[] {
     return snapshot.guideline.glossary;
   }
   const byId = new Map<string, Term>();
-  for (const term of snapshot.companyGlossary) byId.set(term.id, term);
   for (const term of snapshot.productPackage?.glossary ?? []) byId.set(term.id, term);
   return [...byId.values()];
 }
@@ -45,7 +44,10 @@ export function validateFindings(
   auditedText: string
 ): { validated: UxCopyFinding[]; summary: AuditRunSummary } {
   const ruleIds = collectRuleIds(snapshot);
-  const termIds = new Set(collectTerms(snapshot).map((t) => t.id));
+  const terms = collectTerms(snapshot);
+  const termIds = new Set(terms.map((t) => t.id));
+  const validateRuleIds = ruleIds.size > 0;
+  const validateTermIds = terms.length > 0;
 
   const droppedByReason: Record<DropReason, number> = {
     invalid_rule_id: 0,
@@ -56,11 +58,11 @@ export function validateFindings(
   const validated: UxCopyFinding[] = [];
 
   for (const finding of findings) {
-    if (finding.ruleId !== undefined && !ruleIds.has(finding.ruleId)) {
+    if (validateRuleIds && finding.ruleId !== undefined && !ruleIds.has(finding.ruleId)) {
       droppedByReason.invalid_rule_id++;
       continue;
     }
-    if (finding.termId !== undefined && !termIds.has(finding.termId)) {
+    if (validateTermIds && finding.termId !== undefined && !termIds.has(finding.termId)) {
       droppedByReason.invalid_term_id++;
       continue;
     }

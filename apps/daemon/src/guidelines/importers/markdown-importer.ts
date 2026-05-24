@@ -89,22 +89,37 @@ export class MarkdownImporter implements Importer {
 
     const proseBody = body.search(/^##\s+/m) === -1 ? body.trim() : body.slice(0, body.search(/^##\s+/m)).trim();
 
-    const payload = { ...frontmatter, body: proseBody || undefined, rules, glossary };
+    const baseName = filePath.split("/").pop()?.replace(/\.md$/i, "") ?? "guideline";
+    const payload = {
+      id: typeof frontmatter.id === "string" ? frontmatter.id : baseName,
+      name: typeof frontmatter.name === "string" ? frontmatter.name : baseName,
+      layer: frontmatter.layer,
+      productId: frontmatter.productId,
+      body: proseBody || raw.trim() || undefined,
+      schema: typeof frontmatter.schema === "number" ? frontmatter.schema : 1,
+      version: typeof frontmatter.version === "string" ? frontmatter.version : "0",
+      updatedAt:
+        typeof frontmatter.updatedAt === "string"
+          ? frontmatter.updatedAt
+          : new Date().toISOString(),
+      rules,
+      glossary
+    };
+
     const result = guidelineSchema.safeParse(payload);
-    if (!result.success) {
-      const firstIssue = result.error.issues[0];
-      const fieldPath = firstIssue.path.join(".");
-      const approxLine = fieldPath ? lineOf(raw, fieldPath) : undefined;
-      return {
-        ok: false,
-        error: {
-          file: filePath,
-          line: approxLine,
-          message: `Validation error at ${fieldPath || "root"}: ${firstIssue.message}`
-        }
-      };
+    if (result.success) {
+      return { ok: true, guideline: result.data as Guideline };
     }
 
-    return { ok: true, guideline: result.data as Guideline };
+    return {
+      ok: true,
+      guideline: {
+        id: baseName,
+        name: baseName,
+        body: raw.trim(),
+        rules: [],
+        glossary: []
+      } as Guideline
+    };
   }
 }

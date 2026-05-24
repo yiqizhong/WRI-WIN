@@ -1,39 +1,24 @@
-/**
- * Figma-aligned sizing: Fill (stretch in parent) vs Hug (fit content).
- * Use these class names on layout shells; use Carbon defaults for controls.
- */
+import { cn } from "@/lib/utils";
 
-/** Width/height fill — stretch to the parent track or flex area. */
-export const fillWidth = "writer-fill-w";
-export const fillHeight = "writer-fill-h";
-export const fill = "writer-fill-w writer-fill-h";
-
-/** Width/height hug — shrink to content (tags, buttons, headings, bubbles). */
-export const hugWidth = "writer-hug-w";
-export const hugHeight = "writer-hug-h";
-
-/** Grid column wrapper — always fill column width; optional fill row height. */
-export function gridCell(fillRowHeight = false): string {
-  return fillRowHeight ? "writer-grid-cell writer-grid-cell--fill-h" : "writer-grid-cell";
-}
-
-/** Tile / panel surface in a grid cell. */
-export const surface = "writer-surface";
-export const surfaceFillHeight = "writer-surface writer-surface--fill-h";
-export const surfaceBody = "writer-surface__body";
-
-/** Vertical stack that consumes remaining height in a fill shell. */
-export const stackFill = "writer-stack-fill";
-
-/** Toolbar / header rows — full width, hug height. */
-export const row = "writer-row";
-export const rowBetween = "writer-row writer-row--between";
-export const rowEnd = "writer-row writer-row--end";
-
-/** Chat message column — hug width, capped. */
-export const chatBubble = "writer-chat-bubble";
-export const chatBubbleEnd = "writer-chat-bubble writer-chat-bubble--end";
-
-export function classNames(...parts: Array<string | false | null | undefined>): string {
+export function classNames(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
+
+export const hugWidth = "w-fit";
+export const hugHeight = "h-fit";
+export const fillWidth = "w-full";
+export const row = "flex flex-row items-center gap-2";
+export const rowBetween = "flex flex-row items-center justify-between gap-2";
+export const rowEnd = "flex flex-row items-center justify-end gap-2";
+export const surface = "text-card-foreground";
+export const surfaceFillHeight = "flex h-full min-h-0 flex-col";
+export const surfaceBody = "min-h-0 flex-1 overflow-hidden";
+
+export function gridCell(fillHeight?: boolean) {
+  return cn("min-w-0", fillHeight && "flex h-full min-h-0 flex-col");
+}
+
+export const stackFill = "min-h-0 flex-1";
+
+export const chatBubble = "rounded-lg border bg-muted/50 px-3 py-2 text-sm";
+export const chatBubbleEnd = "ml-auto max-w-[85%] rounded-lg border bg-primary/10 px-3 py-2 text-sm";

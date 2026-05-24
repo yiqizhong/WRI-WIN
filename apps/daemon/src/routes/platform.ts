@@ -26,6 +26,7 @@ import {
   type DaemonState
 } from "../state";
 import { invalidRequest, notFound, permissionDenied, serviceUnavailable } from "../errors";
+import { getWorkspaceInfo } from "../workspace";
 
 function sendJson(response: ServerResponse, statusCode: number, payload: unknown): void {
   response.writeHead(statusCode, { "content-type": "application/json" });
@@ -44,6 +45,16 @@ export async function handlePlatformRequest(
   const url = request.url ?? "";
   const path = url.split("?")[0];
   const segments = getPathSegments(path);
+
+  if (request.method === "GET" && path === "/workspace") {
+    try {
+      sendJson(response, 200, await getWorkspaceInfo(state));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to load workspace.";
+      invalidRequest(response, message);
+    }
+    return true;
+  }
 
   if (request.method === "GET" && path === "/projects") {
     sendJson(response, 200, listProjects(state));

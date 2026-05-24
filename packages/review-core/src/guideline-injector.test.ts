@@ -31,30 +31,18 @@ const threeLayerSnapshot = {
     ],
     glossary: []
   },
-  companyGlossary: [
-    {
-      id: "sign-in",
-      term: "Sign in",
-      status: "active" as const,
-      forbidden: ["Login"],
-      caseSensitive: false
-    }
-  ],
   productPackage: {
     id: "checkout",
     name: "Checkout",
     background: {
       id: "checkout",
       name: "Checkout",
+      content: "Audience: Shoppers\n\nCheckout flow copy.",
       audience: "Shoppers",
-      environment: "Web",
-      purpose: "Buy items",
-      body: "Checkout flow copy.",
-      schema: 1,
-      version: "1.0.0",
-      updatedAt: "2024-01-01T00:00:00Z"
+      body: "Checkout flow copy."
     },
     glossary: [],
+    glossaryContent: "term,preferred\nSign in,Sign in\n",
     writingGuide: {
       id: "checkout-guide",
       name: "Checkout Guide",
@@ -72,21 +60,23 @@ const threeLayerSnapshot = {
         }
       ],
       glossary: []
-    }
+    },
+    extraFiles: []
   },
   contentHashes: {},
   capturedAt: "2024-01-01T00:00:00Z"
 };
 
 describe("injectGuidelineContext (3-layer)", () => {
-  it("assembles brand, product context, rules, and glossary", () => {
+  it("assembles raw prose, rules, and product glossary text", () => {
     const ctx = injectGuidelineContext(threeLayerSnapshot, "button", "Click Login to continue");
-    expect(ctx.proseBlock).toContain("# Brand voice");
+    expect(ctx.proseBlock).toContain("# Company base");
     expect(ctx.proseBlock).toContain("friendly and direct");
-    expect(ctx.proseBlock).toContain("# Product context: Checkout");
-    expect(ctx.proseBlock).toContain("Audience: Shoppers");
+    expect(ctx.proseBlock).toContain("# Product: Checkout");
+    expect(ctx.proseBlock).toContain("Checkout flow copy");
     expect(ctx.rulesBlock).toContain("btn-active");
     expect(ctx.rulesBlock).toContain("short-labels");
+    expect(ctx.glossaryBlock).toContain("# Product glossary");
     expect(ctx.glossaryBlock).toContain("Sign in");
   });
 
@@ -94,6 +84,6 @@ describe("injectGuidelineContext (3-layer)", () => {
     const ctx = injectGuidelineContext(threeLayerSnapshot, "button", "Login");
     const section = buildGuidelinePromptSection(ctx);
     expect(section).toContain("# UX Writing Guidelines");
-    expect(section).toContain("# Brand voice");
+    expect(section).toContain("# Company base");
   });
 });

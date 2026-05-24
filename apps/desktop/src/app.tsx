@@ -1,5 +1,8 @@
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 import { AgentsScreen } from "./screens/agents-screen";
 import { GuidelinesScreen } from "./screens/guidelines-screen";
 import { ReviewScreen } from "./screens/review-screen";
@@ -24,9 +27,6 @@ function RoutedApp() {
         tone: workspace.statusView.tone,
         onRefresh: () => void workspace.refreshDaemonStatus()
       }}
-      onOpenProject={() => void workspace.openProject()}
-      openProjectDisabled={workspace.isOpeningProject || workspace.daemonState.kind === "unavailable"}
-      openProjectLoading={workspace.isOpeningProject}
     >
       <Routes>
         <Route path="/" element={<ReviewScreen />} />
@@ -41,14 +41,15 @@ function RoutedApp() {
 
 export function App() {
   return (
-    <div className="cds--g10">
+    <TooltipProvider delay={200}>
       <MemoryRouter>
         <WorkspaceProvider>
           <AppShell>
             <RoutedApp />
           </AppShell>
+          <Toaster richColors position="top-right" />
         </WorkspaceProvider>
       </MemoryRouter>
-    </div>
+    </TooltipProvider>
   );
 }

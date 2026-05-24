@@ -1,4 +1,6 @@
-import { Button, TextArea } from "@carbon/react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 import { WriterPageGrid, WriterPageGridHalf, WriterPageStack } from "../layout/writer-grid";
 import { fillWidth, hugWidth } from "../layout/writer-sizing";
@@ -9,37 +11,30 @@ export function SettingsScreen() {
   const workspace = useWorkspace();
 
   return (
-    <WriterPageGrid gutterMode="wide">
+    <WriterPageGrid gutterMode="wide" className="h-full">
       <WriterPageGridHalf>
         <WriterPageStack>
           <WorkflowNotification />
 
-          {workspace.activeProject ? (
-            <div className="writer-active-project">
-              <p className="writer-type-section-title">{workspace.activeProject.name}</p>
-              <p className="writer-type-helper writer-break-word writer-type-mono">
-                {workspace.activeProject.rootPath}
-              </p>
-            </div>
-          ) : (
-            <p className="writer-type-body writer-text-secondary">No project open.</p>
-          )}
+          <p className="text-sm text-muted-foreground">
+            Optional tone notes applied to every audit alongside the selected product guidelines.
+          </p>
 
-          <TextArea
-            id="brand-voice"
-            className={fillWidth}
-            labelText="Brand voice"
-            helperText="Tone and terminology for audits."
-            rows={4}
-            placeholder="Friendly, direct, no jargon."
-            value={workspace.brandVoice}
-            onChange={(event) => workspace.setBrandVoice(event.target.value)}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="brand-voice">Brand voice</Label>
+            <Textarea
+              id="brand-voice"
+              className={fillWidth}
+              rows={4}
+              placeholder="Friendly, direct, no jargon."
+              value={workspace.brandVoice}
+              onChange={(event) => workspace.setBrandVoice(event.target.value)}
+            />
+          </div>
 
           <Button
-            kind="primary"
             className={hugWidth}
-            disabled={!workspace.activeProject}
+            disabled={!workspace.workspaceReady}
             onClick={() => void workspace.saveBrandVoice()}
           >
             Save voice

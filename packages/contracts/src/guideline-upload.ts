@@ -36,9 +36,15 @@ export const uploadProductWritingGuideInputSchema = z.object({
   overwrite: z.boolean().optional()
 });
 
+export const productUploadFileSchema = z.object({
+  filename: z.string().min(1),
+  content: z.string()
+});
+
 export const createProductInputSchema = z.object({
   id: z.string().min(1),
-  background: productBackgroundSchema
+  content: z.string().optional(),
+  files: z.array(productUploadFileSchema).optional()
 });
 
 export const glossaryFileSchema = z.object({

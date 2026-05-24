@@ -47,6 +47,7 @@ import {
   writeGlossary,
   writeGuideline,
   writeProductBackground,
+  writeProductExtraFile,
   writeProductGlossary,
   writeProductWritingGuide,
   writeSoftwareWriting
@@ -196,10 +197,8 @@ export async function handleGuidelinesRequest(
   }
 
   if (request.method === "GET" && url === "/company-glossary") {
-    const cached = await loadTree();
-    const terms = cached.companyGlossary?.status === "ok" ? cached.companyGlossary.value : null;
     response.writeHead(200, { "content-type": "application/json" });
-    response.end(JSON.stringify(terms));
+    response.end(JSON.stringify(null));
     return true;
   }
 
@@ -236,18 +235,28 @@ export async function handleGuidelinesRequest(
   if (request.method === "POST" && url === "/products") {
     try {
       const raw = await readJsonBody(request);
-      const withContent = z.object({ id: z.string().min(1), content: z.string().min(1) }).safeParse(raw);
+      const batch = z
+        .object({
+          id: z.string().min(1),
+          content: z.string().optional(),
+          files: z
+            .array(z.object({ filename: z.string().min(1), content: z.string() }))
+            .optional()
+        })
+        .safeParse(raw);
       let result;
-      if (withContent.success) {
+      if (batch.success) {
         result = await createProduct({
-          productId: withContent.data.id,
-          backgroundContent: withContent.data.content
+          productId: batch.data.id,
+          backgroundContent: batch.data.content,
+          files: batch.data.files
         });
       } else {
         const body = parseCreateProductInput(raw);
         result = await createProduct({
           productId: body.id,
-          backgroundContent: productBackgroundToMarkdown(body.background)
+          backgroundContent: body.content,
+          files: body.files
         });
       }
       await respondToWrite(response, result, { status: 201 });
@@ -337,6 +346,28 @@ export async function handleGuidelinesRequest(
     await forceReload();
     response.writeHead(204);
     response.end();
+    return true;
+  }
+
+  const extraUpload = matchRoute(request, "POST", /^\/products\/([^/]+)\/files\/upload$/);
+  if (extraUpload) {
+    const productId = decodeURIComponent(extraUpload[1]);
+    try {
+      const raw = (await readJsonBody(request)) as Record<string, unknown>;
+      const filename = typeof raw.filename === "string" ? raw.filename : "";
+      const content = typeof raw.content === "string" ? raw.content : "";
+      const overwrite = raw.overwrite === true;
+      if (!filename || !content) {
+        invalidRequest(response, "Invalid payload.", "Provide filename and content.");
+        return true;
+      }
+      await respondToWrite(
+        response,
+        await writeProductExtraFile({ productId, filename, content, overwrite })
+      );
+    } catch {
+      invalidRequest(response, "Invalid payload.", "Provide filename and content.");
+    }
     return true;
   }
 

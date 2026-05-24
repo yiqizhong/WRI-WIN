@@ -39,7 +39,6 @@ export function buildThreeLayerSnapshot(
   return {
     companyBase: tree.companyBase ? stripGuideline(tree.companyBase) : null,
     softwareWriting: tree.softwareWriting ? stripGuideline(tree.softwareWriting) : null,
-    companyGlossary: tree.companyGlossary,
     activeProductId: activeProductId ?? undefined,
     productPackage: product ? stripProductPackage(product) : undefined,
     contentHashes,

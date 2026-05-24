@@ -82,15 +82,16 @@ describe("MarkdownImporter", () => {
     expect(result.error.message).toMatch(/frontmatter/i);
   });
 
-  it("returns ParseError on missing required field", async () => {
+  it("falls back to freeform parse when frontmatter is incomplete", async () => {
     const file = join(dir, "missing.md");
     const md = VALID_MD.replace("id: company-base\n", "");
     await writeFile(file, md);
 
     const result = await importer.parse(file);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.message).toMatch(/id/);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.guideline.id).toBe("missing");
+    expect(result.guideline.body).toBeTruthy();
   });
 
   it("returns ParseError on broken Rules YAML", async () => {

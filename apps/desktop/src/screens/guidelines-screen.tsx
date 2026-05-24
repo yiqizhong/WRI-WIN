@@ -1,18 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
+
+import type { Guideline, GuidelinesTree, ProductPackageListItem } from "@writer/contracts";
 
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
-  Button,
-  InlineNotification,
-  Modal,
-  TextArea,
-  TextInput,
-  Tile
-} from "@carbon/react";
-import { TrashCan } from "@carbon/icons-react";
-
-import type { Guideline, GuidelinesTree, ProductPackageListItem } from "@writer/contracts";
+  AccordionTrigger
+} from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { InlineAlert } from "@/components/writer/inline-alert";
+import { StatusBadge } from "@/components/writer/status-badge";
+import { cn } from "@/lib/utils";
 
 import { DaemonClientError } from "../daemon-client";
 import { WriterPageGrid, WriterPageGridFull, WriterPageStack } from "../layout/writer-grid";
@@ -25,42 +46,20 @@ type PendingUpload = {
   run: (overwrite: boolean) => Promise<void>;
 };
 
-type AddProductMode = "form" | "file";
-
-function StatusPill({ status }: { status: "ok" | "error" | "incomplete" }) {
-  const label = status === "ok" ? "OK" : status === "error" ? "ERROR" : "INCOMPLETE";
-  const bg =
-    status === "ok"
-      ? "var(--cds-support-success)"
-      : status === "error"
-        ? "var(--cds-support-error)"
-        : "var(--cds-support-warning)";
-  return (
-    <span
-      style={{
-        padding: "0 0.5rem",
-        borderRadius: "0.25rem",
-        fontSize: "0.75rem",
-        fontWeight: 600,
-        background: bg,
-        color: "#fff"
-      }}
-    >
-      {label}
-    </span>
-  );
-}
+type StagedFile = { filename: string; content: string };
 
 function DropZone({
   label,
   hint,
   accept,
+  multiple,
   onFiles,
   disabled
 }: {
   label: string;
   hint: string;
   accept: string;
+  multiple?: boolean;
   onFiles: (files: File[]) => void;
   disabled: boolean;
 }) {
@@ -105,24 +104,20 @@ function DropZone({
         if (files.length) onFiles(files);
       }}
       onClick={() => !disabled && inputRef.current?.click()}
-      style={{
-        border: `2px dashed ${over ? "var(--cds-interactive)" : "var(--cds-border-subtle)"}`,
-        background: over ? "var(--cds-layer-accent-01)" : "var(--cds-layer-01)",
-        padding: "1.5rem",
-        borderRadius: "0.5rem",
-        textAlign: "center",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        transition: "all 0.15s"
-      }}
+      className={cn(
+        "rounded-lg border-2 border-dashed p-6 text-center transition-colors",
+        over ? "border-primary bg-accent/40" : "border-border bg-card",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+      )}
     >
-      <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>{label}</div>
-      <div style={{ fontSize: "0.875rem", color: "var(--cds-text-helper)" }}>{hint}</div>
+      <div className="mb-1 font-semibold">{label}</div>
+      <div className="text-sm text-muted-foreground">{hint}</div>
       <input
         ref={inputRef}
         type="file"
         accept={accept}
-        style={{ display: "none" }}
+        multiple={multiple}
+        className="hidden"
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           if (files.length) onFiles(files);
@@ -149,45 +144,14 @@ function glossaryFormatFromFilename(filename: string): "csv" | "md" | null {
   return null;
 }
 
-function looksLikeBackgroundMarkdown(content: string): boolean {
-  return /^---\s*\n[\s\S]*?\b(audience|environment|purpose)\b[\s\S]*?---/m.test(content);
-}
-
-function inferProductSlot(filename: string, content: string): "background" | "glossary" | "writing-guide" {
+function inferProductSlot(filename: string): "background" | "glossary" | "writing-guide" | "extra" {
   const name = filename.toLowerCase();
   if (name.endsWith(".csv")) return "glossary";
   if (name === "background.md" || name.endsWith("/background.md")) return "background";
   if (name.includes("glossary")) return "glossary";
-  if (name.endsWith(".md")) {
-    if (looksLikeBackgroundMarkdown(content)) return "background";
-    if (name.includes("writing")) return "writing-guide";
-    return "writing-guide";
-  }
-  return "background";
-}
-
-function buildBackgroundMarkdown(input: {
-  id: string;
-  name: string;
-  audience: string;
-  environment: string;
-  purpose: string;
-  body: string;
-}): string {
-  const now = new Date().toISOString();
-  return `---
-id: ${input.id}
-name: ${JSON.stringify(input.name)}
-audience: ${JSON.stringify(input.audience)}
-environment: ${JSON.stringify(input.environment)}
-purpose: ${JSON.stringify(input.purpose)}
-schema: 1
-version: "1.0.0"
-updatedAt: ${JSON.stringify(now)}
----
-
-${input.body.trim()}
-`;
+  if (name.includes("writing") && name.endsWith(".md")) return "writing-guide";
+  if (name.endsWith(".md")) return "background";
+  return "extra";
 }
 
 function isConflictError(err: unknown): boolean {
@@ -210,13 +174,8 @@ export function GuidelinesScreen() {
   const [viewBackgroundBody, setViewBackgroundBody] = useState<string | null>(null);
 
   const [addProductOpen, setAddProductOpen] = useState(false);
-  const [addMode, setAddMode] = useState<AddProductMode>("form");
   const [newProductId, setNewProductId] = useState("");
-  const [newAudience, setNewAudience] = useState("");
-  const [newEnvironment, setNewEnvironment] = useState("");
-  const [newPurpose, setNewPurpose] = useState("");
-  const [newBody, setNewBody] = useState("");
-  const [newBackgroundFile, setNewBackgroundFile] = useState<{ filename: string; content: string } | null>(null);
+  const [newProductFiles, setNewProductFiles] = useState<StagedFile[]>([]);
 
   const load = useCallback(async () => {
     if (!connected) return;
@@ -225,7 +184,14 @@ export function GuidelinesScreen() {
       const t = await client.getGuidelinesTree();
       setTree(t);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load.");
+      const msg = err instanceof Error ? err.message : "Failed to load.";
+      if (/expected object|expected array|expected boolean/i.test(msg)) {
+        setError(
+          "Guidelines data format mismatch. Restart the Writer daemon (npm run dev:daemon) so it matches this app version, then reload."
+        );
+      } else {
+        setError(msg);
+      }
     }
   }, [client, connected]);
 
@@ -272,10 +238,6 @@ export function GuidelinesScreen() {
     async (files: File[]) => {
       const file = files[0];
       if (!file) return;
-      if (!file.name.endsWith(".md")) {
-        setError(`Company base must be a .md file. Got: ${file.name}`);
-        return;
-      }
       const content = await readFileAsText(file);
       queueUpload("Company base", Boolean(tree?.companyBase), async (overwrite) => {
         await client.uploadCompanyBase({ content, overwrite });
@@ -288,10 +250,6 @@ export function GuidelinesScreen() {
     async (files: File[]) => {
       const file = files[0];
       if (!file) return;
-      if (!file.name.endsWith(".md")) {
-        setError(`Software writing must be a .md file. Got: ${file.name}`);
-        return;
-      }
       const content = await readFileAsText(file);
       queueUpload("Software writing", Boolean(tree?.softwareWriting), async (overwrite) => {
         await client.uploadSoftwareWriting({ content, overwrite });
@@ -300,65 +258,47 @@ export function GuidelinesScreen() {
     [client, queueUpload, tree?.softwareWriting]
   );
 
-  const handleCompanyGlossaryFiles = useCallback(
-    async (files: File[]) => {
-      const file = files[0];
-      if (!file) return;
-      const format = glossaryFormatFromFilename(file.name);
-      if (!format) {
-        setError(`Company glossary must be .csv or .md. Got: ${file.name}`);
-        return;
-      }
-      const content = await readFileAsText(file);
-      const hasGlossary = (tree?.companyGlossary.length ?? 0) > 0;
-      queueUpload("Company glossary", hasGlossary, async (overwrite) => {
-        await client.uploadCompanyGlossary({ content, format, overwrite });
-      });
-    },
-    [client, queueUpload, tree?.companyGlossary.length]
-  );
-
   const handleProductFiles = useCallback(
     (productId: string, item: ProductPackageListItem) =>
       async (files: File[]) => {
-        const file = files[0];
-        if (!file) return;
-        const content = await readFileAsText(file);
-        const slot = inferProductSlot(file.name, content);
-        const format = glossaryFormatFromFilename(file.name);
+        for (const file of files) {
+          const content = await readFileAsText(file);
+          const slot = inferProductSlot(file.name);
+          const format = glossaryFormatFromFilename(file.name) ?? "md";
 
-        if (slot === "glossary") {
-          if (!format) {
-            setError(`Glossary must be .csv or .md. Got: ${file.name}`);
-            return;
+          if (slot === "glossary") {
+            queueUpload(`${productId} glossary`, item.hasGlossary, async (overwrite) => {
+              await client.uploadProductGlossary(productId, { content, format, overwrite });
+            });
+            continue;
           }
-          queueUpload(`${productId} glossary`, item.hasGlossary, async (overwrite) => {
-            await client.uploadProductGlossary(productId, { content, format, overwrite });
-          });
-          return;
-        }
-
-        if (slot === "background") {
-          if (!file.name.endsWith(".md")) {
-            setError("Product background must be markdown.");
-            return;
+          if (slot === "background") {
+            queueUpload(`${productId} background`, item.hasBackground, async (overwrite) => {
+              await client.uploadProductBackground(productId, { content, overwrite });
+            });
+            continue;
           }
-          queueUpload(`${productId} background`, item.hasBackground, async (overwrite) => {
-            await client.uploadProductBackground(productId, { content, overwrite });
+          if (slot === "writing-guide") {
+            queueUpload(`${productId} writing guide`, item.hasWritingGuide, async (overwrite) => {
+              await client.uploadProductWritingGuide(productId, { content, overwrite });
+            });
+            continue;
+          }
+          queueUpload(`${productId} file ${file.name}`, true, async (overwrite) => {
+            await client.uploadProductFile(productId, { filename: file.name, content, overwrite });
           });
-          return;
         }
-
-        if (!file.name.endsWith(".md")) {
-          setError(`Writing guide must be a .md file. Got: ${file.name}`);
-          return;
-        }
-        queueUpload(`${productId} writing guide`, item.hasWritingGuide, async (overwrite) => {
-          await client.uploadProductWritingGuide(productId, { content, overwrite });
-        });
       },
     [client, queueUpload]
   );
+
+  const stageNewProductFiles = useCallback(async (files: File[]) => {
+    const staged: StagedFile[] = [];
+    for (const file of files) {
+      staged.push({ filename: file.name, content: await readFileAsText(file) });
+    }
+    setNewProductFiles((prev) => [...prev, ...staged]);
+  }, []);
 
   const browseMarkdown = useCallback(async (): Promise<{ filename: string; content: string } | null> => {
     return (await window.writerDesktop?.pickGuidelineFile()) ?? null;
@@ -374,7 +314,7 @@ export function GuidelinesScreen() {
       setError(null);
       try {
         const pkg = await client.getProduct(productId);
-        const body = pkg.background.body ?? "";
+        const body = pkg.background?.content ?? pkg.background?.body ?? "";
         setViewBackgroundBody(body);
         setViewProductId(productId);
       } catch (err) {
@@ -392,39 +332,18 @@ export function GuidelinesScreen() {
       setError("Product id is required.");
       return;
     }
-    let content: string;
-    if (addMode === "file") {
-      if (!newBackgroundFile) {
-        setError("Upload a background.md file or switch to the form.");
-        return;
-      }
-      content = newBackgroundFile.content;
-    } else {
-      if (!newAudience.trim() || !newEnvironment.trim() || !newPurpose.trim()) {
-        setError("Audience, environment, and purpose are required.");
-        return;
-      }
-      content = buildBackgroundMarkdown({
-        id,
-        name: id,
-        audience: newAudience.trim(),
-        environment: newEnvironment.trim(),
-        purpose: newPurpose.trim(),
-        body: newBody
-      });
+    if (newProductFiles.length === 0) {
+      setError("Drop at least one file (background, glossary, writing guide, or notes).");
+      return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      await client.createProduct({ id, content });
+      await client.createProduct({ id, files: newProductFiles });
       setAddProductOpen(false);
       setNewProductId("");
-      setNewAudience("");
-      setNewEnvironment("");
-      setNewPurpose("");
-      setNewBody("");
-      setNewBackgroundFile(null);
+      setNewProductFiles([]);
       setInfo(`Created product: ${id}`);
       await load();
     } catch (err) {
@@ -432,17 +351,7 @@ export function GuidelinesScreen() {
     } finally {
       setBusy(false);
     }
-  }, [
-    addMode,
-    client,
-    load,
-    newAudience,
-    newBackgroundFile,
-    newBody,
-    newEnvironment,
-    newProductId,
-    newPurpose
-  ]);
+  }, [client, load, newProductFiles, newProductId]);
 
   const confirmDeleteProduct = useCallback(async () => {
     if (!deleteProductId) return;
@@ -460,35 +369,18 @@ export function GuidelinesScreen() {
   }, [client, deleteProductId, load]);
 
   return (
-    <WriterPageGrid gutterMode="narrow">
+    <WriterPageGrid gutterMode="narrow" className="h-full">
       <WriterPageGridFull>
         <WriterPageStack gap={6}>
-          {error && (
-            <InlineNotification
-              kind="error"
-              title="Error"
-              subtitle={error}
-              onCloseButtonClick={() => setError(null)}
-              lowContrast
-            />
-          )}
-          {info && (
-            <InlineNotification
-              kind="success"
-              title="Success"
-              subtitle={info}
-              onCloseButtonClick={() => setInfo(null)}
-              lowContrast
-            />
-          )}
-          {tree?.conflictError && (
-            <InlineNotification
-              kind="error"
-              title="Guideline conflict"
-              subtitle={tree.conflictError}
-              lowContrast
-            />
-          )}
+          {error ? (
+            <InlineAlert kind="error" title="Error" subtitle={error} onClose={() => setError(null)} />
+          ) : null}
+          {info ? (
+            <InlineAlert kind="success" title="Success" subtitle={info} onClose={() => setInfo(null)} />
+          ) : null}
+          {tree?.conflictError ? (
+            <InlineAlert kind="error" title="Guideline conflict" subtitle={tree.conflictError} />
+          ) : null}
 
           <CompanySlotSection
             title="Company base"
@@ -529,371 +421,329 @@ export function GuidelinesScreen() {
           />
 
           <section>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "1rem", marginBottom: "1rem" }}>
-              <WriterSectionHeader title="Company glossary" />
-              <a href={client.glossaryTemplateUrl()} download="glossary-template.csv" style={{ fontSize: "0.875rem" }}>
-                Download .csv template
-              </a>
-            </div>
-            <WriterPageStack gap={4}>
-              <DropZone
-                label="Drop company-glossary.csv or .md here"
-                hint="or click to browse · semicolon-separated forbidden terms in CSV"
-                accept=".csv,.md"
-                onFiles={handleCompanyGlossaryFiles}
-                disabled={busy || !connected}
-              />
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <Button
-                  kind="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    const picked = await browseGlossary();
-                    if (!picked) return;
-                    void handleCompanyGlossaryFiles([
-                      new File([picked.content], picked.filename, {
-                        type: picked.format === "csv" ? "text/csv" : "text/markdown"
-                      })
-                    ]);
-                  }}
-                  disabled={busy || !connected}
-                >
-                  Browse…
+            <WriterSectionHeader
+              title="Products"
+              actions={
+                <Button size="sm" disabled={busy || !connected} onClick={() => setAddProductOpen(true)}>
+                  Add product
                 </Button>
-              </div>
-              {(tree?.companyGlossary.length ?? 0) > 0 ? (
-                <Tile>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                    <strong>company-glossary</strong>
-                    <StatusPill status="ok" />
-                    <span style={{ fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-                      {tree?.companyGlossary.length} terms
-                    </span>
-                    <span style={{ marginLeft: "auto" }}>
-                      <Button
-                        kind="danger--ghost"
-                        size="sm"
-                        disabled={busy || !connected}
-                        onClick={() => {
-                          if (!window.confirm("Delete company glossary? This removes the file from disk.")) return;
-                          setBusy(true);
-                          void client
-                            .deleteCompanyGlossary()
-                            .then(() => load())
-                            .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-                            .finally(() => setBusy(false));
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </span>
-                  </div>
-                </Tile>
-              ) : (
-                <Tile>
-                  <p style={{ color: "var(--cds-text-helper)" }}>No company glossary yet.</p>
-                </Tile>
-              )}
-            </WriterPageStack>
-          </section>
+              }
+            />
 
-          <section>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                gap: "1rem",
-                marginBottom: "1rem"
-              }}
-            >
-              <WriterSectionHeader title="Products" />
-              <Button kind="primary" size="sm" disabled={busy || !connected} onClick={() => setAddProductOpen(true)}>
-                Add product
-              </Button>
-            </div>
-
-            {tree && tree.products.length === 0 && (
-              <Tile>
-                <p style={{ color: "var(--cds-text-helper)" }}>
-                  No products yet. Add a product with a required background.md.
-                </p>
-              </Tile>
-            )}
+            {tree && tree.products.length === 0 ? (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground">
+                    No products yet. Add a product with a required background.md.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Accordion>
               {tree?.products.map((item) => (
-                <AccordionItem
-                  key={item.id}
-                  title={
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <AccordionItem key={item.id} value={item.id}>
+                  <AccordionTrigger>
+                    <span className="flex flex-wrap items-center gap-3">
                       <strong>{item.name}</strong>
-                      <span style={{ fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>{item.id}</span>
-                      <StatusPill status={item.parseStatus} />
+                      <span className="text-xs text-muted-foreground">{item.id}</span>
+                      <StatusBadge
+                        status={
+                          item.parseStatus === "ok"
+                            ? "ok"
+                            : item.parseStatus === "error"
+                              ? "error"
+                              : "incomplete"
+                        }
+                      />
                     </span>
-                  }
-                >
-                  <div
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const files = Array.from(e.dataTransfer.files);
-                      if (files.length) void handleProductFiles(item.id, item)(files);
-                    }}
-                    style={{ marginBottom: "1rem" }}
-                  >
-                    <DropZone
-                      label={`Drop files on ${item.id}`}
-                      hint="background.md · glossary.csv/.md · writing-guide.md"
-                      accept=".md,.csv,text/markdown,text/csv"
-                      onFiles={(files) => void handleProductFiles(item.id, item)(files)}
-                      disabled={busy || !connected}
-                    />
-                  </div>
-
-                  {item.parseStatus === "error" && item.parseError && (
-                    <InlineNotification
-                      kind="error"
-                      title="Parse error"
-                      subtitle={`${item.parseError.file}${item.parseError.line ? `:${item.parseError.line}` : ""} — ${item.parseError.message}`}
-                      lowContrast
-                      hideCloseButton
-                    />
-                  )}
-
-                  <ProductSlotRow
-                    label="Background"
-                    filled={item.hasBackground}
-                    busy={busy}
-                    connected={connected}
-                    canDelete={false}
-                    onOpen={() => void openProductBackground(item.id)}
-                    onReplace={async () => {
-                      const picked = await browseMarkdown();
-                      if (!picked) return;
-                      queueUpload(`${item.id} background`, item.hasBackground, async (overwrite) => {
-                        await client.uploadProductBackground(item.id, { content: picked.content, overwrite });
-                      });
-                    }}
-                  />
-
-                  <ProductSlotRow
-                    label="Glossary"
-                    filled={item.hasGlossary}
-                    busy={busy}
-                    connected={connected}
-                    canDelete
-                    onReplace={async () => {
-                      const picked = await browseGlossary();
-                      if (!picked) return;
-                      queueUpload(`${item.id} glossary`, item.hasGlossary, async (overwrite) => {
-                        await client.uploadProductGlossary(item.id, {
-                          content: picked.content,
-                          format: picked.format,
-                          overwrite
-                        });
-                      });
-                    }}
-                    onDelete={() => {
-                      if (!window.confirm(`Delete glossary for ${item.id}?`)) return;
-                      setBusy(true);
-                      void client
-                        .deleteProductGlossary(item.id)
-                        .then(() => load())
-                        .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-                        .finally(() => setBusy(false));
-                    }}
-                  />
-
-                  <ProductSlotRow
-                    label="Writing guide"
-                    filled={item.hasWritingGuide}
-                    busy={busy}
-                    connected={connected}
-                    canDelete
-                    onReplace={async () => {
-                      const picked = await browseMarkdown();
-                      if (!picked) return;
-                      queueUpload(`${item.id} writing guide`, item.hasWritingGuide, async (overwrite) => {
-                        await client.uploadProductWritingGuide(item.id, { content: picked.content, overwrite });
-                      });
-                    }}
-                    onDelete={() => {
-                      if (!window.confirm(`Delete writing guide for ${item.id}?`)) return;
-                      setBusy(true);
-                      void client
-                        .deleteProductWritingGuide(item.id)
-                        .then(() => load())
-                        .catch((err) => setError(err instanceof Error ? err.message : String(err)))
-                        .finally(() => setBusy(false));
-                    }}
-                  />
-
-                  <div style={{ marginTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
-                    <Button
-                      kind="danger--tertiary"
-                      size="sm"
-                      disabled={busy || !connected}
-                      renderIcon={TrashCan}
-                      onClick={() => setDeleteProductId(item.id)}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const files = Array.from(e.dataTransfer.files);
+                        if (files.length) void handleProductFiles(item.id, item)(files);
+                      }}
+                      className="mb-4"
                     >
-                      Delete product
-                    </Button>
-                  </div>
+                      <DropZone
+                        label={`Drop files on ${item.id}`}
+                        hint="glossary · background · writing guide · other notes — any format you use"
+                        accept=".md,.csv,.txt,text/*"
+                        multiple
+                        onFiles={(files) => void handleProductFiles(item.id, item)(files)}
+                        disabled={busy || !connected}
+                      />
+                    </div>
+
+                    {item.parseStatus === "error" && item.parseError ? (
+                      <InlineAlert
+                        kind="error"
+                        title="Parse error"
+                        subtitle={`${item.parseError.file}${item.parseError.line ? `:${item.parseError.line}` : ""} — ${item.parseError.message}`}
+                      />
+                    ) : null}
+
+                    <ProductSlotRow
+                      label="Glossary"
+                      filled={item.hasGlossary}
+                      busy={busy}
+                      connected={connected}
+                      canDelete
+                      onReplace={async () => {
+                        const picked = await browseGlossary();
+                        if (!picked) return;
+                        queueUpload(`${item.id} glossary`, item.hasGlossary, async (overwrite) => {
+                          await client.uploadProductGlossary(item.id, {
+                            content: picked.content,
+                            format: picked.format,
+                            overwrite
+                          });
+                        });
+                      }}
+                      onDelete={() => {
+                        if (!window.confirm(`Delete glossary for ${item.id}?`)) return;
+                        setBusy(true);
+                        void client
+                          .deleteProductGlossary(item.id)
+                          .then(() => load())
+                          .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+                          .finally(() => setBusy(false));
+                      }}
+                    />
+
+                    <ProductSlotRow
+                      label="Background"
+                      filled={item.hasBackground}
+                      busy={busy}
+                      connected={connected}
+                      canDelete={false}
+                      onOpen={() => void openProductBackground(item.id)}
+                      onReplace={async () => {
+                        const picked = await browseMarkdown();
+                        if (!picked) return;
+                        queueUpload(`${item.id} background`, item.hasBackground, async (overwrite) => {
+                          await client.uploadProductBackground(item.id, { content: picked.content, overwrite });
+                        });
+                      }}
+                    />
+
+                    <ProductSlotRow
+                      label="Writing guide"
+                      filled={item.hasWritingGuide}
+                      busy={busy}
+                      connected={connected}
+                      canDelete
+                      onReplace={async () => {
+                        const picked = await browseMarkdown();
+                        if (!picked) return;
+                        queueUpload(`${item.id} writing guide`, item.hasWritingGuide, async (overwrite) => {
+                          await client.uploadProductWritingGuide(item.id, { content: picked.content, overwrite });
+                        });
+                      }}
+                      onDelete={() => {
+                        if (!window.confirm(`Delete writing guide for ${item.id}?`)) return;
+                        setBusy(true);
+                        void client
+                          .deleteProductWritingGuide(item.id)
+                          .then(() => load())
+                          .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+                          .finally(() => setBusy(false));
+                      }}
+                    />
+
+                    {item.extraFileCount > 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {item.extraFileCount} additional file{item.extraFileCount === 1 ? "" : "s"} in this product
+                        folder (included in audits as raw text).
+                      </p>
+                    ) : null}
+
+                    <div className="mt-4 flex justify-end">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={busy || !connected}
+                        onClick={() => setDeleteProductId(item.id)}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete product
+                      </Button>
+                    </div>
+                  </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
           </section>
         </WriterPageStack>
 
-        {overwritePending && (
-          <Modal
-            open
-            danger
-            modalHeading="Replace existing file?"
-            primaryButtonText="Replace"
-            secondaryButtonText="Cancel"
-            primaryButtonDisabled={busy}
-            onRequestSubmit={() => void runUpload(overwritePending, true)}
-            onRequestClose={() => setOverwritePending(null)}
-          >
-            <p>
-              <strong>{overwritePending.label}</strong> already exists. Replacing will overwrite the current file on
-              disk. This cannot be undone.
-            </p>
-          </Modal>
-        )}
+        <AlertDialog
+          open={Boolean(overwritePending)}
+          onOpenChange={(open) => {
+            if (!open) setOverwritePending(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Replace existing file?</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong>{overwritePending?.label}</strong> already exists. Replacing will overwrite the current file on
+                disk. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={busy}
+                onClick={() => overwritePending && void runUpload(overwritePending, true)}
+              >
+                Replace
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {deleteProductId && (
-          <Modal
-            open
-            danger
-            modalHeading="Delete product?"
-            primaryButtonText="Delete"
-            secondaryButtonText="Cancel"
-            primaryButtonDisabled={busy}
-            onRequestSubmit={() => void confirmDeleteProduct()}
-            onRequestClose={() => setDeleteProductId(null)}
-          >
-            <p>
-              Delete product <strong>{deleteProductId}</strong> and all of its files (background, glossary, writing
-              guide)? This cannot be undone.
-            </p>
-          </Modal>
-        )}
+        <AlertDialog
+          open={Boolean(deleteProductId)}
+          onOpenChange={(open) => {
+            if (!open) setDeleteProductId(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete product?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Delete product <strong>{deleteProductId}</strong> and all of its files (background, glossary, writing
+                guide)? This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={busy}
+                onClick={() => void confirmDeleteProduct()}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        {viewProductId && (
-          <Modal
-            open
-            modalHeading={`Background — ${viewProductId}`}
-            passiveModal
-            onRequestClose={() => {
+        <Dialog
+          open={Boolean(viewProductId)}
+          onOpenChange={(open) => {
+            if (!open) {
               setViewProductId(null);
               setViewBackgroundBody(null);
-            }}
-          >
-            <TextArea
-              id="view-background-body"
-              labelText="Body"
-              value={viewBackgroundBody ?? ""}
-              readOnly
-              rows={16}
-            />
-          </Modal>
-        )}
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Background — {viewProductId}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="view-background-body">Body</Label>
+              <Textarea id="view-background-body" value={viewBackgroundBody ?? ""} readOnly rows={16} />
+            </div>
+          </DialogContent>
+        </Dialog>
 
-        {addProductOpen && (
-          <Modal
-            open
-            modalHeading="Add product"
-            primaryButtonText={busy ? "Creating…" : "Create"}
-            secondaryButtonText="Cancel"
-            primaryButtonDisabled={busy || !newProductId.trim()}
-            onRequestSubmit={() => void submitAddProduct()}
-            onRequestClose={() => setAddProductOpen(false)}
-          >
+        <Dialog
+          open={addProductOpen}
+          onOpenChange={(open) => {
+            setAddProductOpen(open);
+            if (!open) setNewProductFiles([]);
+          }}
+        >
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Add product</DialogTitle>
+            </DialogHeader>
             <WriterPageStack gap={4}>
-              <TextInput
-                id="new-product-id"
-                labelText="Product id"
-                value={newProductId}
-                onChange={(e) => setNewProductId(e.target.value.replace(/[^a-zA-Z0-9-_]/g, "-"))}
-                helperText="Folder name under products/ (letters, numbers, - and _)"
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="new-product-id">Product id</Label>
+                <Input
+                  id="new-product-id"
+                  value={newProductId}
+                  onChange={(e) => setNewProductId(e.target.value.replace(/[^a-zA-Z0-9-_]/g, "-"))}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Folder name under products/ (letters, numbers, - and _)
+                </p>
+              </div>
+              <DropZone
+                label="Drop product files here"
+                hint="background · glossary · writing guide · any notes (.md, .csv, .txt) — no required format"
+                accept=".md,.csv,.txt,text/*"
+                multiple
+                onFiles={(files) => void stageNewProductFiles(files)}
+                disabled={busy}
               />
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+              <div className="flex justify-end gap-2">
                 <Button
-                  kind={addMode === "form" ? "primary" : "tertiary"}
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setAddMode("form")}
+                  onClick={async () => {
+                    const picked = await browseMarkdown();
+                    if (picked) void stageNewProductFiles([new File([picked.content], picked.filename)]);
+                  }}
                 >
-                  Form
+                  Add .md…
                 </Button>
                 <Button
-                  kind={addMode === "file" ? "primary" : "tertiary"}
+                  variant="ghost"
                   size="sm"
-                  onClick={() => setAddMode("file")}
+                  onClick={async () => {
+                    const picked = await browseGlossary();
+                    if (picked) void stageNewProductFiles([new File([picked.content], picked.filename)]);
+                  }}
                 >
-                  Upload background.md
+                  Add glossary…
                 </Button>
               </div>
-              {addMode === "form" ? (
-                <>
-                  <TextInput
-                    id="new-audience"
-                    labelText="Audience"
-                    value={newAudience}
-                    onChange={(e) => setNewAudience(e.target.value)}
-                  />
-                  <TextInput
-                    id="new-environment"
-                    labelText="Environment"
-                    value={newEnvironment}
-                    onChange={(e) => setNewEnvironment(e.target.value)}
-                  />
-                  <TextInput
-                    id="new-purpose"
-                    labelText="Purpose"
-                    value={newPurpose}
-                    onChange={(e) => setNewPurpose(e.target.value)}
-                  />
-                  <TextArea
-                    id="new-body"
-                    labelText="Background body (markdown)"
-                    value={newBody}
-                    onChange={(e) => setNewBody(e.target.value)}
-                    rows={6}
-                  />
-                  <a
-                    href={client.productBackgroundTemplateUrl()}
-                    download="product-background-template.md"
-                    style={{ fontSize: "0.875rem" }}
-                  >
-                    Download background template
-                  </a>
-                </>
-              ) : (
-                <>
-                  <Button
-                    kind="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      const picked = await browseMarkdown();
-                      if (picked) setNewBackgroundFile(picked);
-                    }}
-                  >
-                    Choose background.md…
-                  </Button>
-                  {newBackgroundFile && (
-                    <p style={{ fontSize: "0.875rem", color: "var(--cds-text-helper)" }}>
-                      File: <code>{newBackgroundFile.filename}</code>
-                    </p>
-                  )}
-                </>
-              )}
+              {newProductFiles.length > 0 ? (
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="mb-2 font-semibold">{newProductFiles.length} file(s) ready</p>
+                    <ul className="list-inside list-disc text-sm">
+                      {newProductFiles.map((f) => (
+                        <li key={f.filename}>
+                          <code>{f.filename}</code>
+                        </li>
+                      ))}
+                    </ul>
+                    <Button variant="ghost" size="sm" className="mt-3" onClick={() => setNewProductFiles([])}>
+                      Clear files
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : null}
             </WriterPageStack>
-          </Modal>
-        )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setAddProductOpen(false);
+                  setNewProductFiles([]);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={busy || !newProductId.trim() || newProductFiles.length === 0}
+                onClick={() => void submitAddProduct()}
+              >
+                {busy ? "Creating…" : "Create"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </WriterPageGridFull>
     </WriterPageGrid>
   );
@@ -930,28 +780,28 @@ function CompanySlotSection({
 }) {
   return (
     <section>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "1rem", marginBottom: "1rem" }}>
+      <div className="mb-4 flex flex-wrap items-baseline gap-4">
         <WriterSectionHeader title={title} />
-        <a href={templateHref} download={templateName} style={{ fontSize: "0.875rem" }}>
+        <a href={templateHref} download={templateName} className="text-sm underline-offset-4 hover:underline">
           Download template
         </a>
       </div>
       <WriterPageStack gap={4}>
-        {missing && (
-          <InlineNotification kind="warning" title="Missing" subtitle={missingHint} lowContrast />
-        )}
+        {missing ? <InlineAlert kind="warning" title="Missing" subtitle={missingHint} /> : null}
         <DropZone label={dropLabel} hint={dropHint} accept={accept} onFiles={onFiles} disabled={busy || !connected} />
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button kind="ghost" size="sm" onClick={() => void onBrowse()} disabled={busy || !connected}>
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => void onBrowse()} disabled={busy || !connected}>
             Browse…
           </Button>
         </div>
         {guideline ? (
           <GuidelineTile guideline={guideline} />
         ) : (
-          <Tile>
-            <p style={{ color: "var(--cds-text-helper)" }}>Not uploaded yet.</p>
-          </Tile>
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">Not uploaded yet.</p>
+            </CardContent>
+          </Card>
         )}
       </WriterPageStack>
     </section>
@@ -960,19 +810,19 @@ function CompanySlotSection({
 
 function GuidelineTile({ guideline }: { guideline: Guideline }) {
   return (
-    <Tile>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-        <strong>{guideline.id}</strong>
-        <span style={{ fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>{guideline.layer}</span>
-        <StatusPill status="ok" />
-        <span style={{ marginLeft: "auto", fontSize: "0.75rem", color: "var(--cds-text-helper)" }}>
-          v{guideline.version}
-        </span>
-      </div>
-      <div style={{ fontSize: "0.875rem", color: "var(--cds-text-secondary)" }}>
-        {guideline.rules.length} rules · {guideline.glossary.length} terms
-      </div>
-    </Tile>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="mb-2 flex flex-wrap items-center gap-3">
+          <strong>{guideline.id}</strong>
+          <span className="text-xs text-muted-foreground">{guideline.layer}</span>
+          <StatusBadge status="ok" />
+          <span className="ml-auto text-xs text-muted-foreground">v{guideline.version}</span>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {guideline.rules.length} rules · {guideline.glossary.length} terms
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -996,32 +846,24 @@ function ProductSlotRow({
   onDelete?: () => void;
 }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.75rem",
-        padding: "0.75rem 0",
-        borderBottom: "1px solid var(--cds-border-subtle)"
-      }}
-    >
-      <span style={{ minWidth: "7rem", fontWeight: 600 }}>{label}</span>
-      <StatusPill status={filled ? "ok" : "incomplete"} />
-      <span style={{ fontSize: "0.875rem", color: "var(--cds-text-helper)" }}>{filled ? "Uploaded" : "Empty"}</span>
-      <span style={{ marginLeft: "auto", display: "flex", gap: "0.25rem" }}>
-        {filled && onOpen && (
-          <Button kind="ghost" size="sm" disabled={busy || !connected} onClick={onOpen}>
+    <div className="flex flex-wrap items-center gap-3 border-b py-3">
+      <span className="min-w-28 font-semibold">{label}</span>
+      <StatusBadge status={filled ? "ok" : "incomplete"} />
+      <span className="text-sm text-muted-foreground">{filled ? "Uploaded" : "Empty"}</span>
+      <span className="ml-auto flex gap-1">
+        {filled && onOpen ? (
+          <Button variant="ghost" size="sm" disabled={busy || !connected} onClick={onOpen}>
             Open
           </Button>
-        )}
-        <Button kind="ghost" size="sm" disabled={busy || !connected} onClick={() => void onReplace()}>
+        ) : null}
+        <Button variant="ghost" size="sm" disabled={busy || !connected} onClick={() => void onReplace()}>
           {filled ? "Replace" : "Upload"}
         </Button>
-        {filled && canDelete && onDelete && (
-          <Button kind="danger--ghost" size="sm" disabled={busy || !connected} onClick={onDelete}>
+        {filled && canDelete && onDelete ? (
+          <Button variant="destructive" size="sm" disabled={busy || !connected} onClick={onDelete}>
             Delete
           </Button>
-        )}
+        ) : null}
       </span>
     </div>
   );

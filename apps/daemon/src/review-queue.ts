@@ -23,6 +23,10 @@ import {
 } from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 
+import { getCachedTree } from "./guidelines/cache";
+import { discoverGuidelines } from "./guidelines/discovery";
+import { buildResolvedTree } from "./guidelines/inheritance";
+import { buildThreeLayerSnapshot } from "./guidelines/snapshot";
 import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import { assertFigmaWritePermission } from "./figma-write-permission";
 import {
@@ -129,6 +133,11 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
   const items = buildAuditItems(session.sourceType, updatedScope);
 
   const project = state.store.listProjects().projects.find((item) => item.id === session.projectId);
+  const productId = session.productId ?? project?.activeProductId ?? null;
+  const guidelineTree = getCachedTree() ?? (await discoverGuidelines());
+  const resolvedTree = buildResolvedTree(guidelineTree);
+  const guidelineSnapshot = buildThreeLayerSnapshot(resolvedTree, productId);
+
   const audit = runStubAudit({
     sessionId: session.id,
     sourceType: session.sourceType,
@@ -156,6 +165,14 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     state.store.upsertReviewChange(change);
   }
 
+  state.store.upsertSession({
+    ...session,
+    scope: updatedScope,
+    guidelineSnapshot,
+    status: session.status === "draft" ? "reviewing" : session.status,
+    updatedAt: new Date().toISOString()
+  });
+
   state.store.appendAuditEntry({
     type: "agent_run_lifecycle",
     timestamp: new Date().toISOString(),
@@ -163,6 +180,7 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     summary: `Stub audit generated ${audit.findings.length} findings`,
     details: {
       sessionId: session.id,
+      productId,
       brandVoice: project?.brandVoice ?? null,
       findingCount: audit.findings.length
     }

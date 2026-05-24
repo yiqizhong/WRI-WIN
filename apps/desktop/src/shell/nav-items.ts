@@ -18,7 +18,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Sources",
     path: "/figma",
     title: "Sources",
-    description: "Rewrite copy from Figma or pasted text.",
+    description: "Paste a Figma link, pick a product, and run an audit.",
     matchPaths: ["/figma"]
   },
   {

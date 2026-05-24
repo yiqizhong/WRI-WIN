@@ -1,16 +1,13 @@
 import { useRef, useState } from "react";
-import {
-  Button,
-  InlineLoading,
-  InlineNotification,
-  RadioButton,
-  RadioButtonGroup,
-  Stack,
-  Tag,
-  Tile,
-  Toggle
-} from "@carbon/react";
+import { Loader2 } from "lucide-react";
 import type { AgentAdapter } from "@writer/contracts";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import { isAdapterStatusLoading } from "./agents-runtime";
@@ -48,6 +45,20 @@ type AgentsPanelProps = {
 const adapterTileClass = (selected: boolean) =>
   classNames("writer-agent-tile", selected ? "writer-agent-tile--selected" : null);
 
+function tagVariant(type: "green" | "red" | "gray"): "default" | "destructive" | "secondary" {
+  if (type === "green") {
+    return "default";
+  }
+  if (type === "red") {
+    return "destructive";
+  }
+  return "secondary";
+}
+
+function mcpTagVariant(type: "green" | "red" | "gray"): "default" | "destructive" | "secondary" {
+  return tagVariant(type);
+}
+
 function runtimeLabel(adapter: AgentAdapter): string | null {
   if (adapter.runtimeKind === "hybrid") {
     return "Cloud-backed";
@@ -75,16 +86,7 @@ function availabilityTag(
 }
 
 function ConnectionIssueNotice({ text }: { text: string }) {
-  return (
-    <InlineNotification
-      kind="error"
-      lowContrast
-      hideCloseButton
-      role="alert"
-      subtitle={text}
-      title=""
-    />
-  );
+  return <InlineAlert kind="error" title="" subtitle={text} />;
 }
 
 export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) {
@@ -270,12 +272,15 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     <WriterPageStack fill>
       <div className={rowBetween}>
         {agentsRefreshing ? (
-          <InlineLoading description="Refreshing agent detection…" status="active" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <span>Refreshing agent detection…</span>
+          </div>
         ) : (
           <span />
         )}
         <Button
-          kind="secondary"
+          variant="secondary"
           className={hugWidth}
           disabled={!connected || agentsRefreshing}
           onClick={() => void refreshAgentDetection()}
@@ -290,7 +295,6 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         <WriterPageGridHalf>
           <WriterPageStack>
             <WriterSectionHeader
-              id="llm-providers-heading"
               title="LLM providers"
               description="Select the active provider for local audits and generation."
             />
@@ -298,87 +302,93 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
             <WriterPageGrid gutterMode="wide">
               <WriterPageGridFull>
                 <section aria-labelledby="llm-providers-heading">
-                  <RadioButtonGroup
-                legendText="Active provider"
-                name="writer-active-adapter"
-                orientation="vertical"
-                valueSelected={activeAdapterId ?? undefined}
-                onChange={(value) => void setActiveLlmAdapter(String(value))}
-              >
-                <Stack gap={5}>
-                  {llmAdapters.map((adapter) => {
-                    const label = runtimeLabel(adapter);
-                    const status = availabilityTag(adapter, agentsLoadState, agentsRefreshing);
-                    const isSelected = activeAdapterId === adapter.id;
-                    const canSelect =
-                      status.label !== "Loading" && (adapter.available || agentsLoadState !== "ready");
-                    const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
+                  <fieldset className="flex flex-col gap-5">
+                    <legend id="llm-providers-heading" className="sr-only">
+                      Active provider
+                    </legend>
+                    {llmAdapters.map((adapter) => {
+                      const label = runtimeLabel(adapter);
+                      const status = availabilityTag(adapter, agentsLoadState, agentsRefreshing);
+                      const isSelected = activeAdapterId === adapter.id;
+                      const canSelect =
+                        status.label !== "Loading" && (adapter.available || agentsLoadState !== "ready");
+                      const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
 
-                    return (
-                      <Tile
-                        key={adapter.id}
-                        className={classNames(surface, fillWidth, adapterTileClass(isSelected))}
-                      >
-                        <Stack gap={5}>
-                          <div className={rowBetween}>
-                            <RadioButton
-                              id={`radio-${adapter.id}`}
-                              labelText={adapter.displayName}
-                              value={adapter.id}
-                              disabled={!canSelect}
-                            />
-                            <div className={classNames(row, hugHeight)}>
-                              {label ? (
-                                <Tag type="gray" size="sm" className={hugWidth}>
-                                  {label}
-                                </Tag>
-                              ) : null}
-                              <Tag type={status.type} size="sm" className={hugWidth}>
-                                {status.label}
-                              </Tag>
+                      return (
+                        <Card
+                          key={adapter.id}
+                          className={classNames(surface, fillWidth, adapterTileClass(isSelected))}
+                        >
+                          <CardContent className="flex flex-col gap-5 p-4">
+                            <div className={rowBetween}>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  id={`radio-${adapter.id}`}
+                                  name="writer-active-adapter"
+                                  value={adapter.id}
+                                  checked={isSelected}
+                                  disabled={!canSelect}
+                                  onChange={() => void setActiveLlmAdapter(adapter.id)}
+                                  className="size-4 shrink-0"
+                                />
+                                <Label htmlFor={`radio-${adapter.id}`} className="font-medium">
+                                  {adapter.displayName}
+                                </Label>
+                              </div>
+                              <div className={classNames(row, hugHeight)}>
+                                {label ? (
+                                  <Badge variant="secondary" className={hugWidth}>
+                                    {label}
+                                  </Badge>
+                                ) : null}
+                                <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                                  {status.label}
+                                </Badge>
+                              </div>
                             </div>
-                          </div>
 
-                          {adapter.setupMessage || adapter.executablePath || diagnosticText ? (
-                            <div className="writer-agent-tile__detail">
-                              {adapter.executablePath ? (
-                                <div className="writer-labeled-code">
-                                  <span className="writer-type-eyebrow">Executable path</span>
-                                  <code className="writer-code-chip writer-break-word">
-                                    {adapter.executablePath}
-                                  </code>
-                                </div>
-                              ) : null}
+                            {adapter.setupMessage || adapter.executablePath || diagnosticText ? (
+                              <div className="writer-agent-tile__detail">
+                                {adapter.executablePath ? (
+                                  <div className="writer-labeled-code">
+                                    <span className="writer-type-eyebrow">Executable path</span>
+                                    <code className="writer-code-chip writer-break-word">
+                                      {adapter.executablePath}
+                                    </code>
+                                  </div>
+                                ) : null}
 
-                              {adapter.setupMessage ? (
-                                <p className="writer-type-body-compact writer-text-secondary">
-                                  {adapter.setupMessage}
-                                </p>
-                              ) : null}
+                                {adapter.setupMessage ? (
+                                  <p className="writer-type-body-compact writer-text-secondary">
+                                    {adapter.setupMessage}
+                                  </p>
+                                ) : null}
 
-                              {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
+                                {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
+                              </div>
+                            ) : null}
+
+                            <div className={classNames(rowEnd, hugHeight, "writer-agent-tile__actions")}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className={hugWidth}
+                                disabled={
+                                  status.label === "Loading" ||
+                                  !adapter.available ||
+                                  busyAdapterId === adapter.id
+                                }
+                                onClick={() => void testConnection(adapter.id)}
+                              >
+                                {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
+                              </Button>
                             </div>
-                          ) : null}
-
-                          <div className={classNames(rowEnd, hugHeight, "writer-agent-tile__actions")}>
-                            <Button
-                              kind="tertiary"
-                              size="md"
-                              className={hugWidth}
-                              disabled={
-                                status.label === "Loading" || !adapter.available || busyAdapterId === adapter.id
-                              }
-                              onClick={() => void testConnection(adapter.id)}
-                            >
-                              {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
-                            </Button>
-                          </div>
-                        </Stack>
-                      </Tile>
-                    );
-                  })}
-                </Stack>
-                  </RadioButtonGroup>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </fieldset>
                 </section>
               </WriterPageGridFull>
             </WriterPageGrid>
@@ -388,17 +398,19 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         <WriterPageGridHalf>
           <WriterPageStack>
             <WriterSectionHeader
-              id="mcp-servers-heading"
               title="MCP servers"
               description="Turn integrations on or off and connect external tool servers (including Figma)."
             />
 
             <section aria-labelledby="mcp-servers-heading">
-              <Stack gap={5}>
+              <div className="flex flex-col gap-5">
                 {mcpLoadState === "loading" && mcpServers.length === 0 ? (
-                  <Tile className={classNames(surface, fillWidth, "writer-mcp-tile writer-mcp-tile--centered")}>
-                    <InlineLoading description="Loading MCP servers…" status="active" />
-                  </Tile>
+                  <Card className={classNames(surface, fillWidth, "writer-mcp-tile writer-mcp-tile--centered")}>
+                    <CardContent className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <span>Loading MCP servers…</span>
+                    </CardContent>
+                  </Card>
                 ) : null}
 
                 {mcpServers.map((server) => {
@@ -407,26 +419,23 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                   const statusTagType = mcpConnectionStatusTagType(server.status);
 
                   return (
-                    <Tile
-                      key={server.id}
-                      className={classNames(surface, fillWidth, "writer-mcp-tile")}
-                    >
-                      <Stack gap={5}>
+                    <Card key={server.id} className={classNames(surface, fillWidth, "writer-mcp-tile")}>
+                      <CardContent className="flex flex-col gap-5 p-4">
                         <div className={rowBetween}>
-                          <Toggle
-                            id={`mcp-${server.id}`}
-                            labelText={server.name}
-                            labelA="Off"
-                            labelB="On"
-                            toggled={server.enabled}
-                            onToggle={(enabled) => void toggleMcp(server.id, enabled)}
-                          />
-                          <Tag type={statusTagType} className={hugWidth}>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`mcp-${server.id}`}
+                              checked={server.enabled}
+                              onCheckedChange={(checked) => void toggleMcp(server.id, checked === true)}
+                            />
+                            <Label htmlFor={`mcp-${server.id}`}>{server.name}</Label>
+                          </div>
+                          <Badge variant={mcpTagVariant(statusTagType)} className={hugWidth}>
                             {statusLabel}
-                          </Tag>
+                          </Badge>
                         </div>
 
-                        <Stack gap={3}>
+                        <div className="flex flex-col gap-3">
                           {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
                           {!diagnosticText && server.errorMessage ? (
                             <ConnectionIssueNotice text={server.errorMessage} />
@@ -448,19 +457,19 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                               </span>
                             )}
                           </div>
-                        </Stack>
+                        </div>
 
                         {server.id === "figma" ? (
                           <div className={classNames(rowEnd, hugHeight, "writer-mcp-tile__actions")}>
                             {figmaAuthPending && busyMcpId === server.id ? (
-                              <Button kind="ghost" size="md" onClick={cancelFigmaAuth}>
+                              <Button variant="ghost" size="sm" onClick={cancelFigmaAuth}>
                                 Cancel sign-in
                               </Button>
                             ) : null}
                             {(server.status !== "connected" || server.diagnostic?.code === "needs_auth") && (
                               <Button
-                                kind="tertiary"
-                                size="md"
+                                variant="outline"
+                                size="sm"
                                 disabled={!connected || busyMcpId === server.id}
                                 onClick={() => void connectFigma(server.id)}
                               >
@@ -468,8 +477,8 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                               </Button>
                             )}
                             <Button
-                              kind="tertiary"
-                              size="md"
+                              variant="outline"
+                              size="sm"
                               disabled={!connected || busyMcpId === server.id || server.status !== "connected"}
                               onClick={() => void testFigmaRead(server.id)}
                             >
@@ -477,11 +486,11 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
                             </Button>
                           </div>
                         ) : null}
-                      </Stack>
-                    </Tile>
+                      </CardContent>
+                    </Card>
                   );
                 })}
-              </Stack>
+              </div>
             </section>
           </WriterPageStack>
         </WriterPageGridHalf>
