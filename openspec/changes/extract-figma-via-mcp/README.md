@@ -1,3 +1,5 @@
 # extract-figma-via-mcp
 
-Replace stub figma extract with real Figma MCP get_metadata + get_design_context calls so Page/Frame links produce real text nodes.
+Deliver the Figma Frame review loop end to end: paste a selected `/design/` Frame link, extract its real text through Figma MCP, review proposed rewrites, and explicitly apply approved text back to the originating Figma nodes.
+
+Linear epic: `WRI-98` with implementation issues `WRI-99` through `WRI-102`.
