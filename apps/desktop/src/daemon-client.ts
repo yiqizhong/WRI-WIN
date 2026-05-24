@@ -6,8 +6,12 @@ import {
   parseDaemonHealth,
   parseDirectoryListing,
   parseGlossaryList,
+  parseGuideline,
   parseGuidelineList,
+  parseGuidelinesTree,
   parseGuidelineSnapshot,
+  parseProductPackage,
+  productPackageSchema,
   parseMcpServerList,
   parseMcpSmokeResult,
   parseParsedFigmaUrl,
@@ -25,7 +29,9 @@ import {
   type GlossaryList,
   type Guideline,
   type GuidelineList,
+  type GuidelinesTree,
   type GuidelineSnapshot,
+  type ProductPackage,
   type ParsedFigmaUrl,
   type PasteTextConversation,
   type PasteTextMessageResult,
@@ -403,7 +409,113 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         120_000
       ) as Promise<PasteTextMessageResult>,
 
+    getGuidelinesTree: () => request(baseUrl, "/guidelines", undefined, parseGuidelinesTree),
+
+    /** @deprecated use getGuidelinesTree */
     listGuidelines: () => request(baseUrl, "/guidelines", undefined, parseGuidelineList),
+
+    getCompanyBase: () =>
+      request(baseUrl, "/company-base", undefined, (p) => (p === null ? null : parseGuideline(p))),
+
+    uploadCompanyBase: (input: { content: string; overwrite?: boolean }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/company-base/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    getSoftwareWriting: () =>
+      request(baseUrl, "/software-writing", undefined, (p) => (p === null ? null : parseGuideline(p))),
+
+    uploadSoftwareWriting: (input: { content: string; overwrite?: boolean }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/software-writing/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    getCompanyGlossary: () =>
+      request(baseUrl, "/company-glossary", undefined, (p) => (p as import("@writer/contracts").Term[] | null)),
+
+    uploadCompanyGlossary: (input: { content: string; format: "csv" | "md"; overwrite?: boolean }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/company-glossary/upload", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    deleteCompanyGlossary: () =>
+      fetchWithTimeout(`${baseUrl}/company-glossary`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
+
+    listProducts: () =>
+      request(baseUrl, "/products", undefined, (p) => productPackageSchema.array().parse(p)),
+
+    getProduct: (id: string) =>
+      request(baseUrl, `/products/${encodeURIComponent(id)}`, undefined, parseProductPackage),
+
+    createProduct: (input: { id: string; content: string }) =>
+      request<{ ok: boolean; filePath: string }>(baseUrl, "/products", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
+    deleteProduct: (id: string) =>
+      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
+
+    uploadProductBackground: (productId: string, input: { content: string; overwrite?: boolean }) =>
+      request<{ ok: boolean; filePath: string }>(
+        baseUrl,
+        `/products/${encodeURIComponent(productId)}/background/upload`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        }
+      ),
+
+    uploadProductGlossary: (
+      productId: string,
+      input: { content: string; format: "csv" | "md"; overwrite?: boolean }
+    ) =>
+      request<{ ok: boolean; filePath: string }>(
+        baseUrl,
+        `/products/${encodeURIComponent(productId)}/glossary/upload`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        }
+      ),
+
+    deleteProductGlossary: (productId: string) =>
+      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(productId)}/glossary`, {
+        method: "DELETE"
+      }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
+
+    uploadProductWritingGuide: (productId: string, input: { content: string; overwrite?: boolean }) =>
+      request<{ ok: boolean; filePath: string }>(
+        baseUrl,
+        `/products/${encodeURIComponent(productId)}/writing-guide/upload`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        }
+      ),
+
+    deleteProductWritingGuide: (productId: string) =>
+      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(productId)}/writing-guide`, {
+        method: "DELETE"
+      }).then((r) => {
+        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
+      }),
 
     listGlossaries: () => request(baseUrl, "/glossaries", undefined, parseGlossaryList),
 
@@ -474,10 +586,31 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseProject
       ),
 
-    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`,
-    glossaryTemplateUrl: () => `${baseUrl}/guidelines/templates/glossary.csv`
+    companyBaseTemplateUrl: () => `${baseUrl}/guidelines/templates/company-base.md`,
+    softwareWritingTemplateUrl: () => `${baseUrl}/guidelines/templates/software-writing.md`,
+    productBackgroundTemplateUrl: () => `${baseUrl}/guidelines/templates/product-background.md`,
+    productWritingGuideTemplateUrl: () => `${baseUrl}/guidelines/templates/product-writing-guide.md`,
+    glossaryTemplateUrl: () => `${baseUrl}/guidelines/templates/glossary.csv`,
+    /** @deprecated */
+    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`
   };
 }
 
 export type DaemonClient = ReturnType<typeof createDaemonClient>;
-export type { AgentRunResult, DirectoryListing, GlossaryList, Guideline, GuidelineList, GuidelineSnapshot, ParsedFigmaUrl, PasteTextConversation, PasteTextMessageResult, Project, ProjectList, ReviewSession, SpreadsheetParseResult };
+export type {
+  AgentRunResult,
+  DirectoryListing,
+  GlossaryList,
+  Guideline,
+  GuidelineList,
+  GuidelinesTree,
+  GuidelineSnapshot,
+  ParsedFigmaUrl,
+  PasteTextConversation,
+  PasteTextMessageResult,
+  ProductPackage,
+  Project,
+  ProjectList,
+  ReviewSession,
+  SpreadsheetParseResult
+};
