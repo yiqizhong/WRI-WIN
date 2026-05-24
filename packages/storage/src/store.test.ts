@@ -1,4 +1,4 @@
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -27,6 +27,60 @@ describe("PlatformStore", () => {
     const projects = reloaded.listProjects();
     expect(projects.activeProjectId).toBe("proj-1");
     expect(projects.projects[0]?.name).toBe("Writer");
+  });
+
+  it("persists activeProductId and drops legacy activeGuidelineId on load", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "writer-store-"));
+    const store = new PlatformStore({ dataDir });
+    await store.load();
+
+    const timestamp = new Date().toISOString();
+    store.upsertProject({
+      id: "proj-1",
+      name: "Writer",
+      rootPath: "/tmp/writer",
+      activeProductId: "checkout",
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
+    await store.save();
+
+    await writeFile(
+      join(dataDir, "platform-store.json"),
+      JSON.stringify(
+        {
+          version: STORAGE_VERSION,
+          projects: [
+            {
+              id: "proj-legacy",
+              name: "Legacy",
+              rootPath: "/tmp/legacy",
+              activeGuidelineId: "old-guideline",
+              activeProductId: "checkout",
+              createdAt: timestamp,
+              updatedAt: timestamp
+            }
+          ],
+          activeProjectId: "proj-legacy",
+          sessions: [],
+          auditLog: []
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    const reloaded = new PlatformStore({ dataDir });
+    await reloaded.load();
+    const project = reloaded.listProjects().projects[0];
+    expect(project?.activeProductId).toBe("checkout");
+    expect(project).not.toHaveProperty("activeGuidelineId");
+
+    reloaded.setActiveProductId("proj-legacy", null);
+    expect(reloaded.getActiveProductId("proj-legacy")).toBeNull();
+    reloaded.setActiveProductId("proj-legacy", "billing");
+    expect(reloaded.getActiveProductId("proj-legacy")).toBe("billing");
   });
 
   it("persists review sessions across reload", async () => {

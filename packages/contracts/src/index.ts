@@ -191,13 +191,15 @@ export {
   surfaceSchema,
   termSchema,
   threeLayerGuidelineSnapshotSchema,
+  sessionGuidelineSnapshotSchema,
   parseGuideline,
   parseGuidelineList,
   parseGuidelineSnapshot,
   parseGuidelinesTree,
   parseProductBackground,
   parseProductPackage,
-  parseThreeLayerGuidelineSnapshot
+  parseThreeLayerGuidelineSnapshot,
+  parseSessionGuidelineSnapshot
 } from "./guideline";
 export type {
   Guideline,
@@ -213,7 +215,8 @@ export type {
   Rule,
   Surface,
   Term,
-  ThreeLayerGuidelineSnapshot
+  ThreeLayerGuidelineSnapshot,
+  SessionGuidelineSnapshot
 } from "./guideline";
 
 export {

@@ -150,6 +150,12 @@ export const threeLayerGuidelineSnapshotSchema = z.object({
   capturedAt: z.iso.datetime()
 });
 
+/** Session snapshot: 3-layer (preferred) or legacy single-guideline v1 */
+export const sessionGuidelineSnapshotSchema = z.union([
+  threeLayerGuidelineSnapshotSchema,
+  guidelineSnapshotSchema
+]);
+
 export type Surface = z.infer<typeof surfaceSchema>;
 export type GuidelineLayer = z.infer<typeof guidelineLayerSchema>;
 export type GuidelineSeverity = z.infer<typeof guidelineSeveritySchema>;
@@ -164,6 +170,7 @@ export type ProductPackageListItem = z.infer<typeof productPackageListItemSchema
 export type GuidelinesTree = z.infer<typeof guidelinesTreeSchema>;
 export type GuidelineSnapshot = z.infer<typeof guidelineSnapshotSchema>;
 export type ThreeLayerGuidelineSnapshot = z.infer<typeof threeLayerGuidelineSnapshotSchema>;
+export type SessionGuidelineSnapshot = z.infer<typeof sessionGuidelineSnapshotSchema>;
 
 export function parseGuideline(payload: unknown): Guideline {
   return guidelineSchema.parse(payload);
@@ -191,4 +198,8 @@ export function parseGuidelineSnapshot(payload: unknown): GuidelineSnapshot {
 
 export function parseThreeLayerGuidelineSnapshot(payload: unknown): ThreeLayerGuidelineSnapshot {
   return threeLayerGuidelineSnapshotSchema.parse(payload);
+}
+
+export function parseSessionGuidelineSnapshot(payload: unknown): SessionGuidelineSnapshot {
+  return sessionGuidelineSnapshotSchema.parse(payload);
 }

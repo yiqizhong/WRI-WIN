@@ -296,11 +296,15 @@ export async function handlePlatformRequest(
     request.method === "PATCH" &&
     segments[0] === "projects" &&
     segments[1] &&
-    segments[2] === "guideline"
+    (segments[2] === "product" || segments[2] === "guideline")
   ) {
     const projectId = segments[1];
-    const body = (await readJsonBody(request)) as { guidelineId?: string | null };
-    state.store.setActiveGuidelineId(projectId, body.guidelineId ?? null);
+    const body = (await readJsonBody(request)) as {
+      productId?: string | null;
+      guidelineId?: string | null;
+    };
+    const productId = body.productId ?? body.guidelineId ?? null;
+    state.store.setActiveProductId(projectId, productId);
     await state.store.save();
     const projects = listProjects(state);
     const project = projects.projects.find((p) => p.id === projectId);

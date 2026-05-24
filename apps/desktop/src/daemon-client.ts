@@ -449,6 +449,19 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
       }),
 
+    setActiveProductId: (projectId: string, productId: string | null) =>
+      request(
+        baseUrl,
+        `/projects/${encodeURIComponent(projectId)}/product`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ productId })
+        },
+        parseProject
+      ),
+
+    /** @deprecated use setActiveProductId */
     setActiveGuidelineId: (projectId: string, guidelineId: string | null) =>
       request(
         baseUrl,

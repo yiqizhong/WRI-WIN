@@ -91,10 +91,11 @@ export class PlatformStore {
 
       this.snapshot = {
         version: parsed.version ?? STORAGE_VERSION,
-        projects: projectListSchema.parse({
-          projects: parsed.projects ?? [],
-          activeProjectId: parsed.activeProjectId ?? null
-        }).projects,
+        projects: (parsed.projects ?? []).map((raw) => {
+          const item = raw as Project & { activeGuidelineId?: string };
+          const { activeGuidelineId: _dropped, ...rest } = item;
+          return projectSchema.parse(rest);
+        }),
         activeProjectId: parsed.activeProjectId ?? null,
         sessions: reviewSessionListSchema.parse({
           sessions: parsed.sessions ?? []
@@ -159,19 +160,19 @@ export class PlatformStore {
     return validated;
   }
 
-  setActiveGuidelineId(projectId: string, guidelineId: string | null): void {
+  setActiveProductId(projectId: string, productId: string | null): void {
     const project = this.snapshot.projects.find((p) => p.id === projectId);
     if (!project) return;
-    if (guidelineId === null) {
-      delete project.activeGuidelineId;
+    if (productId === null) {
+      delete project.activeProductId;
     } else {
-      project.activeGuidelineId = guidelineId;
+      project.activeProductId = productId;
     }
   }
 
-  getActiveGuidelineId(projectId: string): string | null {
+  getActiveProductId(projectId: string): string | null {
     const project = this.snapshot.projects.find((p) => p.id === projectId);
-    return project?.activeGuidelineId ?? null;
+    return project?.activeProductId ?? null;
   }
 
   listSessions(projectId: string | null): ReviewSessionList {

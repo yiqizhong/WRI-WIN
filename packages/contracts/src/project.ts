@@ -8,7 +8,7 @@ export const projectSchema = z.object({
   rootPath: z.string().min(1),
   brandVoice: z.string().optional(),
   glossary: z.array(glossaryTermSchema).optional(),
-  activeGuidelineId: z.string().optional(),
+  activeProductId: z.string().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 });
