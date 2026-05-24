@@ -11,10 +11,18 @@ describe("parseFigmaUrl", () => {
     expect(parsed.suggestedScope.kind).toBe("frame");
   });
 
-  it("parses file-wide scope without node id", () => {
-    const parsed = parseFigmaUrl("https://www.figma.com/design/xyz999/My-File");
+  it("rejects design URLs without a selected frame node id", () => {
+    expect(() => parseFigmaUrl("https://www.figma.com/design/xyz999/My-File")).toThrow(
+      "Select a Figma Frame and paste its link"
+    );
+  });
 
-    expect(parsed.suggestedScope.kind).toBe("file");
+  it("rejects non-design Figma sources with selected Frame guidance", () => {
+    for (const source of ["make", "board", "slides"]) {
+      expect(() => parseFigmaUrl(`https://www.figma.com/${source}/xyz999/Demo?node-id=12-34`)).toThrow(
+        "selected Figma design Frame"
+      );
+    }
   });
 
   it("rejects non-figma hosts", () => {

@@ -4,10 +4,10 @@ Parent Linear epic: **WRI-98** - Figma frame review and approved writeback via M
 
 ## 1. Frame extraction and persistence contracts - WRI-99
 
-- [ ] 1.1 Restrict Figma session intake to selected `/design/` Frame URLs with `node-id`; add unsupported-source tests.
-- [ ] 1.2 Extend shared diagnostics and add typed MCP/extraction/review-queue contracts.
-- [ ] 1.3 Persist Frame extraction, design context, and diagnostics on `ReviewSession`; add storage reload coverage.
-- [ ] 1.4 Export the new contracts and make existing daemon/desktop imports compile.
+- [x] 1.1 Restrict Figma session intake to selected `/design/` Frame URLs with `node-id`; add unsupported-source tests.
+- [x] 1.2 Extend shared diagnostics and add typed MCP/extraction/review-queue contracts.
+- [x] 1.3 Persist Frame extraction, design context, and diagnostics on `ReviewSession`; add storage reload coverage.
+- [x] 1.4 Export the new contracts and make existing daemon/desktop imports compile.
 
 ## 2. Real Frame extraction and audit input - WRI-100
 

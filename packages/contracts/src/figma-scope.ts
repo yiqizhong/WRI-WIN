@@ -1,26 +1,13 @@
 import { z } from "zod";
 
-export const figmaScopeKindSchema = z.enum(["file", "frame", "flow"]);
+export const figmaScopeKindSchema = z.literal("frame");
 
-export const figmaReviewScopeSchema = z.discriminatedUnion("kind", [
-  z.object({
-    kind: z.literal("file"),
-    fileKey: z.string().min(1),
-    fileName: z.string().optional()
-  }),
-  z.object({
-    kind: z.literal("frame"),
-    fileKey: z.string().min(1),
-    nodeId: z.string().min(1),
-    frameName: z.string().optional()
-  }),
-  z.object({
-    kind: z.literal("flow"),
-    fileKey: z.string().min(1),
-    nodeIds: z.array(z.string().min(1)).min(1),
-    flowName: z.string().optional()
-  })
-]);
+export const figmaReviewScopeSchema = z.object({
+  kind: z.literal("frame"),
+  fileKey: z.string().min(1),
+  nodeId: z.string().min(1),
+  frameName: z.string().optional()
+});
 
 export const parseFigmaUrlInputSchema = z.object({
   url: z.string().url()
@@ -28,7 +15,7 @@ export const parseFigmaUrlInputSchema = z.object({
 
 export const parsedFigmaUrlSchema = z.object({
   fileKey: z.string().min(1),
-  nodeId: z.string().min(1).optional(),
+  nodeId: z.string().min(1),
   suggestedScope: figmaReviewScopeSchema
 });
 

@@ -37,6 +37,11 @@ describe("connection diagnostics", () => {
       "not_configured",
       "startup_failed",
       "tool_not_found",
+      "unsupported_source",
+      "mcp_not_ready",
+      "partial_read_failure",
+      "write_conflict",
+      "write_failed",
       "ready"
     ];
 

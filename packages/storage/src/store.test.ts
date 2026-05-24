@@ -46,9 +46,23 @@ describe("PlatformStore", () => {
       id: "sess-1",
       projectId: "proj-1",
       sourceType: "figma",
-      scope: { fileKey: "abc" },
+      scope: { kind: "frame", fileKey: "abc", nodeId: "1:2" },
       status: "draft",
       agentRunIds: [],
+      figmaExtraction: {
+        scope: { kind: "frame", fileKey: "abc", nodeId: "1:2" },
+        nodes: [
+          {
+            id: "3:4",
+            name: "CTA",
+            path: ["Checkout", "CTA"],
+            characters: "Pay now",
+            visible: true
+          }
+        ],
+        warnings: [],
+        extractedAt: timestamp
+      },
       createdAt: timestamp,
       updatedAt: timestamp
     });
@@ -59,6 +73,10 @@ describe("PlatformStore", () => {
 
     const sessions = reloaded.listSessions("proj-1");
     expect(sessions.sessions[0]?.id).toBe("sess-1");
+    expect(sessions.sessions[0]?.figmaExtraction?.nodes[0]).toMatchObject({
+      id: "3:4",
+      characters: "Pay now"
+    });
   });
 
   it("writes the storage version into new files", async () => {
