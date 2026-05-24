@@ -9,6 +9,7 @@ import {
 } from "./agents-runtime";
 
 import { checkDaemonHealth, getDaemonStatusView, type DaemonConnectionState } from "./daemon-status";
+import { formatConnectionDiagnostic } from "./connection-diagnostics";
 import { createDaemonClient, DaemonClientError, type DaemonClient, type ReviewQueue } from "./daemon-client";
 
 export type WorkspaceContextValue = {
@@ -26,6 +27,8 @@ export type WorkspaceContextValue = {
   setPastedText: (value: string) => void;
   workflowMessage: string | null;
   setWorkflowMessage: (message: string | null) => void;
+  workflowRecovery: { label: string; path: string } | null;
+  clearWorkflowRecovery: () => void;
   activeSessionId: string | null;
   reviewQueue: ReviewQueue | null;
   statusFilter: ChangeStatus | "all";
@@ -77,6 +80,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [figmaUrl, setFigmaUrl] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [workflowMessage, setWorkflowMessage] = useState<string | null>(null);
+  const [workflowRecovery, setWorkflowRecovery] = useState<{ label: string; path: string } | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [reviewQueue, setReviewQueue] = useState<ReviewQueue | null>(null);
   const [statusFilter, setStatusFilter] = useState<ChangeStatus | "all">("proposed");
@@ -116,8 +120,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       const result = await daemonClient.runAudit(activeSessionId);
       setReviewQueue(result);
+      setWorkflowRecovery(null);
+
+      if (result.diagnostic) {
+        setWorkflowMessage(formatConnectionDiagnostic(result.diagnostic) ?? result.diagnostic.message);
+
+        if (result.diagnostic.code === "mcp_not_ready") {
+          setWorkflowRecovery({ label: "Connect Figma", path: "/agents" });
+        }
+
+        return;
+      }
+
       setWorkflowMessage(`Audit generated ${result.changes.length} proposed changes.`);
     } catch (error) {
+      setWorkflowRecovery(null);
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Audit run failed.");
     }
   }
@@ -471,6 +488,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setPastedText,
     workflowMessage,
     setWorkflowMessage,
+    workflowRecovery,
+    clearWorkflowRecovery: () => setWorkflowRecovery(null),
     activeSessionId,
     reviewQueue,
     statusFilter,

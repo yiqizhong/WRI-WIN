@@ -62,7 +62,7 @@ export async function handleReviewRequest(
 
   if (request.method === "POST" && path === "/figma/extract") {
     try {
-      sendJson(response, 200, extractFigmaNodes(await readJsonBody(request)));
+      sendJson(response, 200, await extractFigmaNodes(state, await readJsonBody(request)));
     } catch {
       invalidRequest(response, "Invalid Figma extract payload.", "Provide scope.");
     }

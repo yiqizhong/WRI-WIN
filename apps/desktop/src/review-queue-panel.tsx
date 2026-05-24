@@ -66,6 +66,7 @@ export function ReviewQueuePanel({
 }: ReviewQueuePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftAfter, setDraftAfter] = useState("");
+  const [pendingWritePermissionId, setPendingWritePermissionId] = useState<string | null>(null);
 
   const selectedStatus = useMemo(
     () => STATUS_ITEMS.find((item) => item.id === statusFilter) ?? STATUS_ITEMS[1],
@@ -118,6 +119,79 @@ export function ReviewQueuePanel({
     }
   }
 
+  function getWritebackEligibleChanges() {
+    return (queue?.changes ?? []).filter(
+      (change) => change.status === "approved" || change.status === "edited"
+    );
+  }
+
+  async function applyApprovedToFigma(permissionRequestId?: string) {
+    if (!sessionId || !queue) {
+      return;
+    }
+
+    const eligible = getWritebackEligibleChanges();
+
+    if (eligible.length === 0) {
+      onMessage("Approve or edit queue items first. Approve only saves locally — use Apply to push to Figma.");
+      return;
+    }
+
+    try {
+      const result = await client.runFigmaWriteback({
+        sessionId,
+        changeIds: eligible.map((change) => change.id),
+        permissionRequestId
+      });
+
+      const applied = result.results.filter((item) => item.status === "applied").length;
+      const failed = result.results.filter((item) => item.status === "failed").length;
+      const skipped = result.results.filter((item) => item.status === "skipped").length;
+
+      if (result.permissionRequestId) {
+        setPendingWritePermissionId(result.permissionRequestId);
+        onMessage(
+          "Writer needs permission to edit Figma. Click “Allow Figma write & apply” to confirm, then text will be written to your file."
+        );
+        return;
+      }
+
+      setPendingWritePermissionId(null);
+
+      if (applied > 0) {
+        onMessage(`Figma writeback: ${applied} applied, ${failed} failed, ${skipped} skipped.`);
+      } else if (failed > 0) {
+        const detail = result.results.find((item) => item.status === "failed")?.message;
+        onMessage(detail ? `Figma writeback failed: ${detail}` : `Figma writeback failed (${failed} items).`);
+      } else {
+        onMessage(`Figma writeback: ${skipped} skipped, nothing written.`);
+      }
+
+      onQueueUpdated();
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Figma writeback failed.");
+    }
+  }
+
+  async function allowFigmaWriteAndApply() {
+    if (!pendingWritePermissionId) {
+      await applyApprovedToFigma();
+      return;
+    }
+
+    try {
+      await client.decidePermission({
+        requestId: pendingWritePermissionId,
+        decision: "approved"
+      });
+      await applyApprovedToFigma(pendingWritePermissionId);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not approve Figma write permission.");
+    }
+  }
+
+  const hasEligibleWriteback = getWritebackEligibleChanges().length > 0;
+
   return (
     <Tile className={surfaceFillHeight}>
       <Stack gap={5} className={stackFill}>
@@ -147,6 +221,25 @@ export function ReviewQueuePanel({
               >
                 Approve filtered
               </Button>
+              {pendingWritePermissionId ? (
+                <Button
+                  kind="primary"
+                  size="md"
+                  disabled={!sessionId || !hasEligibleWriteback}
+                  onClick={() => void allowFigmaWriteAndApply()}
+                >
+                  Allow Figma write & apply
+                </Button>
+              ) : (
+                <Button
+                  kind="primary"
+                  size="md"
+                  disabled={!sessionId || !hasEligibleWriteback}
+                  onClick={() => void applyApprovedToFigma()}
+                >
+                  Apply approved to Figma
+                </Button>
+              )}
             </div>
           }
         />
@@ -172,7 +265,6 @@ export function ReviewQueuePanel({
                 <StructuredListRow key={change.id}>
                   <StructuredListCell>
                     <Stack gap={3}>
-                      <p className="writer-type-helper writer-type-mono">{change.sourceId}</p>
                       <p className="writer-type-body-compact">
                         <span className="writer-type-eyebrow">Before</span> {change.before}
                       </p>

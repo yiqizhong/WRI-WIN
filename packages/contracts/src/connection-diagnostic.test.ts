@@ -37,6 +37,8 @@ describe("connection diagnostics", () => {
       "not_configured",
       "startup_failed",
       "tool_not_found",
+      "mcp_not_ready",
+      "unsupported_figma_source",
       "ready"
     ];
 

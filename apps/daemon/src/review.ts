@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import {
+  type DesignContext,
   type FigmaReviewScope,
   type ReportArtifact,
   type ReviewChange,
@@ -14,11 +15,14 @@ import {
   assertChangeTransition,
   assembleReviewContext,
   captureDesignContext,
-  extractFigmaTextNodes,
+  extractFigmaTextNodesViaMcp,
   isWritebackEligible,
-  parseFigmaUrl
+  parseFigmaUrl,
+  normalizeReviewChangesSurface,
+  toSurfaceCopy
 } from "@writer/review-core";
 
+import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import type { DaemonState } from "./state";
 import { createSession } from "./state";
 
@@ -47,13 +51,26 @@ export function parseFigmaUrlInput(input: unknown) {
   return parseFigmaUrl(parsed.url);
 }
 
-export function extractFigmaNodes(input: unknown) {
+export async function extractFigmaNodes(state: DaemonState, input: unknown) {
   const parsed = figmaExtractInputSchema.parse(input);
   const scope = parseFigmaReviewScope(parsed.scope);
-  const extraction = extractFigmaTextNodes(scope);
-  const designContext = captureDesignContext(scope);
+  const result = await extractFigmaTextNodesViaMcp(scope, createFigmaMcpCaller(state));
 
-  return { extraction, designContext };
+  if (!result.ok) {
+    return {
+      extraction: {
+        scope: scope as unknown as Record<string, unknown>,
+        nodes: [],
+        extractedAt: new Date().toISOString()
+      },
+      diagnostic: result.diagnostic
+    };
+  }
+
+  return {
+    extraction: result.extraction,
+    designContext: result.designContext
+  };
 }
 
 const figmaSessionInputSchema = z.object({
@@ -102,16 +119,21 @@ export function assembleSessionContext(state: DaemonState, input: unknown) {
   const scope = session.scope as Record<string, unknown>;
   const pastedText = session.sourceType === "pasted_text" ? String(scope.text ?? "") : undefined;
   const figmaScope =
-    session.sourceType === "figma" ? parseFigmaReviewScope(scope) : undefined;
+    session.sourceType === "figma" ? resolveFigmaScopeFromSession(scope) : undefined;
+  const persistedExtraction = scope.extraction as { nodes?: Array<{ id: string; characters: string; path: string[] }> } | undefined;
+  const persistedDesignContext = scope.designContext as DesignContext | undefined;
   const textNodes =
-    figmaScope !== undefined
-      ? extractFigmaTextNodes(figmaScope).nodes.map((node) => ({
-          id: node.id,
-          characters: node.characters,
-          path: node.path
-        }))
-      : undefined;
-  const designContext = figmaScope ? captureDesignContext(figmaScope) : undefined;
+    persistedExtraction?.nodes?.map((node) => ({
+      id: node.id,
+      characters: node.characters,
+      path: node.path
+    })) ??
+    (figmaScope
+      ? []
+      : undefined);
+  const designContext =
+    persistedDesignContext ??
+    (figmaScope ? captureDesignContext(figmaScope) : undefined);
 
   return assembleReviewContext({
     sourceType: session.sourceType,
@@ -138,7 +160,8 @@ export async function transitionReviewChange(state: DaemonState, input: unknown)
   const change = reviewChangeSchema.parse({
     ...existing,
     status: parsed.nextStatus,
-    after: parsed.after ?? existing.after,
+    before: toSurfaceCopy(existing.before),
+    after: toSurfaceCopy(parsed.after ?? existing.after),
     updatedAt: new Date().toISOString(),
     updatedBy: parsed.actor
   });
@@ -157,7 +180,33 @@ export async function transitionReviewChange(state: DaemonState, input: unknown)
 }
 
 export function listReviewChanges(state: DaemonState, sessionId: string | null) {
-  return { changes: state.store.listReviewChanges(sessionId) };
+  return { changes: repairStoredReviewChanges(state, sessionId) };
+}
+
+export function repairStoredReviewChanges(state: DaemonState, sessionId: string | null): ReviewChange[] {
+  const raw = state.store.listReviewChanges(sessionId);
+  const normalized = normalizeReviewChangesSurface(raw);
+  let dirty = false;
+
+  for (let index = 0; index < raw.length; index += 1) {
+    const before = raw[index];
+    const after = normalized[index];
+
+    if (!before || !after) {
+      continue;
+    }
+
+    if (before.before !== after.before || before.after !== after.after) {
+      state.store.upsertReviewChange(after);
+      dirty = true;
+    }
+  }
+
+  if (dirty) {
+    void state.store.save();
+  }
+
+  return normalized;
 }
 
 export function requireApprovedChangeId(state: DaemonState, changeId: string | undefined, sessionId?: string): void {
@@ -178,6 +227,14 @@ export function requireApprovedChangeId(state: DaemonState, changeId: string | u
   if (!isWritebackEligible(change.status)) {
     throw new Error(`Change ${changeId} is not approved for writeback (status: ${change.status}).`);
   }
+}
+
+function resolveFigmaScopeFromSession(scope: Record<string, unknown>): FigmaReviewScope {
+  if (scope.suggestedScope) {
+    return parseFigmaReviewScope(scope.suggestedScope);
+  }
+
+  return parseFigmaReviewScope(scope);
 }
 
 export function buildReportArtifact(state: DaemonState, sessionId: string): ReportArtifact {

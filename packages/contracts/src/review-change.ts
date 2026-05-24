@@ -17,7 +17,9 @@ export const reviewChangeSchema = z.object({
   sessionId: z.string().min(1),
   sourceId: z.string().min(1),
   status: changeStatusSchema,
+  /** Visible UI copy before the change — surface text only, no MCP/codegen payload. */
   before: z.string(),
+  /** Visible UI copy after the change — surface text only, no MCP/codegen payload. */
   after: z.string(),
   rationale: z.string().optional(),
   updatedAt: z.iso.datetime(),

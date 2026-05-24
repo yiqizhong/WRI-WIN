@@ -10,11 +10,28 @@ import {
   reviewChangeSchema,
   updateProjectGuidanceInputSchema
 } from "@writer/contracts";
-import { isWritebackEligible, runStubAudit } from "@writer/review-core";
+import {
+  type ConnectionDiagnostic,
+  parseFigmaReviewScope
+} from "@writer/contracts";
+import {
+  extractFigmaTextNodesViaMcp,
+  isWritebackEligible,
+  runStubAudit,
+  toSurfaceCopy,
+  writeFigmaTextNodeViaMcp
+} from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 
+import { createFigmaMcpCaller } from "./figma-mcp-caller";
+import { assertFigmaWritePermission } from "./figma-write-permission";
+import {
+  figmaExtractionCacheKey,
+  getCachedFigmaExtraction,
+  setCachedFigmaExtraction
+} from "./figma-extraction-cache";
 import type { DaemonState } from "./state";
-import { buildReportArtifact, transitionReviewChange } from "./review";
+import { buildReportArtifact, repairStoredReviewChanges, transitionReviewChange } from "./review";
 
 const bulkTransitionSchema = z.object({
   changeIds: z.array(z.string().min(1)).min(1),
@@ -28,7 +45,8 @@ const runAuditSchema = z.object({
 
 const writebackSchema = z.object({
   sessionId: z.string().min(1),
-  changeIds: z.array(z.string().min(1)).min(1)
+  changeIds: z.array(z.string().min(1)).min(1),
+  permissionRequestId: z.string().min(1).optional()
 });
 
 const spreadsheetParseSchema = z.object({
@@ -65,18 +83,50 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
   }
 
   const scope = session.scope as Record<string, unknown>;
-  const items =
-    session.sourceType === "pasted_text"
-      ? String(scope.text ?? "")
-          .split(/\n+/)
-          .filter(Boolean)
-          .map((text, index) => ({ sourceId: `line-${index + 1}`, text }))
-      : session.sourceType === "spreadsheet" && Array.isArray(scope.rows)
-        ? (scope.rows as Array<{ id: string; cells: Record<string, string> }>).map((row) => ({
-            sourceId: row.id,
-            text: Object.values(row.cells).join(" ")
-          }))
-        : [{ sourceId: "node-primary", text: "Continue" }, { sourceId: "node-secondary", text: "Click here" }];
+  let diagnostic: ConnectionDiagnostic | undefined;
+  let updatedScope = scope;
+
+  if (session.sourceType === "figma") {
+    const figmaScope = resolveFigmaScope(scope);
+    const extractionResult = await extractFigmaForAudit(state, figmaScope);
+
+    if (!extractionResult.ok) {
+      diagnostic = extractionResult.diagnostic;
+      updatedScope = {
+        ...scope,
+        extraction: { nodes: [], extractedAt: new Date().toISOString(), scope },
+        extractionDiagnostic: diagnostic,
+        designContext: undefined
+      };
+      state.store.upsertSession({
+        ...session,
+        scope: updatedScope,
+        updatedAt: new Date().toISOString()
+      });
+      await state.store.save();
+
+      return {
+        findings: [],
+        rewrites: [],
+        changes: [],
+        diagnostic
+      };
+    }
+
+    updatedScope = {
+      ...scope,
+      extraction: extractionResult.extraction,
+      designContext: extractionResult.designContext,
+      extractionDiagnostic: undefined
+    };
+    state.store.upsertSession({
+      ...session,
+      scope: updatedScope,
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  const items = buildAuditItems(session.sourceType, updatedScope);
 
   const project = state.store.listProjects().projects.find((item) => item.id === session.projectId);
   const audit = runStubAudit({
@@ -97,8 +147,8 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
       sessionId: session.id,
       sourceId: rewrite.sourceId,
       status: "proposed",
-      before: rewrite.before,
-      after: rewrite.after,
+      before: toSurfaceCopy(rewrite.before),
+      after: toSurfaceCopy(rewrite.after),
       rationale: rewrite.rationale,
       updatedAt: new Date().toISOString(),
       updatedBy: "system"
@@ -122,8 +172,74 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
   return {
     findings: audit.findings,
     rewrites: audit.rewrites,
-    changes: state.store.listReviewChanges(session.id)
+    changes: state.store.listReviewChanges(session.id),
+    diagnostic
   };
+}
+
+function resolveFigmaScope(scope: Record<string, unknown>) {
+  if (scope.suggestedScope) {
+    return parseFigmaReviewScope(scope.suggestedScope);
+  }
+
+  return parseFigmaReviewScope(scope);
+}
+
+async function extractFigmaForAudit(
+  state: DaemonState,
+  figmaScope: ReturnType<typeof parseFigmaReviewScope>
+) {
+  const nodeId =
+    figmaScope.kind === "frame"
+      ? figmaScope.nodeId
+      : figmaScope.kind === "flow"
+        ? figmaScope.nodeIds.join(",")
+        : undefined;
+  const cacheKey = figmaExtractionCacheKey(figmaScope.fileKey, nodeId);
+  const cached = getCachedFigmaExtraction(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state));
+
+  if (extraction.ok) {
+    setCachedFigmaExtraction(cacheKey, extraction);
+  }
+
+  return extraction;
+}
+
+function buildAuditItems(
+  sourceType: "figma" | "pasted_text" | "spreadsheet",
+  scope: Record<string, unknown>
+): Array<{ sourceId: string; text: string }> {
+  if (sourceType === "pasted_text") {
+    return String(scope.text ?? "")
+      .split(/\n+/)
+      .filter(Boolean)
+      .map((text, index) => ({ sourceId: `line-${index + 1}`, text }));
+  }
+
+  if (sourceType === "spreadsheet" && Array.isArray(scope.rows)) {
+    return (scope.rows as Array<{ id: string; cells: Record<string, string> }>).map((row) => ({
+      sourceId: row.id,
+      text: Object.values(row.cells).join(" ")
+    }));
+  }
+
+  if (sourceType === "figma") {
+    const extraction = scope.extraction as { nodes?: Array<{ id: string; characters: string }> } | undefined;
+    const nodes = extraction?.nodes ?? [];
+
+    return nodes.map((node) => ({
+      sourceId: node.id,
+      text: toSurfaceCopy(node.characters)
+    }));
+  }
+
+  return [];
 }
 
 export async function bulkTransitionChanges(state: DaemonState, input: unknown) {
@@ -146,13 +262,30 @@ export function listReviewQueue(state: DaemonState, sessionId: string) {
   return {
     findings: state.store.listFindings(sessionId),
     rewrites: state.store.listRewrites(sessionId),
-    changes: state.store.listReviewChanges(sessionId)
+    changes: repairStoredReviewChanges(state, sessionId)
   };
 }
 
 export async function runFigmaWriteback(state: DaemonState, input: unknown): Promise<WritebackResult> {
   const parsed = writebackSchema.parse(input);
   const results: WritebackResult["results"] = [];
+  let permissionRequestId: string | undefined;
+
+  const sessions = state.store.listSessions(null);
+  const session = sessions.sessions.find((item) => item.id === parsed.sessionId);
+
+  if (!session) {
+    throw new Error("Session not found");
+  }
+
+  if (session.sourceType !== "figma") {
+    throw new Error("Figma writeback requires a Figma review session.");
+  }
+
+  const scope = session.scope as Record<string, unknown>;
+  const figmaScope = resolveFigmaScope(scope);
+  const fileKey = figmaScope.fileKey;
+  const mcpCaller = createFigmaMcpCaller(state);
 
   for (const changeId of parsed.changeIds) {
     const change = state.store.getReviewChange(changeId);
@@ -177,6 +310,76 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
       continue;
     }
 
+    const permission = await assertFigmaWritePermission(state, {
+      sessionId: parsed.sessionId,
+      changeId,
+      permissionRequestId: parsed.permissionRequestId
+    });
+
+    if (!permission.ok) {
+      permissionRequestId ??= permission.permissionRequestId;
+      results.push({
+        changeId,
+        sourceId: change.sourceId,
+        status: "failed",
+        message: permission.message
+      });
+
+      state.store.appendAuditEntry({
+        type: "permission_decision",
+        timestamp: new Date().toISOString(),
+        actor: "system",
+        summary: `Figma writeback blocked for ${change.sourceId}`,
+        details: {
+          changeId,
+          sessionId: parsed.sessionId,
+          permissionRequestId: permission.permissionRequestId,
+          reason: permission.message
+        }
+      });
+      continue;
+    }
+
+    const writeResult = await writeFigmaTextNodeViaMcp(
+      fileKey,
+      change.sourceId,
+      change.after,
+      mcpCaller
+    );
+
+    if (!writeResult.ok) {
+      const failed = reviewChangeSchema.parse({
+        ...change,
+        status: "failed",
+        updatedAt: new Date().toISOString(),
+        updatedBy: "system"
+      });
+      state.store.upsertReviewChange(failed);
+
+      state.store.appendAuditEntry({
+        type: "tool_attempt",
+        timestamp: failed.updatedAt,
+        actor: "system",
+        summary: `Figma writeback failed for ${change.sourceId}`,
+        details: {
+          changeId,
+          sessionId: parsed.sessionId,
+          diagnostic: writeResult.diagnostic,
+          before: change.before,
+          after: change.after,
+          result: "failed"
+        }
+      });
+
+      results.push({
+        changeId,
+        sourceId: change.sourceId,
+        status: "failed",
+        message: writeResult.diagnostic.message
+      });
+      continue;
+    }
+
     const applied = reviewChangeSchema.parse({
       ...change,
       status: "applied",
@@ -195,6 +398,7 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
         sessionId: parsed.sessionId,
         before: change.before,
         after: change.after,
+        mutatedNodeIds: writeResult.mutatedNodeIds,
         result: "applied"
       }
     });
@@ -203,7 +407,7 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
       changeId,
       sourceId: change.sourceId,
       status: "applied",
-      message: "Bootstrap writeback recorded (dry-run)."
+      message: `Updated Figma node ${change.sourceId}.`
     });
   }
 
@@ -212,7 +416,8 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
   return {
     sessionId: parsed.sessionId,
     results,
-    completedAt: new Date().toISOString()
+    completedAt: new Date().toISOString(),
+    permissionRequestId
   };
 }
 

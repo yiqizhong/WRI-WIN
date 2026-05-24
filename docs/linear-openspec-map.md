@@ -2,7 +2,22 @@
 
 **Project:** [Figma UX Copy Review v1](https://linear.app/uicb/project/figma-ux-copy-review-v1-4a213fbaf788)  
 **Team:** Wri (`WRI`)  
-**Active change:** `writer-carbon-ui-innovation`
+**Active change:** `extract-figma-via-mcp`
+
+## extract-figma-via-mcp (OpenSpec: `openspec/changes/extract-figma-via-mcp/`)
+
+**Epic:** [WRI-98](https://linear.app/uicb/issue/WRI-98) — Figma frame review and approved writeback via MCP
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.4 | [WRI-99](https://linear.app/uicb/issue/WRI-99) | Contracts + `McpCaller` (Done) |
+| 2.1–2.5 | [WRI-100](https://linear.app/uicb/issue/WRI-100) | MCP-backed extract + Vitest |
+| 3.1–3.5 | [WRI-100](https://linear.app/uicb/issue/WRI-100) | Daemon wiring + integration test |
+| 4.1–4.3 | [WRI-102](https://linear.app/uicb/issue/WRI-102) | Desktop diagnostic + README |
+| 5.1–5.3 | WRI-100 / WRI-102 | Stub cleanup + mapping |
+| Writeback (MCP `use_figma`) | [WRI-101](https://linear.app/uicb/issue/WRI-101) | Permission-gated apply to original text node IDs |
+
+**Suggested order:** WRI-99 → WRI-100 → WRI-101 → WRI-102 → close WRI-98
 
 ## Agent rule (required)
 

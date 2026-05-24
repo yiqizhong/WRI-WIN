@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { RewriteCandidate, UxCopyFinding } from "@writer/contracts";
 
+import { isUsableSurfaceCopy, toSurfaceCopy } from "./figma-text-sanitize";
 import { classifySeverity, formatRationale } from "./severity";
 
 export type AuditStubInput = {
@@ -20,13 +21,13 @@ export function runStubAudit(input: AuditStubInput): AuditStubResult {
   const rewrites: RewriteCandidate[] = [];
 
   for (const item of input.items) {
-    const trimmed = item.text.trim();
+    const surface = toSurfaceCopy(item.text);
 
-    if (!trimmed) {
+    if (!isUsableSurfaceCopy(surface)) {
       continue;
     }
 
-    if (trimmed.length < 4) {
+    if (surface.length < 4) {
       const confidence = 0.62;
       const issueType = "clarity" as const;
       const findingId = `fnd-${randomUUID()}`;
@@ -38,19 +39,21 @@ export function runStubAudit(input: AuditStubInput): AuditStubResult {
         sourceType: input.sourceType,
         location: { sourceId: item.sourceId },
         issueType,
-        severity: classifySeverity({ issueType, confidence, textLength: trimmed.length }),
+        severity: classifySeverity({ issueType, confidence, textLength: surface.length }),
         confidence,
         rationale: formatRationale(issueType, "Text is very short for a user-facing label."),
-        currentText: trimmed,
+        currentText: surface,
         status: "proposed"
       });
     }
 
-    if (/click here|learn more/i.test(trimmed)) {
+    if (/click here|learn more/i.test(surface)) {
       const confidence = 0.88;
       const issueType = "actionability" as const;
       const findingId = `fnd-${randomUUID()}`;
-      const after = trimmed.replace(/click here/gi, "View details").replace(/learn more/gi, "See how it works");
+      const after = toSurfaceCopy(
+        surface.replace(/click here/gi, "View details").replace(/learn more/gi, "See how it works")
+      );
 
       findings.push({
         id: findingId,
@@ -59,10 +62,10 @@ export function runStubAudit(input: AuditStubInput): AuditStubResult {
         sourceType: input.sourceType,
         location: { sourceId: item.sourceId },
         issueType,
-        severity: classifySeverity({ issueType, confidence, textLength: trimmed.length }),
+        severity: classifySeverity({ issueType, confidence, textLength: surface.length }),
         confidence,
         rationale: formatRationale(issueType, "Generic link labels hide the destination."),
-        currentText: trimmed,
+        currentText: surface,
         status: "proposed"
       });
 
@@ -71,7 +74,7 @@ export function runStubAudit(input: AuditStubInput): AuditStubResult {
         sessionId: input.sessionId,
         findingId,
         sourceId: item.sourceId,
-        before: trimmed,
+        before: surface,
         after,
         rationale: "Use a specific, action-oriented label.",
         status: "proposed"

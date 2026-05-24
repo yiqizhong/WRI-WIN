@@ -10,7 +10,8 @@ export const writebackItemResultSchema = z.object({
 export const writebackResultSchema = z.object({
   sessionId: z.string().min(1),
   results: z.array(writebackItemResultSchema),
-  completedAt: z.iso.datetime()
+  completedAt: z.iso.datetime(),
+  permissionRequestId: z.string().min(1).optional()
 });
 
 export type WritebackItemResult = z.infer<typeof writebackItemResultSchema>;

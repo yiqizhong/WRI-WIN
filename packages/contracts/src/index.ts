@@ -92,6 +92,9 @@ export {
 } from "./mcp-server";
 export type { McpConnectionStatus, McpServer, McpServerList, McpSmokeResult } from "./mcp-server";
 
+export { mcpCallToolResultSchema } from "./mcp";
+export type { McpCallToolResult } from "./mcp";
+
 export {
   parsePermissionDecisionInput,
   parsePermissionRequest,

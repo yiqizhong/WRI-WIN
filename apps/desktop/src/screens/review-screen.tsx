@@ -74,6 +74,11 @@ export function ReviewScreen() {
             <Button kind="tertiary" size="md" disabled={!hasSession} onClick={() => void workspace.runAudit()}>
               Run audit
             </Button>
+            {workspace.workflowRecovery ? (
+              <Button kind="ghost" size="md" as={Link} to={workspace.workflowRecovery.path}>
+                {workspace.workflowRecovery.label}
+              </Button>
+            ) : null}
             <OverflowMenu
               aria-label="Export"
               size="md"

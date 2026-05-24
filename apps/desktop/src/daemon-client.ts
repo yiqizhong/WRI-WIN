@@ -13,6 +13,8 @@ import {
   parseProject,
   parseProjectList,
   parseReviewSession,
+  parsePermissionRequest,
+  parseWritebackResult,
   parseSpreadsheetParseResult,
   type AgentRunResult,
   type ChangeStatus,
@@ -73,6 +75,7 @@ export type ReviewQueue = {
   findings: UxCopyFinding[];
   rewrites: RewriteCandidate[];
   changes: ReviewChange[];
+  diagnostic?: import("@writer/contracts").ConnectionDiagnostic;
 };
 
 export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
@@ -180,6 +183,34 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...input, actor: "user" })
       }),
+
+    runFigmaWriteback: (input: {
+      sessionId: string;
+      changeIds: string[];
+      permissionRequestId?: string;
+    }) =>
+      request(
+        baseUrl,
+        "/figma/writeback",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseWritebackResult
+      ),
+
+    decidePermission: (input: { requestId: string; decision: "approved" | "denied" }) =>
+      request(
+        baseUrl,
+        "/permissions/decisions",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parsePermissionRequest
+      ),
 
     parseSpreadsheet: (filePath: string) =>
       request(

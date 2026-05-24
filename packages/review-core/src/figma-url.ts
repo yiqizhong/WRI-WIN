@@ -22,6 +22,10 @@ export function parseFigmaUrl(url: string): ParsedFigmaUrl {
     throw new FigmaUrlParseError("URL must point to figma.com.");
   }
 
+  if (parsed.pathname.includes("/make/")) {
+    throw new FigmaUrlParseError("Figma Make files are not supported. Use a design file URL with a frame node-id.");
+  }
+
   const designMatch = parsed.pathname.match(/^\/design\/([^/]+)(?:\/.*)?$/);
 
   if (!designMatch?.[1]) {

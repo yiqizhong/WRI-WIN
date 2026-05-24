@@ -5,7 +5,7 @@ import {
   StreamableHTTPError
 } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { UnauthorizedError, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
-import type { ConnectionDiagnostic } from "@writer/contracts";
+import type { ConnectionDiagnostic, McpCallToolResult } from "@writer/contracts";
 
 export type McpClientConfig = {
   transport?: "stdio" | "http";
@@ -42,11 +42,7 @@ export type McpConnectionResult = {
   diagnostic?: ConnectionDiagnostic;
 };
 
-export type McpCallToolResult = {
-  ok: boolean;
-  result?: unknown;
-  diagnostic?: ConnectionDiagnostic;
-};
+export type { McpCallToolResult };
 
 export function createMcpClient(
   config: McpClientConfig,

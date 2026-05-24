@@ -3,7 +3,8 @@ import { InlineNotification } from "@carbon/react";
 import { useWorkspace } from "./workspace-context";
 
 export function WorkflowNotification() {
-  const { workflowMessage, projectError, setWorkflowMessage, clearProjectError } = useWorkspace();
+  const { workflowMessage, workflowRecovery, projectError, setWorkflowMessage, clearProjectError, clearWorkflowRecovery } =
+    useWorkspace();
 
   if (projectError) {
     return (
@@ -21,13 +22,20 @@ export function WorkflowNotification() {
     return null;
   }
 
+  const subtitle = workflowRecovery
+    ? `${workflowMessage} Use “${workflowRecovery.label}” on the Agents screen.`
+    : workflowMessage;
+
   return (
     <InlineNotification
-      kind="info"
+      kind={workflowRecovery ? "warning" : "info"}
       lowContrast
       title=""
-      subtitle={workflowMessage}
-      onClose={() => setWorkflowMessage(null)}
+      subtitle={subtitle}
+      onClose={() => {
+        setWorkflowMessage(null);
+        clearWorkflowRecovery();
+      }}
     />
   );
 }

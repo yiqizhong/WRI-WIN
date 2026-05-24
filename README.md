@@ -20,6 +20,8 @@ In another terminal:
 npm run dev:desktop
 ```
 
+In **Sources**, paste a Figma frame URL (`figma.com/design/...?node-id=...`), connect Figma MCP under **Agents**, start a session, then **Run audit** on the Review screen to load real text from that frame.
+
 ## Development commands
 
 | Command | Description |
@@ -150,6 +152,8 @@ Figma MCP diagnostics:
 | `startup_failed` | Server process/init failed | Check URL, command, args, token, and server logs |
 | `tool_not_found` | Connected but no read tool selected/discovered | Set `WRITER_FIGMA_MCP_READ_TOOL` |
 | `smoke_failed` | MCP tool call failed | Check Figma auth, file access, and tool args |
+| `mcp_not_ready` | Figma MCP not connected for extraction | Open Agents → Connect Figma, then re-run audit |
+| `unsupported_figma_source` | Scope not supported (file-wide, Make, etc.) | Paste a frame URL with `node-id` |
 | `ready` | MCP server initialized | Run read smoke |
 
 Or run the daemon Vitest checks:
@@ -160,7 +164,6 @@ npm --workspace @writer/daemon run test -- mcp-client.test.ts mcp.smoke.test.ts
 
 ## Known limitations (bootstrap slice)
 
-- Full Figma extraction and writeback still use bootstrap paths until the next MCP-backed workflow slice
 - Agent adapters besides `echo` require locally installed CLIs
 - Review findings/rewrites schemas exist; audit engine UI is not built yet
 - PDF/spreadsheet export workflows are planned in later milestones

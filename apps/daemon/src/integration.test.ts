@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { DaemonConfig } from "./config";
 import { createRequestHandler } from "./router";
 import type { DaemonState } from "./state";
+import { refreshAgentDetection } from "./agents";
 import { createDefaultMcpState } from "./mcp";
 
 async function createTestState(): Promise<DaemonState> {
@@ -24,9 +25,16 @@ async function createTestState(): Promise<DaemonState> {
   };
 }
 
+const FRAME_METADATA = `
+<frame id="1:10" name="Login" type="FRAME">
+  <text id="1:11" name="Primary CTA" type="TEXT" visible="true" />
+</frame>
+`;
+
 describe("daemon integration smoke", () => {
   let baseUrl = "";
   let server: Server;
+  let testState: DaemonState;
 
   beforeAll(async () => {
     const config: DaemonConfig = {
@@ -36,8 +44,9 @@ describe("daemon integration smoke", () => {
       logLevel: "error",
       version: "test"
     };
-    const state = await createTestState();
-    const handler = createRequestHandler(config, state);
+    testState = await createTestState();
+    await refreshAgentDetection(testState);
+    const handler = createRequestHandler(config, testState);
 
     server = createServer(handler);
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
@@ -63,9 +72,8 @@ describe("daemon integration smoke", () => {
 
     const agents = await fetch(`${baseUrl}/agents`);
     expect(agents.ok).toBe(true);
-    const agentPayload = (await agents.json()) as { adapters: Array<{ id: string; available: boolean }> };
-    const echo = agentPayload.adapters.find((adapter) => adapter.id === "echo");
-    expect(echo?.available).toBe(true);
+    const agentPayload = (await agents.json()) as { adapters: Array<{ id: string }> };
+    expect(agentPayload.adapters.length).toBeGreaterThan(0);
   });
 
   it("runs echo agent end to end", async () => {
@@ -118,7 +126,72 @@ describe("daemon integration smoke", () => {
       body: JSON.stringify({ scope: parsed.suggestedScope })
     });
     expect(extractRes.ok).toBe(true);
-    const extraction = (await extractRes.json()) as { extraction: { nodes: unknown[] } };
-    expect(extraction.extraction.nodes.length).toBeGreaterThan(0);
+    const extraction = (await extractRes.json()) as {
+      extraction: { nodes: unknown[] };
+      diagnostic?: { code: string };
+    };
+    expect(extraction.diagnostic?.code).toBe("mcp_not_ready");
+    expect(extraction.extraction.nodes).toHaveLength(0);
+  });
+
+  it("runs figma audit with injected MCP client and real extracted text", async () => {
+    testState.mcp.figma.enabled = true;
+    testState.mcp.figma.status = "connected";
+    testState.mcp.figmaClient = {
+      connect: async () => ({ ok: true }),
+      listTools: async () => [{ name: "get_metadata" }, { name: "get_design_context" }],
+      callTool: async (name: string, args: Record<string, unknown>) => {
+        if (name === "get_metadata") {
+          return {
+            ok: true,
+            result: { content: [{ type: "text", text: FRAME_METADATA }] }
+          };
+        }
+
+        if (name === "get_design_context") {
+          return {
+            ok: true,
+            result: {
+              content: [{ type: "text", text: "<a>Click here</a>" }]
+            }
+          };
+        }
+
+        return { ok: false };
+      },
+      finishAuth: async () => ({ ok: true }),
+      close: async () => undefined
+    };
+
+    const projectRes = await fetch(`${baseUrl}/projects`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Figma MCP", rootPath: "/tmp/writer-figma-mcp" })
+    });
+    const project = (await projectRes.json()) as { id: string };
+
+    const sessionRes = await fetch(`${baseUrl}/sessions/figma`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        projectId: project.id,
+        url: "https://www.figma.com/design/abc123/Demo?node-id=1-10"
+      })
+    });
+    const session = (await sessionRes.json()) as { id: string };
+
+    const auditRes = await fetch(`${baseUrl}/review/audit/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: session.id })
+    });
+    expect(auditRes.ok).toBe(true);
+
+    const audit = (await auditRes.json()) as {
+      changes: Array<{ before: string }>;
+      diagnostic?: { code: string };
+    };
+    expect(audit.diagnostic).toBeUndefined();
+    expect(audit.changes.some((change) => change.before === "Click here")).toBe(true);
   });
 });
