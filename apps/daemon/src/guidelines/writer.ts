@@ -1,4 +1,4 @@
-import { access, mkdir, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, rm, unlink, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
 import type { GuidelineLayer } from "@writer/contracts";
@@ -6,6 +6,20 @@ import type { GuidelineLayer } from "@writer/contracts";
 import { guidelinesDir } from "./discovery";
 
 export type WriteOutcome = { ok: true; filePath: string } | { ok: false; code: "conflict" | "invalid_filename" | "io_error"; message: string };
+
+const PRODUCT_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function sanitizeProductId(raw: string): string | null {
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed || trimmed === "." || trimmed === "..") return null;
+  if (trimmed.includes("..") || /[\/\\]/.test(trimmed)) return null;
+  const normalized = trimmed
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  if (!normalized || !PRODUCT_ID_RE.test(normalized)) return null;
+  return normalized;
+}
 
 function sanitizeFilename(name: string, extensions: string[]): string | null {
   const stripped = basename(name).trim();
@@ -33,66 +47,11 @@ function assertInsideDir(targetPath: string, rootDir: string): boolean {
   return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(normalizedRoot + "/");
 }
 
-export async function writeCompanyBase(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  await mkdir(dir, { recursive: true });
-  const target = join(dir, "company-base.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
-}
-
-export async function writeSoftwareWriting(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  await mkdir(dir, { recursive: true });
-  const target = join(dir, "software-writing.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
-}
-
-export async function writeCompanyGlossary(input: {
-  content: string;
-  format: "csv" | "md";
-  overwrite?: boolean;
-}): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  await mkdir(dir, { recursive: true });
-  const target = join(dir, `company-glossary.${input.format}`);
-  return writeFileAt(target, dir, input.content, input.overwrite);
-}
-
-export async function writeProductBackground(input: {
-  productId: string;
-  content: string;
-  overwrite?: boolean;
-}): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  const productDir = join(dir, "products", input.productId);
-  await mkdir(productDir, { recursive: true });
-  const target = join(productDir, "background.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
-}
-
-export async function writeProductGlossary(input: {
-  productId: string;
-  content: string;
-  format: "csv" | "md";
-  overwrite?: boolean;
-}): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  const productDir = join(dir, "products", input.productId);
-  await mkdir(productDir, { recursive: true });
-  const target = join(productDir, `glossary.${input.format}`);
-  return writeFileAt(target, dir, input.content, input.overwrite);
-}
-
-export async function writeProductWritingGuide(input: {
-  productId: string;
-  content: string;
-  overwrite?: boolean;
-}): Promise<WriteOutcome> {
-  const dir = guidelinesDir();
-  const productDir = join(dir, "products", input.productId);
-  await mkdir(productDir, { recursive: true });
-  const target = join(productDir, "writing-guide.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
+function productDir(rootDir: string, productId: string): string | null {
+  const id = sanitizeProductId(productId);
+  if (!id) return null;
+  const dir = join(rootDir, "products", id);
+  return assertInsideDir(dir, rootDir) ? dir : null;
 }
 
 async function writeFileAt(
@@ -115,6 +74,167 @@ async function writeFileAt(
   }
 }
 
+export async function writeCompanyBase(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  await mkdir(dir, { recursive: true });
+  const target = join(dir, "company-base.md");
+  return writeFileAt(target, dir, input.content, input.overwrite);
+}
+
+export async function writeSoftwareWriting(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  await mkdir(dir, { recursive: true });
+  const target = join(dir, "software-writing.md");
+  return writeFileAt(target, dir, input.content, input.overwrite);
+}
+
+export async function writeCompanyGlossary(input: {
+  content: string;
+  format: "csv" | "md";
+  overwrite?: boolean;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  await mkdir(dir, { recursive: true });
+  const target = join(dir, `company-glossary.${input.format}`);
+  const other = join(dir, `company-glossary.${input.format === "csv" ? "md" : "csv"}`);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok && (await exists(other))) {
+    try {
+      await unlink(other);
+    } catch {
+      // non-fatal if alternate format cannot be removed
+    }
+  }
+  return result;
+}
+
+export async function createProduct(input: {
+  productId: string;
+  backgroundContent: string;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, input.productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  if (await exists(dirPath)) {
+    return { ok: false, code: "conflict", message: `Product already exists: ${dirPath}` };
+  }
+  await mkdir(dirPath, { recursive: true });
+  return writeProductBackground({
+    productId: basename(dirPath),
+    content: input.backgroundContent,
+    overwrite: true
+  });
+}
+
+export async function writeProductBackground(input: {
+  productId: string;
+  content: string;
+  overwrite?: boolean;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, input.productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  await mkdir(dirPath, { recursive: true });
+  const target = join(dirPath, "background.md");
+  return writeFileAt(target, dir, input.content, input.overwrite);
+}
+
+export async function writeProductGlossary(input: {
+  productId: string;
+  content: string;
+  format: "csv" | "md";
+  overwrite?: boolean;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, input.productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  await mkdir(dirPath, { recursive: true });
+  const target = join(dirPath, `glossary.${input.format}`);
+  const other = join(dirPath, `glossary.${input.format === "csv" ? "md" : "csv"}`);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok && (await exists(other))) {
+    try {
+      await unlink(other);
+    } catch {
+      // ignore
+    }
+  }
+  return result;
+}
+
+export async function writeProductWritingGuide(input: {
+  productId: string;
+  content: string;
+  overwrite?: boolean;
+}): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, input.productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  await mkdir(dirPath, { recursive: true });
+  const target = join(dirPath, "writing-guide.md");
+  return writeFileAt(target, dir, input.content, input.overwrite);
+}
+
+export async function deleteProduct(productId: string): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+  if (!(await exists(dirPath))) {
+    return { ok: false, code: "invalid_filename", message: "Product not found." };
+  }
+  try {
+    await rm(dirPath, { recursive: true, force: true });
+    return { ok: true, filePath: dirPath };
+  } catch (err) {
+    return { ok: false, code: "io_error", message: String(err) };
+  }
+}
+
+export async function deleteProductFile(
+  productId: string,
+  kind: "glossary" | "writing-guide"
+): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const dirPath = productDir(dir, productId);
+  if (!dirPath) {
+    return { ok: false, code: "invalid_filename", message: "Invalid product id." };
+  }
+
+  const candidates =
+    kind === "glossary"
+      ? [join(dirPath, "glossary.csv"), join(dirPath, "glossary.md")]
+      : [join(dirPath, "writing-guide.md")];
+
+  let removed: string | null = null;
+  for (const path of candidates) {
+    if (!(await exists(path))) continue;
+    if (!assertInsideDir(path, dir)) {
+      return { ok: false, code: "invalid_filename", message: "Path traversal blocked." };
+    }
+    try {
+      await unlink(path);
+      removed = path;
+    } catch (err) {
+      return { ok: false, code: "io_error", message: String(err) };
+    }
+  }
+
+  if (!removed) {
+    return { ok: false, code: "invalid_filename", message: `No ${kind} file found for product.` };
+  }
+  return { ok: true, filePath: removed };
+}
+
 /** @deprecated v1 upload — maps company/product to 3-layer paths until desktop migrates (WRI-119) */
 export async function writeGuideline(input: {
   filename: string;
@@ -129,7 +249,7 @@ export async function writeGuideline(input: {
   if (input.layer === "software-writing") {
     return writeSoftwareWriting({ content: input.content, overwrite: input.overwrite });
   }
-  const productId = input.productId ?? sanitizeFilename(input.filename, [".md"])?.replace(/\.md$/, "");
+  const productId = input.productId ?? sanitizeProductId(input.filename.replace(/\.md$/i, ""));
   if (!productId) {
     return { ok: false, code: "invalid_filename", message: "Product id required for product-writing uploads." };
   }
@@ -140,7 +260,7 @@ export async function writeGuideline(input: {
   });
 }
 
-/** @deprecated v1 standalone glossary dir — use writeCompanyGlossary (WRI-114) */
+/** @deprecated v1 standalone glossary dir — use writeCompanyGlossary */
 export async function writeGlossary(input: {
   filename: string;
   content: string;
@@ -160,6 +280,13 @@ export async function deleteGuideline(filePath: string): Promise<WriteOutcome> {
       ok: false,
       code: "invalid_filename",
       message: "Cannot delete company-base.md. Overwrite it instead."
+    };
+  }
+  if (filePath === join(dir, "software-writing.md")) {
+    return {
+      ok: false,
+      code: "invalid_filename",
+      message: "Cannot delete software-writing.md. Overwrite it instead."
     };
   }
   try {
