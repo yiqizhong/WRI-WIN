@@ -32,10 +32,13 @@ function getMainWindowOptions() {
       transparent: true,
       backgroundColor: "#00000000",
       /**
-       * Glass: transparent window + CSS backdrop-filter on .writer-window-frame__glass.
-       * 8px corners: CSS on .writer-window-frame (roundedCorners: false avoids black outer halo).
+       * Native macOS NSVisualEffectView provides the actual desktop blur.
+       * CSS backdrop-filter cannot blur the OS desktop in transparent Electron windows
+       * because Chromium does not have access to the desktop pixels.
+       * 'under-window' + 'active' state = always-on frosted glass that blurs the wallpaper.
        */
-      roundedCorners: false,
+      vibrancy: "under-window",
+      visualEffectState: "active",
       hasShadow: false,
       acceptFirstMouse: true
     };
@@ -54,6 +57,7 @@ function createMainWindow() {
   window.once("ready-to-show", () => {
     if (process.platform === "darwin") {
       window.setBackgroundColor("#00000000");
+      window.setWindowButtonVisibility(false);
     }
     window.show();
   });

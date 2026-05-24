@@ -4,20 +4,28 @@
 
 :root {
   --writer-blue-200: #9dcafb;
-  --writer-border-radius: 8px;
-  --writer-backdrop-blur: 50px;
+  --writer-border-radius: 16px;
+  --writer-backdrop-blur: 80px;
 
-  /* Figma backgroundImage layers (do not change RGB or stop alphas) */
+  /* Figma border gradient (node 1063:811) */
+  --writer-border-gradient: radial-gradient(
+    141.91% 107.01% at 19.5% 8.33%,
+    rgba(157, 202, 251, 0.70) 0%,
+    rgba(33, 54, 107, 0.70) 56.25%,
+    rgba(157, 202, 251, 0.21) 100%
+  );
+
+  /* Figma backgroundImage layers (node 1063:811 — do not change) */
   --writer-figma-overlay: linear-gradient(
-    90deg,
+    0deg,
     rgba(0, 0, 0, 0.09) 0%,
     rgba(0, 0, 0, 0.09) 100%
   );
   --writer-figma-fill: linear-gradient(
-    177.40594763897417deg,
-    rgba(26, 61, 76, 0.779) 3.0404%,
-    rgba(14, 26, 62, 0.95) 41.611%,
-    rgba(1, 3, 17, 0.95) 96.948%
+    176deg,
+    rgba(48, 100, 125, 0.62) -3.04%,
+    rgba(14, 26, 62, 0.95) 41.61%,
+    rgba(1, 3, 17, 0.95) 96.95%
   );
   --writer-figma-background-image: var(--writer-figma-overlay), var(--writer-figma-fill);
 }
@@ -32,7 +40,8 @@ body,
   background: transparent !important;
 }
 
-/* Full app frame: 8px corners + Figma Blue/200 inset stroke */
+/* Full app frame: rounded corners + gradient border. Frosted glass comes from macOS vibrancy
+ * (set on the BrowserWindow); CSS provides only the dark tint layer below. */
 .writer-window-frame {
   position: relative;
   box-sizing: border-box;
@@ -44,7 +53,23 @@ body,
   border-radius: var(--writer-border-radius);
   background: transparent;
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px var(--writer-blue-200);
+}
+
+/* Gradient border: 1px radial-gradient stroke that respects border-radius */
+.writer-window-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  border-radius: var(--writer-border-radius);
+  padding: 1px;
+  background: var(--writer-border-gradient);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 .writer-window-frame__inner {
@@ -57,20 +82,21 @@ body,
   overflow: hidden;
 }
 
-/* 50px frosted glass: blur wallpaper, then Figma tint (needs slight alpha for Chromium) */
+/* Tint layer — sits over the macOS vibrancy backdrop.
+ * mix-blend-mode CANNOT reach the OS vibrancy layer in Chromium, so we use alpha
+ * reduction (opacity) to let the wallpaper blur show through, then boost saturation
+ * via filter so the reduced-alpha colors still read as the rich Figma navy. */
 .writer-window-frame__glass {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   border-radius: inherit;
-  background-color: rgba(1, 3, 17, 0.06);
   background-image: var(--writer-figma-background-image);
   background-repeat: no-repeat;
   background-size: cover;
-  -webkit-backdrop-filter: blur(var(--writer-backdrop-blur)) saturate(1.2);
-  backdrop-filter: blur(var(--writer-backdrop-blur)) saturate(1.2);
-  transform: translateZ(0);
+  opacity: var(--writer-tint-opacity, 0.88);
+  filter: saturate(var(--writer-tint-saturate, 0.98));
 }
 
 .writer-window-frame__content {
@@ -102,7 +128,7 @@ html[data-window-chrome="transparent"] #root {
 
 html[data-window-chrome="transparent"] .writer-window-frame {
   border: none !important;
-  box-shadow: inset 0 0 0 1px var(--writer-blue-200) !important;
+  box-shadow: none !important;
 }
 
 html[data-window-chrome="transparent"] .writer-app-viewport {
