@@ -10,7 +10,9 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
+import { WriterSectionHeader } from "./layout/writer-headings";
 import { chatBubble, chatBubbleEnd, hugWidth, stackFill } from "./layout/writer-sizing";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { TextCopyAttachmentMenu, type PasteTextAttachmentKind } from "./text-copy-attachment-menu";
 import { TextCopyThinkingRibbonView } from "./text-copy-thinking-ribbon-view";
 
@@ -259,14 +261,17 @@ export function TextCopyChat({
 
   return (
     <div className={`flex min-h-0 flex-1 flex-col gap-5 ${stackFill}`}>
-      <div className="flex shrink-0 items-center justify-between gap-3">
-        <p className="writer-type-helper">Auditing {productName}</p>
-        {conversation ? (
-          <Button variant="ghost" size="sm" className={hugWidth} onClick={onRequestNewConversation}>
-            New conversation
-          </Button>
-        ) : null}
-      </div>
+      <WriterSectionHeader
+        title={productName}
+        description="Paste copy below to rewrite against your active guideline stack."
+        actions={
+          conversation ? (
+            <Button variant="outline" size="sm" className={hugWidth} onClick={onRequestNewConversation}>
+              New conversation
+            </Button>
+          ) : null
+        }
+      />
 
       {!daemonConnected ? (
         <InlineAlert
@@ -385,9 +390,12 @@ export function TextCopyChat({
             }}
           />
         </div>
-        <Button disabled={composerDisabled || !draftText.trim()} onClick={() => void handleSend()}>
+        <WriterPrimaryButton
+          disabled={composerDisabled || !draftText.trim()}
+          onClick={() => void handleSend()}
+        >
           {sending ? "Sending…" : "Send"}
-        </Button>
+        </WriterPrimaryButton>
       </div>
     </div>
   );

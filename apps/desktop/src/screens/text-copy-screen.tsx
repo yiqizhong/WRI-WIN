@@ -1,4 +1,3 @@
-import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PasteTextConversation } from "@writer/contracts";
@@ -12,9 +11,16 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/writer/glass-card";
+import { InlineAlert } from "@/components/writer/inline-alert";
 
 import { TextCopyChat } from "../text-copy-chat";
 import { TextCopyProductPicker } from "../text-copy-product-picker";
+import {
+  WorkflowBackLink,
+  WorkflowPageIntro,
+  WorkflowScreenShell
+} from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 export function TextCopyScreen() {
@@ -60,21 +66,22 @@ export function TextCopyScreen() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex shrink-0 items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="writer-home-text inline-flex w-fit shrink-0 items-center gap-2 rounded-md py-1 text-sm font-normal tracking-[0.08em] text-[#e5f1ff]/75 transition-colors hover:text-[#e5f1ff]"
-          aria-label="Back to home"
-        >
-          <ArrowLeft className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-          Back
-        </button>
-        <h1 className="writer-home-text text-lg font-normal tracking-[0.08em] text-[#e5f1ff]">Text Copy</h1>
-      </div>
+    <WorkflowScreenShell className="overflow-hidden">
+      <WorkflowBackLink />
+      <WorkflowPageIntro
+        title="Text Copy"
+        description="Paste copy for a quick rewrite against company, software, and optional product guidelines."
+      />
 
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden">
+      {!daemonConnected ? (
+        <InlineAlert
+          kind="warning"
+          title="Daemon disconnected"
+          subtitle="Start the Writer daemon to send messages and run rewrites."
+        />
+      ) : null}
+
+      <GlassCard variant="outline" className="flex min-h-0 flex-1 flex-col gap-4 p-4">
         {!chatStarted ? (
           <TextCopyProductPicker
             products={products}
@@ -104,7 +111,7 @@ export function TextCopyScreen() {
         ) : (
           <p className="writer-type-body-compact writer-text-secondary">Workspace is loading…</p>
         )}
-      </div>
+      </GlassCard>
 
       <Dialog open={confirmNewOpen} onOpenChange={setConfirmNewOpen}>
         <DialogContent>
@@ -131,6 +138,6 @@ export function TextCopyScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </WorkflowScreenShell>
   );
 }

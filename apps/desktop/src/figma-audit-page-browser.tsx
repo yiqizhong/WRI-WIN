@@ -5,6 +5,9 @@ import type { ListPageFramesResponse, PageFrameListItem } from "@writer/contract
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GlassCard } from "@/components/writer/glass-card";
+import { InlineAlert } from "@/components/writer/inline-alert";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
 import { DaemonClientError } from "./daemon-client";
 import type { WorkflowSubmitPayload } from "./figma-audit-workflow-tabs";
@@ -94,7 +97,7 @@ export function FigmaAuditPageBrowser({ disabled, onSubmit, onListPageFrames }: 
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex gap-2">
         <Input
           value={pageUrl}
@@ -104,7 +107,7 @@ export function FigmaAuditPageBrowser({ disabled, onSubmit, onListPageFrames }: 
         />
         <Button
           type="button"
-          variant="secondary"
+          variant="outline"
           disabled={controlsDisabled || !pageUrl.trim()}
           onClick={() => void loadFrames()}
         >
@@ -140,11 +143,16 @@ export function FigmaAuditPageBrowser({ disabled, onSubmit, onListPageFrames }: 
       ) : null}
 
       {frames.map((frame, index) => (
-        <div key={frame.nodeId} className="flex items-center gap-2 rounded-md border border-white/10 px-3 py-2">
+        <GlassCard
+          key={frame.nodeId}
+          variant="outline"
+          className="flex items-center gap-2 px-3 py-2"
+        >
           <input
             type="checkbox"
             checked={frame.checked}
             disabled={controlsDisabled}
+            className="shrink-0"
             onChange={(event) => {
               setFrames((current) =>
                 current.map((item) =>
@@ -175,16 +183,16 @@ export function FigmaAuditPageBrowser({ disabled, onSubmit, onListPageFrames }: 
           >
             Down
           </Button>
-        </div>
+        </GlassCard>
       ))}
 
       {frames.length > 0 ? (
-        <Button type="button" disabled={controlsDisabled} onClick={handleSubmit}>
+        <WriterPrimaryButton type="button" disabled={controlsDisabled} onClick={handleSubmit}>
           Use selected frames
-        </Button>
+        </WriterPrimaryButton>
       ) : null}
 
-      {error ? <p className="text-sm text-red-300">{error}</p> : null}
+      {error ? <InlineAlert kind="error" title="Browse page" subtitle={error} onClose={() => setError(null)} /> : null}
     </div>
   );
 }

@@ -1,7 +1,10 @@
 import type { ProductPackageListItem } from "@writer/contracts";
 
 import { Button } from "@/components/ui/button";
+import { GuidelineRowCard } from "@/components/writer/guideline-row-card";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
+import { WriterSectionHeader } from "./layout/writer-headings";
 import { chatBubble } from "./layout/writer-sizing";
 
 type TextCopyProductPickerProps = {
@@ -21,16 +24,22 @@ export function TextCopyProductPicker({
 }: TextCopyProductPickerProps) {
   if (products.length === 0) {
     return (
-      <div className={`flex flex-col gap-3 ${chatBubble}`}>
-        <span className="writer-type-eyebrow">Assistant</span>
-        <div className="writer-chat-message writer-chat-message--assistant">
-          No product-specific guidelines are set up yet. You can still audit copy using company and software
-          writing rules, or add a product in Guidelines for tighter product context.
+      <div className="flex flex-col gap-5">
+        <WriterSectionHeader
+          title="Get started"
+          description="No product-specific guidelines yet. You can still audit with company and software writing rules."
+        />
+        <div className={`flex flex-col gap-3 ${chatBubble}`}>
+          <span className="writer-type-eyebrow">Assistant</span>
+          <div className="writer-chat-message writer-chat-message--assistant">
+            No product-specific guidelines are set up yet. You can still audit copy using company and software
+            writing rules, or add a product in Guidelines for tighter product context.
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={onContinueWithoutProduct} disabled={disabled}>
+          <WriterPrimaryButton type="button" onClick={onContinueWithoutProduct} disabled={disabled}>
             Start audit
-          </Button>
+          </WriterPrimaryButton>
           <Button type="button" variant="outline" className="w-fit" onClick={onAddProduct} disabled={disabled}>
             Add product in Guidelines
           </Button>
@@ -40,29 +49,31 @@ export function TextCopyProductPicker({
   }
 
   return (
-    <div className={`flex flex-col gap-3 ${chatBubble}`}>
-      <span className="writer-type-eyebrow">Assistant</span>
-      <div className="writer-chat-message writer-chat-message--assistant">
-        Which product do you need to audit? Product-specific rules are optional — you can skip and use company
-        and software writing guidelines only.
+    <div className="flex flex-col gap-5">
+      <WriterSectionHeader
+        title="Choose product"
+        description="Product-specific rules are optional — skip to use company and software writing guidelines only."
+      />
+      <div className={`flex flex-col gap-3 ${chatBubble}`}>
+        <span className="writer-type-eyebrow">Assistant</span>
+        <div className="writer-chat-message writer-chat-message--assistant">
+          Which product do you need to audit? Pick a product below or continue without product-specific
+          guidelines.
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         {products.map((product) => (
-          <Button
+          <GuidelineRowCard
             key={product.id}
-            type="button"
-            variant="outline"
-            className="w-fit justify-start"
-            disabled={disabled}
-            onClick={() => onPick(product.id)}
-          >
-            {product.name}
-          </Button>
+            title={product.name}
+            subtitle={product.id}
+            onOpen={() => onPick(product.id)}
+          />
         ))}
         <Button
           type="button"
           variant="ghost"
-          className="w-fit justify-start"
+          className="writer-home-text w-fit justify-start text-sm text-[#e5f1ff]/70"
           disabled={disabled}
           onClick={onContinueWithoutProduct}
         >

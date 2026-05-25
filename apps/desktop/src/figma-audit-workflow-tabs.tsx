@@ -23,7 +23,7 @@ export function FigmaAuditWorkflowTabs({
 }: FigmaAuditWorkflowTabsProps) {
   return (
     <Tabs defaultValue="paste-links" className="flex min-h-0 flex-1 flex-col gap-4">
-      <TabsList>
+      <TabsList variant="minimal" className="shrink-0 w-full">
         <TabsTrigger value="paste-links">Paste links</TabsTrigger>
         <TabsTrigger value="browse-page">Browse page</TabsTrigger>
       </TabsList>
