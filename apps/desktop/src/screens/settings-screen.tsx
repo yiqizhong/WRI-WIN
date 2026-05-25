@@ -1,72 +1,55 @@
-import { RefreshCw } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-import { useWorkspace } from "../workspace-context";
 import { AgentsScreen } from "./agents-screen";
-import { BrandVoiceSettings } from "./settings-brand-voice";
 import { GuidelinesScreen } from "./guidelines-screen";
 import { ReviewScreen } from "./review-screen";
 import { SourcesScreen } from "./sources-screen";
 
-function daemonBadgeVariant(tone: "ready" | "warning" | "offline" | "checking") {
-  if (tone === "ready") return "default" as const;
-  if (tone === "offline") return "destructive" as const;
-  return "secondary" as const;
-}
+const SETTINGS_TABS = ["review", "sources", "guidelines", "agents"] as const;
 
 export function SettingsScreen() {
-  const workspace = useWorkspace();
-  const { statusView } = workspace;
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const defaultTab = searchParams.get("tab") ?? "review";
+  const fromQuery = searchParams.get("tab");
+  const defaultTab =
+    fromQuery && (SETTINGS_TABS as readonly string[]).includes(fromQuery) ? fromQuery : "review";
 
   return (
-    <Tabs defaultValue={defaultTab} className="flex h-full min-h-0 flex-col">
-      <TabsList className="mx-6 mt-1 shrink-0 self-start">
-        <TabsTrigger value="review">Review</TabsTrigger>
-        <TabsTrigger value="sources">Sources</TabsTrigger>
-        <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
-        <TabsTrigger value="agents">Agents</TabsTrigger>
-        <TabsTrigger value="brand-voice">Brand voice</TabsTrigger>
-        <TabsTrigger value="system">System</TabsTrigger>
-      </TabsList>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <button
+        type="button"
+        onClick={() => navigate("/")}
+        className="writer-home-text inline-flex w-fit shrink-0 items-center gap-2 rounded-md py-1 text-sm font-normal tracking-[0.08em] text-[#e5f1ff]/75 transition-colors hover:text-[#e5f1ff]"
+        aria-label="Back to home"
+      >
+        <ArrowLeft className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+        Back
+      </button>
 
-      <TabsContent value="review" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5">
-        <ReviewScreen />
-      </TabsContent>
-      <TabsContent value="sources" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5">
-        <SourcesScreen />
-      </TabsContent>
-      <TabsContent value="guidelines" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5">
-        <GuidelinesScreen />
-      </TabsContent>
-      <TabsContent value="agents" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5">
-        <AgentsScreen />
-      </TabsContent>
-      <TabsContent value="brand-voice" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5">
-        <BrandVoiceSettings />
-      </TabsContent>
-      <TabsContent value="system" className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pb-5 pt-4">
-        <div className="flex flex-col gap-3">
-          <Badge variant={daemonBadgeVariant(statusView.tone)} className="w-fit">
-            {statusView.label}
-          </Badge>
-          <p className="text-sm text-muted-foreground leading-relaxed">{statusView.detail}</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-fit justify-start"
-            onClick={() => void workspace.refreshDaemonStatus()}
-          >
-            <RefreshCw className="size-4" />
-            Refresh
-          </Button>
-        </div>
-      </TabsContent>
-    </Tabs>
+      <Tabs defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col gap-6">
+        <TabsList variant="minimal" className="shrink-0 w-full">
+          <TabsTrigger value="review">Review</TabsTrigger>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
+          <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
+          <TabsTrigger value="agents">Agents</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="review" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
+          <ReviewScreen />
+        </TabsContent>
+        <TabsContent value="sources" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
+          <SourcesScreen />
+        </TabsContent>
+        <TabsContent value="guidelines" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
+          <GuidelinesScreen />
+        </TabsContent>
+        <TabsContent value="agents" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-5">
+          <AgentsScreen />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

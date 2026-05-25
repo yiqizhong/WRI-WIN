@@ -1,28 +1,28 @@
 import { useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import type { AgentAdapter } from "@writer/contracts";
+import {
+  type AgentAdapter,
+  type LlmProviderAdapterId,
+  type McpServer,
+  isLlmProviderAdapterId
+} from "@writer/contracts";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { GlassCard } from "@/components/writer/glass-card";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
+import { WriterSwitch } from "@/components/writer/writer-switch";
 import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
+import type { DaemonStatusView } from "./daemon-status";
 import { isAdapterStatusLoading } from "./agents-runtime";
-import { AgentTestStatusBanner, type AgentTestStatus } from "./agent-test-status";
 import {
   formatConnectionDiagnostic,
   mcpConnectionStatusLabel,
   mcpConnectionStatusTagType
 } from "./connection-diagnostics";
-import {
-  WriterPageGrid,
-  WriterPageGridFull,
-  WriterPageGridHalf,
-  WriterPageStack
-} from "./layout/writer-grid";
+import { WriterPageGrid, WriterPageGridHalf, WriterPageStack } from "./layout/writer-grid";
 import { WriterSectionHeader } from "./layout/writer-headings";
 import {
   classNames,
@@ -31,19 +31,79 @@ import {
   hugWidth,
   row,
   rowBetween,
-  rowEnd,
-  surface
+  rowEnd
 } from "./layout/writer-sizing";
 import { useWorkspace } from "./workspace-context";
 
 type AgentsPanelProps = {
   client: DaemonClient;
   connected: boolean;
-  onMessage: (message: string) => void;
+  statusView: DaemonStatusView;
 };
 
-const adapterTileClass = (selected: boolean) =>
-  classNames("writer-agent-tile", selected ? "writer-agent-tile--selected" : null);
+const LLM_PROVIDER_LOGO: Partial<Record<LlmProviderAdapterId, string>> = {
+  "cursor-agent": "/llm-provider-logos/cursor-agent.png",
+  devin: "/llm-provider-logos/devin.png"
+};
+
+function llmLogoPath(adapterId: string): string | undefined {
+  return isLlmProviderAdapterId(adapterId) ? LLM_PROVIDER_LOGO[adapterId] : undefined;
+}
+
+function LlmLogo({ adapter }: { adapter: AgentAdapter }) {
+  const src = llmLogoPath(adapter.id);
+  if (!src) {
+    return null;
+  }
+
+  const isBlackLockup = adapter.id === "devin";
+
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      aria-hidden
+      className={classNames(
+        "shrink-0 object-contain",
+        isBlackLockup
+          ? "h-6 max-h-6 w-auto max-w-[148px] object-left brightness-0 invert opacity-95"
+          : "h-6 w-6"
+      )}
+    />
+  );
+}
+
+const FIGMA_MCP_LOGO = "/mcp-server-logos/figma.png";
+
+function McpServerLogo({ server }: { server: McpServer }) {
+  if (server.id !== "figma") {
+    return null;
+  }
+
+  return (
+    <img
+      src={FIGMA_MCP_LOGO}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      aria-hidden
+      className="h-[41px] w-[33px] shrink-0 object-contain"
+    />
+  );
+}
+
+function compactDaemonDetail(statusView: DaemonStatusView, connected: boolean): string {
+  if (!connected) {
+    return "Run npm run dev:daemon";
+  }
+
+  const match = statusView.detail.match(/Version ([^·]+)/);
+  return match ? `v${match[1].trim()}` : statusView.detail;
+}
 
 function tagVariant(type: "green" | "red" | "gray"): "default" | "destructive" | "secondary" {
   if (type === "green") {
@@ -55,41 +115,95 @@ function tagVariant(type: "green" | "red" | "gray"): "default" | "destructive" |
   return "secondary";
 }
 
-function mcpTagVariant(type: "green" | "red" | "gray"): "default" | "destructive" | "secondary" {
-  return tagVariant(type);
-}
+type StatusBadge = {
+  type: "green" | "red" | "gray";
+  label: string;
+};
 
-function runtimeLabel(adapter: AgentAdapter): string | null {
-  if (adapter.runtimeKind === "hybrid") {
-    return "Cloud-backed";
+function adapterRowBadge(
+  adapter: AgentAdapter,
+  loadState: ReturnType<typeof useWorkspace>["agentsLoadState"],
+  refreshing: boolean,
+  daemonConnected: boolean
+): StatusBadge {
+  if (!daemonConnected) {
+    return { type: "gray", label: "Offline" };
   }
 
-  if (adapter.runtimeKind === "local") {
-    return "Local CLI";
+  if (isAdapterStatusLoading(adapter, loadState, refreshing, daemonConnected)) {
+    return { type: "gray", label: "Loading" };
+  }
+
+  if (!adapter.available) {
+    return { type: "red", label: "Unavailable" };
+  }
+
+  if (adapter.diagnostic?.severity === "error" || adapter.authState === "needs_auth") {
+    return { type: "red", label: "Not connected" };
+  }
+
+  if (adapter.diagnostic?.code === "ready") {
+    return { type: "green", label: "Ready" };
+  }
+
+  return { type: "gray", label: "—" };
+}
+
+function mcpConnectionBadge(server: McpServer, signingIn: boolean): StatusBadge {
+  if (signingIn) {
+    return { type: "gray", label: "Connecting" };
+  }
+
+  if (!server.enabled) {
+    return { type: "gray", label: "—" };
+  }
+
+  return {
+    type: mcpConnectionStatusTagType(server.status),
+    label: mcpConnectionStatusLabel(server.status)
+  };
+}
+
+function mcpIssueText(server: McpServer): string | null {
+  const diagnostic = formatConnectionDiagnostic(server.diagnostic);
+  if (diagnostic && server.diagnostic?.severity === "error") {
+    return diagnostic;
+  }
+  return server.errorMessage ?? null;
+}
+
+/** Badge only when something is wrong; toggle alone is enough when healthy. */
+function mcpRowProblemBadge(
+  server: McpServer,
+  signingIn: boolean,
+  issueText: string | null
+): StatusBadge | null {
+  if (!server.enabled || signingIn) {
+    return null;
+  }
+
+  const conn = mcpConnectionBadge(server, false);
+
+  if (conn.type === "red") {
+    return conn;
+  }
+
+  if (issueText) {
+    return { type: "red", label: "Error" };
+  }
+
+  if (server.status === "disconnected") {
+    return conn;
   }
 
   return null;
-}
-
-function availabilityTag(
-  adapter: AgentAdapter,
-  loadState: ReturnType<typeof useWorkspace>["agentsLoadState"],
-  refreshing: boolean
-) {
-  if (isAdapterStatusLoading(adapter, loadState, refreshing)) {
-    return { type: "gray" as const, label: "Loading" };
-  }
-
-  return adapter.available
-    ? { type: "green" as const, label: "Available" }
-    : { type: "red" as const, label: "Unavailable" };
 }
 
 function ConnectionIssueNotice({ text }: { text: string }) {
   return <InlineAlert kind="error" title="" subtitle={text} />;
 }
 
-export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) {
+export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps) {
   const workspace = useWorkspace();
   const {
     llmAdapters,
@@ -97,53 +211,23 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     agentsLoadState,
     agentsRefreshing,
     mcpServers,
-    mcpLoadState,
+    daemonState,
     setActiveLlmAdapter,
+    refreshDaemonStatus,
     refreshAgentDetection,
     replaceMcpServers
   } = workspace;
 
-  const [busyAdapterId, setBusyAdapterId] = useState<string | null>(null);
+  const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
+
   const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
   const [figmaAuthPending, setFigmaAuthPending] = useState(false);
-  const [testStatus, setTestStatus] = useState<AgentTestStatus | null>(null);
   const figmaAuthCancelRef = useRef(false);
 
-  function adapterDisplayName(adapterId: string): string {
-    return llmAdapters.find((adapter) => adapter.id === adapterId)?.displayName ?? adapterId;
-  }
-
-  async function testConnection(adapterId: string) {
-    const name = adapterDisplayName(adapterId);
-    setBusyAdapterId(adapterId);
-    setTestStatus({
-      kind: "info",
-      text: `Testing ${name}… CLI agents may take up to 45 seconds.`
-    });
-
-    try {
-      const result = await client.smokeAgent(adapterId);
-      if (result.ok) {
-        const summary = `${name} connection OK${result.output ? `: ${result.output.slice(0, 120)}` : ""}.`;
-        setTestStatus({ kind: "success", text: summary });
-        onMessage(summary);
-      } else {
-        const diagnostic = formatConnectionDiagnostic(result.diagnostic);
-        const summary = diagnostic ?? result.message ?? `${name} smoke test failed.`;
-        setTestStatus({ kind: "error", text: summary });
-        onMessage(summary);
-      }
-    } catch (error) {
-      const summary =
-        error instanceof Error && error.name === "AbortError"
-          ? "Smoke test timed out. Check that the agent CLI is installed and responding."
-          : error instanceof Error
-            ? error.message
-            : "Smoke test failed.";
-      setTestStatus({ kind: "error", text: summary });
-      onMessage(summary);
-    } finally {
-      setBusyAdapterId(null);
+  async function handleRefresh() {
+    const daemonConnected = await refreshDaemonStatus();
+    if (daemonConnected) {
+      await refreshAgentDetection();
     }
   }
 
@@ -151,9 +235,8 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     try {
       const result = await client.setMcpServerEnabled(serverId, enabled);
       replaceMcpServers(result.servers);
-      onMessage(`${serverId} ${enabled ? "enabled" : "disabled"}.`);
-    } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not update MCP server.");
+    } catch {
+      // Refresh restores list state from the daemon.
     }
   }
 
@@ -161,14 +244,12 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
     figmaAuthCancelRef.current = true;
     setFigmaAuthPending(false);
     setBusyMcpId(null);
-    setTestStatus({ kind: "info", text: "Figma sign-in cancelled." });
   }
 
   async function connectFigma(serverId: string) {
     setBusyMcpId(serverId);
     setFigmaAuthPending(true);
     figmaAuthCancelRef.current = false;
-    setTestStatus({ kind: "info", text: "Opening Figma sign-in…" });
 
     try {
       if (!mcpServers.find((server) => server.id === serverId)?.enabled) {
@@ -182,12 +263,6 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
         } else {
           window.open(result.authorizationUrl, "_blank", "noopener,noreferrer");
         }
-
-        setTestStatus({
-          kind: "info",
-          text: "Finish sign-in in your browser, then return here. Writer will connect automatically."
-        });
-        onMessage("Figma sign-in opened in browser.");
 
         for (let attempt = 0; attempt < 60; attempt += 1) {
           if (figmaAuthCancelRef.current) {
@@ -203,295 +278,203 @@ export function AgentsPanel({ client, connected, onMessage }: AgentsPanelProps) 
           const refreshed = await client.listMcpServers();
           replaceMcpServers(refreshed.servers);
           const figma = refreshed.servers.find((server) => server.id === "figma");
-          if (figma?.status === "connected") {
-            setTestStatus({ kind: "success", text: "Figma MCP connected." });
-            onMessage("Figma MCP connected.");
-            return;
-          }
-          if (figma?.status === "error") {
-            const summary = formatConnectionDiagnostic(figma.diagnostic) ?? "Figma MCP sign-in failed.";
-            setTestStatus({ kind: "error", text: summary });
-            onMessage(summary);
+          if (figma?.status === "connected" || figma?.status === "error") {
             return;
           }
         }
 
-        setTestStatus({
-          kind: "error",
-          text: "Figma sign-in is still pending. Complete authorization in your browser or try Connect Figma again."
-        });
         return;
       }
 
       if (result.ok && result.status === "connected") {
         const refreshed = await client.listMcpServers();
         replaceMcpServers(refreshed.servers);
-        setTestStatus({ kind: "success", text: "Figma MCP connected." });
-        onMessage("Figma MCP connected.");
         return;
       }
-
-      const summary = formatConnectionDiagnostic(result.diagnostic) ?? "Figma MCP sign-in failed.";
-      setTestStatus({ kind: "error", text: summary });
-      onMessage(summary);
-    } catch (error) {
-      const summary = error instanceof Error ? error.message : "Figma MCP sign-in failed.";
-      setTestStatus({ kind: "error", text: summary });
-      onMessage(summary);
+    } catch {
+      // Server list refresh on next panel Refresh shows the failure.
     } finally {
       setFigmaAuthPending(false);
       setBusyMcpId(null);
     }
   }
 
-  async function testFigmaRead(serverId: string) {
-    setBusyMcpId(serverId);
-    setTestStatus({ kind: "info", text: "Testing Figma MCP read…" });
-
-    try {
-      const result = await client.smokeFigmaRead();
-      if (result.ok) {
-        const summary = `Figma MCP read OK${result.toolName ? ` via ${result.toolName}` : ""}.`;
-        setTestStatus({ kind: "success", text: summary });
-        onMessage(summary);
-      } else {
-        const summary = formatConnectionDiagnostic(result.diagnostic) ?? "Figma MCP read smoke failed.";
-        setTestStatus({ kind: "error", text: summary });
-        onMessage(summary);
-      }
-    } catch (error) {
-      const summary = error instanceof Error ? error.message : "Figma MCP read smoke failed.";
-      setTestStatus({ kind: "error", text: summary });
-      onMessage(summary);
-    } finally {
-      setBusyMcpId(null);
-    }
-  }
-
   return (
     <WriterPageStack fill>
-      <div className={rowBetween}>
-        {agentsRefreshing ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            <span>Refreshing agent detection…</span>
+      <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
+        <div className="flex min-w-0 items-center gap-2">
+          {panelRefreshing ? (
+            <Loader2 className="size-4 shrink-0 animate-spin text-[#e5f1ff]/70" aria-hidden />
+          ) : null}
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="writer-home-text text-base font-normal leading-normal tracking-[2.5px]">
+              {statusView.label}
+            </p>
+            <span className="truncate text-xs tracking-wide text-[#e5f1ff]/60">
+              {compactDaemonDetail(statusView, connected)}
+            </span>
           </div>
-        ) : (
-          <span />
-        )}
-        <Button
-          variant="secondary"
+        </div>
+        <WriterPrimaryButton
           className={hugWidth}
-          disabled={!connected || agentsRefreshing}
-          onClick={() => void refreshAgentDetection()}
+          disabled={panelRefreshing}
+          onClick={() => void handleRefresh()}
         >
-          {agentsRefreshing ? "Refreshing…" : "Refresh detection"}
-        </Button>
-      </div>
+          {panelRefreshing ? "Refreshing…" : "Refresh"}
+        </WriterPrimaryButton>
+      </GlassCard>
 
-      <AgentTestStatusBanner status={testStatus} onDismiss={() => setTestStatus(null)} />
-
-      <WriterPageGrid gutterMode="narrow">
-        <WriterPageGridHalf>
-          <WriterPageStack>
+      <WriterPageGrid className="min-h-0 flex-1 overflow-visible grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
+        <WriterPageGridHalf fillHeight>
+          <WriterPageStack gap={3}>
             <WriterSectionHeader
               title="LLM providers"
-              description="Select the active provider for local audits and generation."
+              description="Select the model provider for content review and generation."
             />
 
-            <WriterPageGrid gutterMode="wide">
-              <WriterPageGridFull>
-                <section aria-labelledby="llm-providers-heading">
-                  <fieldset className="flex flex-col gap-5">
-                    <legend id="llm-providers-heading" className="sr-only">
-                      Active provider
-                    </legend>
-                    {llmAdapters.map((adapter) => {
-                      const label = runtimeLabel(adapter);
-                      const status = availabilityTag(adapter, agentsLoadState, agentsRefreshing);
-                      const isSelected = activeAdapterId === adapter.id;
-                      const canSelect =
-                        status.label !== "Loading" && (adapter.available || agentsLoadState !== "ready");
-                      const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
+            <fieldset className="flex min-h-0 flex-col gap-3">
+              <legend className="sr-only">Active provider</legend>
+              {llmAdapters.map((adapter) => {
+                const status = adapterRowBadge(adapter, agentsLoadState, agentsRefreshing, connected);
+                const isSelected = activeAdapterId === adapter.id;
+                const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
 
-                      return (
-                        <Card
-                          key={adapter.id}
-                          className={classNames(surface, fillWidth, adapterTileClass(isSelected))}
+                return (
+                  <GlassCard
+                    key={adapter.id}
+                    selected={isSelected}
+                    className="writer-agent-tile flex min-h-0 w-full flex-col gap-3 p-4"
+                    onClick={
+                      connected ? () => void setActiveLlmAdapter(adapter.id) : undefined
+                    }
+                  >
+                    <div className={rowBetween}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="radio"
+                          id={`radio-${adapter.id}`}
+                          name="writer-active-adapter"
+                          value={adapter.id}
+                          checked={isSelected}
+                          disabled={!connected}
+                          onChange={() => void setActiveLlmAdapter(adapter.id)}
+                          className="writer-accent-radio"
+                        />
+                        <LlmLogo adapter={adapter} />
+                        <Label
+                          htmlFor={`radio-${adapter.id}`}
+                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-[2.5px]"
                         >
-                          <CardContent className="flex flex-col gap-5 p-4">
-                            <div className={rowBetween}>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  id={`radio-${adapter.id}`}
-                                  name="writer-active-adapter"
-                                  value={adapter.id}
-                                  checked={isSelected}
-                                  disabled={!canSelect}
-                                  onChange={() => void setActiveLlmAdapter(adapter.id)}
-                                  className="size-4 shrink-0"
-                                />
-                                <Label htmlFor={`radio-${adapter.id}`} className="font-medium">
-                                  {adapter.displayName}
-                                </Label>
-                              </div>
-                              <div className={classNames(row, hugHeight)}>
-                                {label ? (
-                                  <Badge variant="secondary" className={hugWidth}>
-                                    {label}
-                                  </Badge>
-                                ) : null}
-                                <Badge variant={tagVariant(status.type)} className={hugWidth}>
-                                  {status.label}
-                                </Badge>
-                              </div>
-                            </div>
+                          {adapter.displayName}
+                        </Label>
+                      </div>
+                      <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                        {status.label}
+                      </Badge>
+                    </div>
 
-                            {adapter.setupMessage || adapter.executablePath || diagnosticText ? (
-                              <div className="writer-agent-tile__detail">
-                                {adapter.executablePath ? (
-                                  <div className="writer-labeled-code">
-                                    <span className="writer-type-eyebrow">Executable path</span>
-                                    <code className="writer-code-chip writer-break-word">
-                                      {adapter.executablePath}
-                                    </code>
-                                  </div>
-                                ) : null}
-
-                                {adapter.setupMessage ? (
-                                  <p className="writer-type-body-compact writer-text-secondary">
-                                    {adapter.setupMessage}
-                                  </p>
-                                ) : null}
-
-                                {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
-                              </div>
-                            ) : null}
-
-                            <div className={classNames(rowEnd, hugHeight, "writer-agent-tile__actions")}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className={hugWidth}
-                                disabled={
-                                  status.label === "Loading" ||
-                                  !adapter.available ||
-                                  busyAdapterId === adapter.id
-                                }
-                                onClick={() => void testConnection(adapter.id)}
-                              >
-                                {busyAdapterId === adapter.id ? "Testing…" : "Test connection"}
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </fieldset>
-                </section>
-              </WriterPageGridFull>
-            </WriterPageGrid>
+                    {diagnosticText && adapter.diagnostic?.severity === "error" ? (
+                      <ConnectionIssueNotice text={diagnosticText} />
+                    ) : null}
+                  </GlassCard>
+                );
+              })}
+            </fieldset>
           </WriterPageStack>
         </WriterPageGridHalf>
 
-        <WriterPageGridHalf>
-          <WriterPageStack>
+        <div
+          role="presentation"
+          aria-hidden
+          className="writer-home-divider-vertical hidden justify-self-center self-start lg:block"
+        />
+
+        <WriterPageGridHalf fillHeight>
+          <WriterPageStack gap={3}>
             <WriterSectionHeader
-              title="MCP servers"
-              description="Turn integrations on or off and connect external tool servers (including Figma)."
+              title="MCP"
+              description="Enable tool servers to extend your agent's capabilities."
             />
 
-            <section aria-labelledby="mcp-servers-heading">
-              <div className="flex flex-col gap-5">
-                {mcpLoadState === "loading" && mcpServers.length === 0 ? (
-                  <Card className={classNames(surface, fillWidth, "writer-mcp-tile writer-mcp-tile--centered")}>
-                    <CardContent className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      <span>Loading MCP servers…</span>
-                    </CardContent>
-                  </Card>
-                ) : null}
+            <div className="flex min-h-0 flex-col gap-5">
+              {mcpServers.map((server) => {
+                const issueText = mcpIssueText(server);
+                const signingIn = figmaAuthPending && busyMcpId === server.id;
+                const problemBadge = mcpRowProblemBadge(server, signingIn, issueText);
+                const showFigmaConnect =
+                  server.id === "figma" &&
+                  server.enabled &&
+                  (server.status !== "connected" || server.diagnostic?.code === "needs_auth");
 
-                {mcpServers.map((server) => {
-                  const diagnosticText = formatConnectionDiagnostic(server.diagnostic);
-                  const statusLabel = mcpConnectionStatusLabel(server.status);
-                  const statusTagType = mcpConnectionStatusTagType(server.status);
+                return (
+                  <GlassCard
+                    key={server.id}
+                    className={classNames(
+                      fillWidth,
+                      "writer-mcp-tile flex min-h-[61px] w-full flex-row flex-wrap items-center justify-start gap-4 px-4 py-2.5"
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-1 basis-0 flex-row items-center gap-3">
+                      <McpServerLogo server={server} />
+                      <Label
+                        htmlFor={`mcp-${server.id}`}
+                        className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-[2.5px]"
+                      >
+                        {server.name}
+                      </Label>
+                    </div>
+                    <div className={classNames(hugHeight, "flex shrink-0 flex-row items-center justify-end gap-3")}>
+                      {problemBadge ? (
+                        <Badge variant={tagVariant(problemBadge.type)} className={hugWidth}>
+                          {problemBadge.label}
+                        </Badge>
+                      ) : null}
+                      <WriterSwitch
+                        id={`mcp-${server.id}`}
+                        checked={server.enabled}
+                        disabled={!connected || busyMcpId === server.id}
+                        aria-label={`Enable ${server.name}`}
+                        onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
+                      />
+                    </div>
 
-                  return (
-                    <Card key={server.id} className={classNames(surface, fillWidth, "writer-mcp-tile")}>
-                      <CardContent className="flex flex-col gap-5 p-4">
-                        <div className={rowBetween}>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`mcp-${server.id}`}
-                              checked={server.enabled}
-                              onCheckedChange={(checked) => void toggleMcp(server.id, checked === true)}
-                            />
-                            <Label htmlFor={`mcp-${server.id}`}>{server.name}</Label>
-                          </div>
-                          <Badge variant={mcpTagVariant(statusTagType)} className={hugWidth}>
-                            {statusLabel}
-                          </Badge>
-                        </div>
+                    {issueText ? (
+                      <div className="w-full basis-full">
+                        <ConnectionIssueNotice text={issueText} />
+                      </div>
+                    ) : null}
 
-                        <div className="flex flex-col gap-3">
-                          {diagnosticText ? <ConnectionIssueNotice text={diagnosticText} /> : null}
-                          {!diagnosticText && server.errorMessage ? (
-                            <ConnectionIssueNotice text={server.errorMessage} />
-                          ) : null}
-
-                          <div className="writer-labeled-code">
-                            <span className="writer-type-eyebrow">Discovered tools</span>
-                            {server.tools && server.tools.length > 0 ? (
-                              <div className="writer-code-chip-row">
-                                {server.tools.map((tool) => (
-                                  <code key={tool.name} className="writer-code-chip">
-                                    {tool.name}
-                                  </code>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="writer-type-body-compact writer-text-secondary writer-type-italic">
-                                No tools discovered
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {server.id === "figma" ? (
-                          <div className={classNames(rowEnd, hugHeight, "writer-mcp-tile__actions")}>
-                            {figmaAuthPending && busyMcpId === server.id ? (
-                              <Button variant="ghost" size="sm" onClick={cancelFigmaAuth}>
-                                Cancel sign-in
-                              </Button>
-                            ) : null}
-                            {(server.status !== "connected" || server.diagnostic?.code === "needs_auth") && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={!connected || busyMcpId === server.id}
-                                onClick={() => void connectFigma(server.id)}
-                              >
-                                {busyMcpId === server.id ? "Connecting…" : "Connect Figma"}
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!connected || busyMcpId === server.id || server.status !== "connected"}
-                              onClick={() => void testFigmaRead(server.id)}
-                            >
-                              {busyMcpId === server.id && !figmaAuthPending ? "Testing…" : "Test Figma read"}
-                            </Button>
-                          </div>
+                    {showFigmaConnect ? (
+                      <div
+                        className={classNames(
+                          "w-full basis-full",
+                          rowEnd,
+                          hugHeight,
+                          "writer-mcp-tile__actions gap-2"
+                        )}
+                      >
+                        {signingIn ? (
+                          <button
+                            type="button"
+                            className="cursor-pointer px-2 text-sm tracking-wide text-[#e5f1ff]/60 transition-opacity hover:text-[#e5f1ff] hover:opacity-90"
+                            onClick={cancelFigmaAuth}
+                          >
+                            Cancel sign-in
+                          </button>
                         ) : null}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </section>
+                        <WriterPrimaryButton
+                          className={hugWidth}
+                          disabled={!connected || busyMcpId === server.id}
+                          onClick={() => void connectFigma(server.id)}
+                        >
+                          {busyMcpId === server.id ? "Connecting…" : "Connect"}
+                        </WriterPrimaryButton>
+                      </div>
+                    ) : null}
+                  </GlassCard>
+                );
+              })}
+            </div>
           </WriterPageStack>
         </WriterPageGridHalf>
       </WriterPageGrid>

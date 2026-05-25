@@ -1,0 +1,128 @@
+/* Shared with HomeScreen greeting and workflow cards */
+.writer-home-text {
+  color: #e5f1ff;
+  letter-spacing: 2.5px;
+}
+
+/* Horizontal rule under greeting — match anywhere with .writer-home-divider-bottom (::after). */
+:root {
+  /* Accent: primary buttons, switches, divider highlight, theme primary/ring (see index.css .dark) */
+  --writer-accent-blue: #2083ea;
+
+  --writer-home-divider-gradient: linear-gradient(
+    to left,
+    rgb(19 42 82 / 0.5) 0%,
+    var(--writer-accent-blue) 91%,
+    rgb(19 42 82 / 0.5) 100%
+  );
+}
+
+.writer-home-divider {
+  height: 1px;
+  width: 100%;
+  opacity: 0.25;
+  background: var(--writer-home-divider-gradient);
+}
+
+/* Agents column gutter — fixed-length vertical stroke (avoids rotate + overflow clipping) */
+.writer-home-divider-vertical {
+  width: 1px;
+  height: 561px;
+  flex-shrink: 0;
+  justify-self: center;
+  opacity: 0.25;
+  background: linear-gradient(
+    to bottom,
+    rgb(19 42 82 / 0.5) 0%,
+    var(--writer-accent-blue) 91%,
+    rgb(19 42 82 / 0.5) 100%
+  );
+  transform: rotate(180deg);
+  transform-origin: center;
+}
+
+/* Parent must be position: relative; divider sits flush to bottom edge. */
+.writer-home-divider-bottom {
+  position: relative;
+  border-bottom: none;
+}
+
+.writer-home-divider-bottom::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  opacity: 0.25;
+  background: var(--writer-home-divider-gradient);
+}
+
+.writer-home-heading {
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.375;
+}
+
+.writer-home-section-title {
+  font-size: 36px;
+  font-weight: 200;
+  line-height: 1.375;
+}
+
+.writer-home-section-description {
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: rgb(229 241 255 / 60%);
+}
+
+.writer-home-agent-label {
+  font-size: 24px;
+  font-weight: 200;
+  line-height: 1.2;
+}
+
+/* Native radio — accent blue dot + ring when checked (Agents LLM picker) */
+.writer-accent-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid rgb(229 241 255 / 0.35);
+  background: rgb(0 0 0 / 0.3);
+  cursor: pointer;
+}
+
+.writer-accent-radio:checked {
+  border-color: var(--writer-accent-blue);
+  background: radial-gradient(
+    circle at center,
+    var(--writer-accent-blue) 0 32%,
+    rgb(0 0 0 / 0.35) 33% 100%
+  );
+}
+
+.writer-accent-radio:focus-visible {
+  outline: 2px solid rgb(32 131 234 / 0.45);
+  outline-offset: 2px;
+}
+
+.writer-accent-radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.writer-home-card-display {
+  font-weight: 200;
+}
+
+.writer-home-card-label {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.25;
+}

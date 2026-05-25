@@ -27,7 +27,7 @@ function buildDevinArgs(prompt: string): string[] {
 
 export const devinCliConfig: CliAdapterConfig = {
   id: "devin",
-  displayName: "Devin (cloud-backed)",
+  displayName: "Devin",
   runtimeKind: "hybrid",
   command: "devin",
   detectArgs: ["version"],

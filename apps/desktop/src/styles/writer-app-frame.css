@@ -11,6 +11,8 @@ body,
 }
 
 .writer-app-viewport {
+  --writer-safe-inline: 60px;
+  --writer-safe-top: 32px;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -24,6 +26,9 @@ body,
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
+  padding-inline: var(--writer-safe-inline);
+  padding-top: var(--writer-safe-top);
 }
 
 .writer-app-viewport__content [data-slot="sidebar-wrapper"] {

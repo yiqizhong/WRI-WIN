@@ -2,7 +2,7 @@ import { createCliAdapter, type CliAdapterConfig } from "../create-cli-adapter";
 
 export const cursorAgentCliConfig: CliAdapterConfig = {
   id: "cursor-agent",
-  displayName: "Cursor Agent",
+  displayName: "Cursor",
   runtimeKind: "local",
   command: "cursor",
   detectArgs: ["agent", "--version"],

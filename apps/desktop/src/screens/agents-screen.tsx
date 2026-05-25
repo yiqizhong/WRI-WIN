@@ -1,23 +1,16 @@
 import { AgentsPanel } from "../agents-panel";
-import { WriterPageGrid, WriterPageGridFull, WriterPageStack } from "../layout/writer-grid";
 import { useWorkspace } from "../workspace-context";
-import { WorkflowNotification } from "../workflow-notification";
 
 export function AgentsScreen() {
   const workspace = useWorkspace();
 
   return (
-    <WriterPageGrid gutterMode="narrow" className="h-full">
-      <WriterPageGridFull>
-        <WriterPageStack gap={5} fill>
-          <WorkflowNotification />
-          <AgentsPanel
-            client={workspace.daemonClient}
-            connected={workspace.daemonConnected}
-            onMessage={workspace.setWorkflowMessage}
-          />
-        </WriterPageStack>
-      </WriterPageGridFull>
-    </WriterPageGrid>
+    <div className="flex h-full min-h-0 flex-col">
+      <AgentsPanel
+        client={workspace.daemonClient}
+        connected={workspace.daemonConnected}
+        statusView={workspace.statusView}
+      />
+    </div>
   );
 }

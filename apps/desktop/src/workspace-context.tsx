@@ -12,6 +12,8 @@ import type {
 import {
   applyAgentAdapterList,
   LLM_PROVIDER_PLACEHOLDERS,
+  MCP_SERVER_PLACEHOLDERS,
+  mergeMcpServers,
   type AgentsLoadState
 } from "./agents-runtime";
 
@@ -42,8 +44,6 @@ export type WorkspaceContextValue = {
   reviewQueue: ReviewQueue | null;
   statusFilter: ChangeStatus | "all";
   setStatusFilter: (value: ChangeStatus | "all") => void;
-  brandVoice: string;
-  setBrandVoice: (value: string) => void;
   parsedSpreadsheet: SpreadsheetParseResult | null;
   spreadsheetMapping: SpreadsheetMappingInput | null;
   setSpreadsheetMapping: (mapping: SpreadsheetMappingInput | null) => void;
@@ -51,12 +51,11 @@ export type WorkspaceContextValue = {
   refreshQueue: () => Promise<void>;
   runAudit: (sessionId?: string) => Promise<boolean>;
   runFigmaAudit: () => Promise<boolean>;
-  saveBrandVoice: () => Promise<void>;
   importSpreadsheet: () => Promise<void>;
   createSpreadsheetSession: () => Promise<void>;
   exportSpreadsheet: () => Promise<void>;
   exportSession: (format: "markdown" | "json" | "pdf") => Promise<void>;
-  refreshDaemonStatus: () => Promise<void>;
+  refreshDaemonStatus: () => Promise<boolean>;
   connectFigma: () => Promise<void>;
   startPastedTextReview: () => Promise<void>;
   llmAdapters: AgentAdapter[];
@@ -92,7 +91,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [reviewQueue, setReviewQueue] = useState<ReviewQueue | null>(null);
   const [statusFilter, setStatusFilter] = useState<ChangeStatus | "all">("proposed");
-  const [brandVoice, setBrandVoice] = useState("");
   const [parsedSpreadsheet, setParsedSpreadsheet] = useState<SpreadsheetParseResult | null>(null);
   const [spreadsheetMapping, setSpreadsheetMapping] = useState<SpreadsheetMappingInput | null>(null);
   const [parsedFigmaScope, setParsedFigmaScope] = useState<string | null>(null);
@@ -100,7 +98,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
   const [agentsLoadState, setAgentsLoadState] = useState<AgentsLoadState>("idle");
   const [agentsRefreshing, setAgentsRefreshing] = useState(false);
-  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [mcpServers, setMcpServers] = useState<McpServer[]>(MCP_SERVER_PLACEHOLDERS);
   const [mcpLoadState, setMcpLoadState] = useState<AgentsLoadState>("idle");
 
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
@@ -192,22 +190,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not start Figma audit.");
       return false;
-    }
-  }
-
-  async function saveBrandVoice() {
-    if (!workspaceProjectId) {
-      return;
-    }
-
-    try {
-      await daemonClient.updateProjectGuidance({
-        projectId: workspaceProjectId,
-        brandVoice: brandVoice.trim() || undefined
-      });
-      setWorkflowMessage("Brand voice saved.");
-    } catch (error) {
-      setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Could not save brand voice.");
     }
   }
 
@@ -339,7 +321,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   async function refreshDaemonStatus() {
     setDaemonState({ kind: "checking" });
-    setDaemonState(await checkDaemonHealth());
+    const state = await checkDaemonHealth();
+    setDaemonState(state);
+    return state.kind === "connected" || state.kind === "degraded";
   }
 
   async function connectFigma() {
@@ -389,10 +373,20 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function setActiveLlmAdapter(adapterId: string) {
-    const result = await daemonClient.setActiveAdapter(adapterId);
-    setLlmAdapters((current) => applyAgentAdapterList(current, result).adapters);
-    setActiveAdapterId(result.activeAdapterId);
-    setWorkflowMessage(`Active adapter: ${result.activeAdapterId ?? adapterId}`);
+    const previousAdapterId = activeAdapterId;
+    setActiveAdapterId(adapterId);
+
+    try {
+      const result = await daemonClient.setActiveAdapter(adapterId);
+      setLlmAdapters((current) => applyAgentAdapterList(current, result).adapters);
+      setActiveAdapterId(result.activeAdapterId);
+      setWorkflowMessage(`Active provider: ${result.activeAdapterId ?? adapterId}`);
+    } catch (error) {
+      setActiveAdapterId(previousAdapterId);
+      setWorkflowMessage(
+        error instanceof DaemonClientError ? error.message : "Could not set active provider."
+      );
+    }
   }
 
   async function refreshAgentDetection() {
@@ -435,12 +429,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ? workspace.lastProductId
             : (workspace.products[0]?.id ?? null);
         setSelectedProductIdState(preferred);
-
-        const list = await daemonClient.listProjects();
-        const project = list.projects.find((item) => item.id === workspace.projectId);
-        if (project?.brandVoice) {
-          setBrandVoice(project.brandVoice);
-        }
       } catch {
         // Keep UI usable when workspace bootstrap fails.
       }
@@ -450,7 +438,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const agentsRuntimeLoadedRef = useRef(false);
 
   useEffect(() => {
-    if (!daemonConnected || agentsRuntimeLoadedRef.current) {
+    if (!daemonConnected) {
+      agentsRuntimeLoadedRef.current = false;
+      setAgentsLoadState("idle");
+      setMcpLoadState("idle");
+      setMcpServers(MCP_SERVER_PLACEHOLDERS);
+      return;
+    }
+
+    if (agentsRuntimeLoadedRef.current) {
       return;
     }
 
@@ -472,12 +468,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
         setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
         setActiveAdapterId(agentList.activeAdapterId);
-        setMcpServers(mcpList.servers);
+        setMcpServers((current) => mergeMcpServers(current, mcpList.servers));
         setAgentsLoadState("ready");
         setMcpLoadState("ready");
         agentsRuntimeLoadedRef.current = true;
       } catch {
         if (!cancelled) {
+          setMcpServers(MCP_SERVER_PLACEHOLDERS);
           setAgentsLoadState("ready");
           setMcpLoadState("ready");
         }
@@ -516,8 +513,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     reviewQueue,
     statusFilter,
     setStatusFilter,
-    brandVoice,
-    setBrandVoice,
     parsedSpreadsheet,
     spreadsheetMapping,
     setSpreadsheetMapping,
@@ -525,7 +520,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     refreshQueue,
     runAudit,
     runFigmaAudit,
-    saveBrandVoice,
     importSpreadsheet,
     createSpreadsheetSession,
     exportSpreadsheet,

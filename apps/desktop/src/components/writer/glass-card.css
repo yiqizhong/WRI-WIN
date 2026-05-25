@@ -1,6 +1,10 @@
 .glass-card {
   position: relative;
   border-radius: 2px;
+  background: transparent;
+}
+
+.glass-card--filled {
   background: radial-gradient(
     circle,
     rgba(0, 35, 124, 0.12) 0%,
@@ -9,7 +13,7 @@
   backdrop-filter: blur(8.90625px);
 }
 
-.glass-card::after {
+.glass-card--filled::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -25,11 +29,13 @@
   pointer-events: none;
 }
 
-.glass-card:hover::after {
+.glass-card--filled.glass-card--interactive:hover::after,
+.glass-card--filled.glass-card--selected::after {
   opacity: 1;
 }
 
-.glass-card:hover::before {
+.glass-card--interactive:hover::before,
+.glass-card--selected::before {
   opacity: 1;
 }
 
