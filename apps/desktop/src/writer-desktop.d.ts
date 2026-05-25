@@ -5,6 +5,10 @@ declare global {
     writerDesktop: {
       platform: string;
       windowChrome: "transparent" | "opaque";
+      windowMinimize: () => void;
+      windowMaximize: () => void;
+      windowClose: () => void;
+      windowIsMaximized: () => Promise<boolean>;
       openExternal: (url: string) => Promise<boolean>;
       pickProjectFolder: () => Promise<string | null>;
       pickSpreadsheetFile: () => Promise<string | null>;

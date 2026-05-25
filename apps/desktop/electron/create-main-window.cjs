@@ -46,6 +46,8 @@ function getMainWindowOptions() {
 
   return {
     ...base,
+    frame: false,
+    transparent: false,
     backgroundColor: "#010311"
   };
 }

@@ -19,19 +19,26 @@ body,
   overflow: hidden;
 }
 
-.writer-app-viewport [data-slot="sidebar-wrapper"] {
+/* ProductChrome sits below masthead; flex-1 + min-h-0 fills remaining height */
+.writer-app-viewport > .writer-app-viewport__content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.writer-app-viewport__content [data-slot="sidebar-wrapper"] {
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
 /* Sidebar uses h-svh by default; match the fixed Electron window height */
-.writer-app-viewport [data-slot="sidebar-container"] {
+.writer-app-viewport__content [data-slot="sidebar-container"] {
   height: 100% !important;
   max-height: 100%;
 }
 
-.writer-app-viewport [data-slot="sidebar-content"] {
+.writer-app-viewport__content [data-slot="sidebar-content"] {
   overflow: hidden !important;
 }
 

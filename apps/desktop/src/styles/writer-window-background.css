@@ -4,7 +4,7 @@
 
 :root {
   --writer-blue-200: #9dcafb;
-  --writer-border-radius: 16px;
+  --writer-border-radius: 4px;
   --writer-backdrop-blur: 80px;
 
   /* Figma border gradient (node 1063:811) */
@@ -52,7 +52,6 @@ body,
   border: none;
   border-radius: var(--writer-border-radius);
   background: transparent;
-  overflow: hidden;
 }
 
 /* Gradient border: 1px radial-gradient stroke that respects border-radius */

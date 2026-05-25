@@ -1,0 +1,32 @@
+.glass-card {
+  position: relative;
+  border-radius: 2px;
+  background: radial-gradient(141.38% 83.14% at 50% 50%, rgba(0, 35, 124, 0.12) 0%, var(--Blue-500---Base, rgba(32, 131, 234, 0.12)) 100%);
+  backdrop-filter: blur(8.90625px);
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 2px;
+  padding: 1px;
+  background: radial-gradient(
+    141.91% 107.01% at 19.5% 8.33%,
+    rgba(157, 202, 251, 0.70) 0%,
+    rgba(33, 54, 107, 0.70) 56.25%,
+    rgba(157, 202, 251, 0.21) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glass-card > * {
+  position: relative;
+  z-index: 2;
+}

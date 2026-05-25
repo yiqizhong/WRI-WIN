@@ -2,7 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("writerDesktop", {
   platform: process.platform,
-  windowChrome: process.platform === "darwin" ? "transparent" : "opaque",
+  windowChrome: "transparent",
+  windowMinimize: () => ipcRenderer.send("window:minimize"),
+  windowMaximize: () => ipcRenderer.send("window:maximize"),
+  windowClose: () => ipcRenderer.send("window:close"),
+  windowIsMaximized: () => ipcRenderer.invoke("window:is-maximized"),
   openExternal: (url) => ipcRenderer.invoke("writer:open-external", url),
   pickProjectFolder: () => ipcRenderer.invoke("writer:pick-project-folder"),
   pickSpreadsheetFile: () => ipcRenderer.invoke("writer:pick-spreadsheet-file"),

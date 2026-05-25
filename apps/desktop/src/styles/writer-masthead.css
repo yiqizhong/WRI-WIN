@@ -1,0 +1,105 @@
+/**
+ * Windows 11-style custom titlebar masthead.
+ * Spec: 32px tall, drag region, Win11 caption buttons on the right.
+ */
+
+.writer-masthead {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 46px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+.writer-masthead__title {
+  padding-left: 16px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+/* Caption buttons container — pushed to right, no-drag so clicks pass through */
+.writer-masthead__buttons {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Individual caption button */
+.writer-masthead__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: default;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.80);
+  transition: background 80ms ease, color 80ms ease;
+}
+
+.writer-masthead__btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.writer-masthead__btn:active {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.writer-masthead__btn--maximize {
+  color: rgba(255, 255, 255, 0.35);
+  cursor: not-allowed;
+}
+
+.writer-masthead__btn--maximize:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.writer-masthead__btn--maximize:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Close button — Win11 red hover */
+.writer-masthead__btn--close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.writer-masthead__btn--close:active {
+  background: #b02010;
+  color: rgba(255, 255, 255, 0.70);
+}
+
+/* Settings button — slightly wider to breathe before the window controls */
+.writer-masthead__btn--settings {
+  width: 46px;
+  margin-right: 4px;
+}
+
+/* SVG icons — 10px to match Win11 Segoe Fluent scale */
+.writer-masthead__btn svg {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+/* Settings icon uses lucide (14px), don't override its size */
+.writer-masthead__btn--settings svg {
+  width: 14px;
+  height: 14px;
+}

@@ -6,43 +6,7 @@ export type NavItem = {
   matchPaths: string[];
 };
 
-export const NAV_ITEMS: NavItem[] = [
-  {
-    label: "Review",
-    path: "/",
-    title: "Review",
-    description: "Approve, edit, or reject proposed copy.",
-    matchPaths: ["/"]
-  },
-  {
-    label: "Sources",
-    path: "/figma",
-    title: "Sources",
-    description: "Paste a Figma link, pick a product, and run an audit.",
-    matchPaths: ["/figma"]
-  },
-  {
-    label: "Guidelines",
-    path: "/guidelines",
-    title: "Guidelines",
-    description: "UX writing standards that ground every audit.",
-    matchPaths: ["/guidelines"]
-  },
-  {
-    label: "Agents",
-    path: "/agents",
-    title: "Agents",
-    description: "Configure LLM providers and MCP servers.",
-    matchPaths: ["/agents"]
-  },
-  {
-    label: "Settings",
-    path: "/settings",
-    title: "Settings",
-    description: "Brand voice applied to every audit.",
-    matchPaths: ["/settings"]
-  }
-];
+export const NAV_ITEMS: NavItem[] = [];
 
 export const DEFAULT_ROUTE = "/";
 
