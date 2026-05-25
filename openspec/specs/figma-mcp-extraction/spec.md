@@ -48,3 +48,17 @@ The system SHALL detect Figma URLs whose path includes `/make/` and surface an u
 #### Scenario: User pastes a Figma Make URL
 - **WHEN** a review session is created from a URL containing `/make/`
 - **THEN** the audit returns a diagnostic with severity `warning` and a message stating that Figma Make files are not supported for extraction, with no MCP calls made
+
+### Requirement: List frames on a Figma page
+The system SHALL expose `POST /figma/list-page-frames` that, given a Figma page URL, returns UI `FRAME` nodes (including inside `SECTION` containers) with bounding boxes and auto-detected flow direction (`horizontal`, `vertical`, or `grid`). `SECTION` and non-frame types are excluded.
+
+#### Scenario: MCP not ready for list-page-frames
+- **WHEN** the endpoint is called while Figma MCP is disconnected
+- **THEN** the response carries `mcp_not_ready` with recovery pointing to Connect Figma
+
+### Requirement: Capture frame screenshots at audit completion
+When an audit completes, the system SHALL capture per-frame screenshots via MCP `get_screenshot`, persist PNGs under the session screenshots directory, and record `frameScreenshots` on the session. Per-frame failure is non-fatal.
+
+#### Scenario: Workflow audit captures ordered screenshots
+- **WHEN** a flow-scoped audit completes
+- **THEN** `frameScreenshots` contains one entry per frame in flow order

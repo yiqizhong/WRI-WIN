@@ -145,3 +145,10 @@ The existing in-Settings paste-text Card SHALL remain mounted for backward compa
 - **WHEN** the user opens `/settings?tab=review` directly
 - **THEN** the existing Card-based chat still renders and functions
 - **AND** it passes optional `productId` from `useWorkspace().selectedProductId` when creating conversations
+
+### Requirement: Figma Audit routes
+The desktop app SHALL expose `/figma-audit` (entry form), `/audits` (session list), and `/audits/:sessionId` (detail with screenshots, findings table, rule modal, Approve & writeback). Home "Figma Copy" navigates to `/figma-audit`. `/review` remains deprecated back-compat.
+
+#### Scenario: Approve and writeback
+- **WHEN** the user edits rows and clicks Approve & writeback on the detail page
+- **THEN** changes transition to approved and `POST /figma/writeback` runs with permission grant and partial-commit semantics

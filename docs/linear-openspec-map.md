@@ -289,6 +289,33 @@ Replaces the flat company+product model from WRI-103 with a 3-layer structure th
 
 Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-copy-chat-redesign/`
 
+## figma-audit-redesign (OpenSpec: `openspec/changes/figma-audit-redesign/`)
+
+**Epic:** [WRI-134](https://linear.app/uicb/issue/WRI-134) — Figma Audit Redesign (v2 UX + audit log + workflow modes + screenshots + writeback flow)
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.5 | [WRI-135](https://linear.app/uicb/issue/WRI-135) | Contracts: session intent + list-page-frames |
+| 2.1–2.5 | [WRI-136](https://linear.app/uicb/issue/WRI-136) | Daemon list-page-frames + direction detection |
+| 3.1–3.5 | [WRI-137](https://linear.app/uicb/issue/WRI-137) | Session intent + screenshot capture |
+| 4.1–4.5 | [WRI-138](https://linear.app/uicb/issue/WRI-138) | Copywriter feature context |
+| 5.1–5.5 | [WRI-139](https://linear.app/uicb/issue/WRI-139) | Writeback report + skip + retry |
+| 6.1–6.9 | [WRI-140](https://linear.app/uicb/issue/WRI-140) | FigmaAuditScreen + workflow tabs |
+| 7.1–7.5 | [WRI-141](https://linear.app/uicb/issue/WRI-141) | `/audits` list |
+| 8.1–8.8, 9.1–9.3 | [WRI-142](https://linear.app/uicb/issue/WRI-142) | Audit detail + writeback + `/review` deprecation |
+| 10.1–10.9 | [WRI-143](https://linear.app/uicb/issue/WRI-143) | Manual E2E verification |
+| 11.1–11.4 | [WRI-144](https://linear.app/uicb/issue/WRI-144) | Docs + Linear sync + archive |
+
+**Suggested order:** WRI-135 → WRI-136 → WRI-137 → (WRI-138, WRI-139) → WRI-140 → WRI-141 → WRI-142 → WRI-143 → WRI-144 → close WRI-134
+
+**Implementation status (2026-05-25):**
+
+| Issue | Commit | Status |
+|-------|--------|--------|
+| WRI-135..WRI-142 | `ccffdfd` | Done (contracts, daemon, review-core, desktop) |
+| WRI-143 | `ccffdfd` | Done (automated + dev smoke; see `verify.md`) |
+| WRI-144 | `ccffdfd` | Done (PRODUCT.md, linear map, verify, archive) |
+
 **Implementation status (`feat/guidelines-runtime`, 2026-05-24):**
 
 | Issue | Commit | Status |

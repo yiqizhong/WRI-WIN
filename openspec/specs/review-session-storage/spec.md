@@ -37,3 +37,10 @@ The system SHALL persist the `FigmaTextNode[]` produced by MCP-backed extraction
 #### Scenario: MCP-not-ready leaves session text nodes empty
 - **WHEN** an audit runs on a figma session while the Figma MCP server is disconnected
 - **THEN** the persisted session records the `mcp_not_ready` diagnostic and contains no text nodes, instead of recording stub nodes
+
+### Requirement: Figma session intent and writeback report
+Figma sessions SHALL persist `featureName`, `description`, optional `productId`, optional `mode` (`single_frame` | `workflow`), optional `frameScreenshots`, and optional `writebackReport` (`attemptedAt`, `written`, `skipped`, `failed[]`).
+
+#### Scenario: Writeback partial commit
+- **WHEN** writeback writes some nodes and fails others
+- **THEN** `writebackReport` records written/skipped/failed counts for status badges and retry
