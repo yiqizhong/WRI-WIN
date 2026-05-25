@@ -43,7 +43,7 @@ export function SettingsScreen() {
         <TabsContent value="sources" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
           <SourcesScreen />
         </TabsContent>
-        <TabsContent value="guidelines" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
+        <TabsContent value="guidelines" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-5">
           <GuidelinesScreen />
         </TabsContent>
         <TabsContent value="agents" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-5">

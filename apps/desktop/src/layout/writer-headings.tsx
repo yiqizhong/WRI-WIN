@@ -14,14 +14,14 @@ export function WriterSectionHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", className)}>
-      <div className="flex flex-col gap-1">
-        <h2 className="writer-home-text writer-home-section-title">{title}</h2>
-        {description ? (
-          <p className="writer-home-text writer-home-section-description">{description}</p>
-        ) : null}
+    <div className={cn("flex w-full min-w-0 flex-col gap-2", className)}>
+      <div className="flex w-full min-w-0 items-center justify-between">
+        <h2 className="writer-home-text writer-home-section-title min-w-0 shrink-0">{title}</h2>
+        {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {description ? (
+        <p className="writer-home-text writer-home-section-description w-full min-w-0">{description}</p>
+      ) : null}
     </div>
   );
 }

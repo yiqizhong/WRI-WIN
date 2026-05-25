@@ -85,6 +85,26 @@ async function request<T>(
   return parse ? parse(payload) : (payload as T);
 }
 
+async function deleteRequest(baseUrl: string, path: string): Promise<void> {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, { method: "DELETE" });
+  if (response.ok) {
+    return;
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    // 204/empty body or non-JSON error page
+  }
+
+  if (isApiError(payload)) {
+    throw new DaemonClientError(payload.code, payload.message);
+  }
+
+  throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${response.status}`);
+}
+
 export type ReviewQueue = {
   findings: UxCopyFinding[];
   rewrites: RewriteCandidate[];
@@ -432,6 +452,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         body: JSON.stringify(input)
       }),
 
+    deleteCompanyBase: () => deleteRequest(baseUrl, "/company-base"),
+
     getSoftwareWriting: () =>
       request(baseUrl, "/software-writing", undefined, (p) => (p === null ? null : parseGuideline(p))),
 
@@ -441,6 +463,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(input)
       }),
+
+    deleteSoftwareWriting: () => deleteRequest(baseUrl, "/software-writing"),
 
     getCompanyGlossary: () =>
       request(baseUrl, "/company-glossary", undefined, (p) => (p as import("@writer/contracts").Term[] | null)),
@@ -452,10 +476,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         body: JSON.stringify(input)
       }),
 
-    deleteCompanyGlossary: () =>
-      fetchWithTimeout(`${baseUrl}/company-glossary`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
-      }),
+    deleteCompanyGlossary: () => deleteRequest(baseUrl, "/company-glossary"),
 
     listProducts: () =>
       request(baseUrl, "/products", undefined, (p) => productPackageSchema.array().parse(p)),
@@ -474,10 +495,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         body: JSON.stringify(input)
       }),
 
-    deleteProduct: (id: string) =>
-      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
-      }),
+    deleteProduct: (id: string) => deleteRequest(baseUrl, `/products/${encodeURIComponent(id)}`),
 
     uploadProductBackground: (productId: string, input: { content: string; overwrite?: boolean }) =>
       request<{ ok: boolean; filePath: string }>(
@@ -489,6 +507,9 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify(input)
         }
       ),
+
+    deleteProductBackground: (productId: string) =>
+      deleteRequest(baseUrl, `/products/${encodeURIComponent(productId)}/background`),
 
     uploadProductGlossary: (
       productId: string,
@@ -505,11 +526,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       ),
 
     deleteProductGlossary: (productId: string) =>
-      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(productId)}/glossary`, {
-        method: "DELETE"
-      }).then((r) => {
-        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
-      }),
+      deleteRequest(baseUrl, `/products/${encodeURIComponent(productId)}/glossary`),
 
     uploadProductWritingGuide: (productId: string, input: { content: string; overwrite?: boolean }) =>
       request<{ ok: boolean; filePath: string }>(
@@ -537,11 +554,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       ),
 
     deleteProductWritingGuide: (productId: string) =>
-      fetchWithTimeout(`${baseUrl}/products/${encodeURIComponent(productId)}/writing-guide`, {
-        method: "DELETE"
-      }).then((r) => {
-        if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
-      }),
+      deleteRequest(baseUrl, `/products/${encodeURIComponent(productId)}/writing-guide`),
 
     listGlossaries: () => request(baseUrl, "/glossaries", undefined, parseGlossaryList),
 

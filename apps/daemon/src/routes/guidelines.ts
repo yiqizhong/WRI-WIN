@@ -37,7 +37,9 @@ import {
 import { addSseClient, forceReload } from "../guidelines/watcher";
 import {
   createProduct,
+  deleteCompanyBase,
   deleteCompanyGlossary,
+  deleteSoftwareWriting,
   deleteGlossary,
   deleteGuideline,
   deleteProduct,
@@ -55,13 +57,23 @@ import {
 import { invalidRequest, notFound } from "../errors";
 import { readJsonBody } from "../http";
 
+function requestPath(request: IncomingMessage): string {
+  const raw = request.url ?? "";
+  try {
+    return new URL(raw, "http://writer.local").pathname;
+  } catch {
+    const path = raw.split("?")[0]?.split("#")[0] ?? raw;
+    return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+  }
+}
+
 function matchRoute(
   request: IncomingMessage,
   method: string,
   pattern: RegExp
 ): RegExpMatchArray | null {
   if (request.method !== method) return null;
-  return (request.url ?? "").match(pattern);
+  return requestPath(request).match(pattern);
 }
 
 function parseUrl(url: string): URL {
@@ -76,7 +88,7 @@ export async function handleGuidelinesRequest(
   request: IncomingMessage,
   response: ServerResponse
 ): Promise<boolean> {
-  const url = request.url ?? "";
+  const url = requestPath(request);
 
   // GET /guidelines/events (SSE)
   if (request.method === "GET" && url === "/guidelines/events") {
@@ -178,6 +190,18 @@ export async function handleGuidelinesRequest(
     return true;
   }
 
+  if (request.method === "DELETE" && url === "/company-base") {
+    const result = await deleteCompanyBase();
+    if (!result.ok) {
+      invalidRequest(response, result.message);
+      return true;
+    }
+    await forceReload();
+    response.writeHead(204);
+    response.end();
+    return true;
+  }
+
   if (request.method === "GET" && url === "/software-writing") {
     const cached = await loadTree();
     const value = cached.softwareWriting?.status === "ok" ? cached.softwareWriting.value : null;
@@ -193,6 +217,18 @@ export async function handleGuidelinesRequest(
     } catch {
       invalidRequest(response, "Invalid payload.", "Provide content and optional overwrite.");
     }
+    return true;
+  }
+
+  if (request.method === "DELETE" && url === "/software-writing") {
+    const result = await deleteSoftwareWriting();
+    if (!result.ok) {
+      invalidRequest(response, result.message);
+      return true;
+    }
+    await forceReload();
+    response.writeHead(204);
+    response.end();
     return true;
   }
 
@@ -332,6 +368,20 @@ export async function handleGuidelinesRequest(
     } catch {
       invalidRequest(response, "Invalid payload.", "Provide content, format, and optional overwrite.");
     }
+    return true;
+  }
+
+  const bgDelete = matchRoute(request, "DELETE", /^\/products\/([^/]+)\/background$/);
+  if (bgDelete) {
+    const productId = decodeURIComponent(bgDelete[1]);
+    const result = await deleteProductFile(productId, "background");
+    if (!result.ok) {
+      invalidRequest(response, result.message);
+      return true;
+    }
+    await forceReload();
+    response.writeHead(204);
+    response.end();
     return true;
   }
 

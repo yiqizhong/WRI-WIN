@@ -98,7 +98,8 @@ const gapClass: Record<number, string> = {
   4: "gap-4",
   5: "gap-5",
   6: "gap-6",
-  7: "gap-8"
+  7: "gap-8",
+  9: "gap-9"
 };
 
 export function WriterPageStack({ children, gap = 6, fill = false }: WriterPageStackProps) {

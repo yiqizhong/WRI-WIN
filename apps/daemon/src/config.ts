@@ -1,5 +1,11 @@
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+const require = createRequire(import.meta.url);
+const { revision: defaultApiRevision } = require("@writer/contracts/daemon-api-revision.json") as {
+  revision: string;
+};
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -9,6 +15,7 @@ export type DaemonConfig = {
   logDir: string;
   logLevel: LogLevel;
   version: string;
+  apiRevision: string;
 };
 
 const LOG_LEVELS: LogLevel[] = ["debug", "info", "warn", "error"];
@@ -35,6 +42,7 @@ export function loadDaemonConfig(env: NodeJS.ProcessEnv = process.env): DaemonCo
     port: parsePort(env.WRITER_DAEMON_PORT, 47631),
     logDir: env.WRITER_DAEMON_LOG_DIR ?? join(homedir(), ".writer", "logs"),
     logLevel: parseLogLevel(env.WRITER_DAEMON_LOG_LEVEL),
-    version: env.WRITER_DAEMON_VERSION ?? "0.1.0"
+    version: env.WRITER_DAEMON_VERSION ?? "0.1.0",
+    apiRevision: env.WRITER_DAEMON_API_REVISION ?? defaultApiRevision
   };
 }

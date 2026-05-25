@@ -4,27 +4,29 @@ import { getDaemonStatusView } from "./daemon-status";
 
 describe("daemon status view model", () => {
   it("maps running health to a connected state", () => {
-    expect(
-      getDaemonStatusView({
-        kind: "connected",
-        health: {
-          status: "running",
-          version: "0.1.0",
-          capabilities: [{ id: "desktop-shell", status: "enabled" }]
-        }
-      })
-    ).toEqual({
+    const view = getDaemonStatusView({
+      kind: "connected",
+      health: {
+        status: "running",
+        version: "0.1.0",
+        apiRevision: "2",
+        capabilities: [{ id: "desktop-shell", status: "enabled" }]
+      }
+    });
+
+    expect(view).toMatchObject({
       label: "Daemon connected",
       tone: "ready",
       detail: "Version 0.1.0 · 1 capability enabled"
     });
+    expect(view.infoTooltip).toContain("127.0.0.1:47631");
   });
 
   it("maps unavailable daemon to a recovery message", () => {
-    expect(getDaemonStatusView({ kind: "unavailable" })).toEqual({
+    expect(getDaemonStatusView({ kind: "unavailable" })).toMatchObject({
       label: "Daemon unavailable",
       tone: "offline",
-      detail: "Start the local daemon to enable agents, MCP, files, and writeback."
+      detail: "Waiting for the local platform runtime. Quit and reopen the app, or run npm run dev:daemon."
     });
   });
 
@@ -35,13 +37,14 @@ describe("daemon status view model", () => {
         health: {
           status: "degraded",
           version: "0.1.0",
+          apiRevision: "2",
           capabilities: [
             { id: "desktop-shell", status: "enabled" },
             { id: "figma-mcp", status: "degraded", message: "Sign in required" }
           ]
         }
       })
-    ).toEqual({
+    ).toMatchObject({
       label: "Daemon degraded",
       tone: "warning",
       detail: "Sign in required"

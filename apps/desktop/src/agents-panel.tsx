@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/writer/glass-card";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { WriterSwitch } from "@/components/writer/writer-switch";
+import { DaemonStatusInfo } from "@/components/writer/daemon-status-info";
 import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
@@ -307,9 +308,12 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
             <Loader2 className="size-4 shrink-0 animate-spin text-[#e5f1ff]/70" aria-hidden />
           ) : null}
           <div className="flex min-w-0 flex-col gap-1">
-            <p className="writer-home-text text-base font-normal leading-normal tracking-[2.5px]">
-              {statusView.label}
-            </p>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="writer-home-text text-base font-normal leading-normal tracking-[2.5px]">
+                {statusView.label}
+              </p>
+              <DaemonStatusInfo tooltip={statusView.infoTooltip} />
+            </div>
             <span className="truncate text-xs tracking-wide text-[#e5f1ff]/60">
               {compactDaemonDetail(statusView, connected)}
             </span>

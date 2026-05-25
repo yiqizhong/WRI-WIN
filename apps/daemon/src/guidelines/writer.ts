@@ -258,7 +258,7 @@ export async function deleteProduct(productId: string): Promise<WriteOutcome> {
 
 export async function deleteProductFile(
   productId: string,
-  kind: "glossary" | "writing-guide"
+  kind: "background" | "glossary" | "writing-guide"
 ): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const dirPath = productDir(dir, productId);
@@ -269,7 +269,9 @@ export async function deleteProductFile(
   const candidates =
     kind === "glossary"
       ? [join(dirPath, "glossary.csv"), join(dirPath, "glossary.md")]
-      : [join(dirPath, "writing-guide.md")];
+      : kind === "background"
+        ? [join(dirPath, "background.md")]
+        : [join(dirPath, "writing-guide.md")];
 
   let removed: string | null = null;
   for (const path of candidates) {
@@ -348,6 +350,40 @@ export async function deleteGuideline(filePath: string): Promise<WriteOutcome> {
   try {
     await unlink(filePath);
     return { ok: true, filePath };
+  } catch (err) {
+    return { ok: false, code: "io_error", message: String(err) };
+  }
+}
+
+export async function deleteCompanyBase(): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const target = join(dir, "company-base.md");
+  if (!(await exists(target))) {
+    return { ok: false, code: "invalid_filename", message: "Company base not found." };
+  }
+  if (!assertInsideDir(target, dir)) {
+    return { ok: false, code: "invalid_filename", message: "Path traversal blocked." };
+  }
+  try {
+    await unlink(target);
+    return { ok: true, filePath: target };
+  } catch (err) {
+    return { ok: false, code: "io_error", message: String(err) };
+  }
+}
+
+export async function deleteSoftwareWriting(): Promise<WriteOutcome> {
+  const dir = guidelinesDir();
+  const target = join(dir, "software-writing.md");
+  if (!(await exists(target))) {
+    return { ok: false, code: "invalid_filename", message: "Software writing not found." };
+  }
+  if (!assertInsideDir(target, dir)) {
+    return { ok: false, code: "invalid_filename", message: "Path traversal blocked." };
+  }
+  try {
+    await unlink(target);
+    return { ok: true, filePath: target };
   } catch (err) {
     return { ok: false, code: "io_error", message: String(err) };
   }

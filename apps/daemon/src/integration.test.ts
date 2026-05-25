@@ -42,7 +42,8 @@ describe("daemon integration smoke", () => {
       port: 0,
       logDir: await mkdtemp(join(tmpdir(), "writer-integration-logs-")),
       logLevel: "error",
-      version: "test"
+      version: "test",
+      apiRevision: "2"
     };
     testState = await createTestState();
     await refreshAgentDetection(testState);

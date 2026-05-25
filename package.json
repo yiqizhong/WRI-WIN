@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "dev": "npm run dev:desktop",
     "dev:desktop": "npm --workspace @writer/desktop run dev",
     "dev:daemon": "npm --workspace @writer/daemon run dev",
     "typecheck": "npm run typecheck --workspaces --if-present",

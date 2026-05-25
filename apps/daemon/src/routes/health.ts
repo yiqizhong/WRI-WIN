@@ -24,6 +24,7 @@ export function handleHealthRequest(
   const payload: DaemonHealth = {
     status: hasDegraded ? "degraded" : "running",
     version: deps.config.version,
+    apiRevision: deps.config.apiRevision,
     capabilities
   };
 

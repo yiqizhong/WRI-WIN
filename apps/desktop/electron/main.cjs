@@ -3,6 +3,7 @@ const { writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const { createMainWindow } = require("./create-main-window.cjs");
+const { ensureDaemonRunning, stopManagedDaemon } = require("./ensure-daemon.cjs");
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
 
@@ -151,8 +152,19 @@ ipcMain.handle("writer:export-pdf-from-html", async (_event, filePath, html) => 
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   nativeTheme.themeSource = "dark";
+
+  try {
+    await ensureDaemonRunning();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    dialog.showErrorBox(
+      "Writer daemon",
+      `${message}\n\nYou can start it manually with: npm run dev:daemon`
+    );
+  }
+
   createWindow();
 
   app.on("activate", () => {
@@ -168,5 +180,9 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  void stopManagedDaemon();
 });
 

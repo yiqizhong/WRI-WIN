@@ -11,6 +11,7 @@ export const daemonCapabilitySchema = z.object({
 export const daemonHealthSchema = z.object({
   status: z.enum(["running", "degraded"]),
   version: z.string().min(1),
+  apiRevision: z.string().min(1),
   capabilities: z.array(daemonCapabilitySchema)
 });
 

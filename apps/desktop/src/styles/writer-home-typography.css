@@ -8,6 +8,7 @@
 :root {
   /* Accent: primary buttons, switches, divider highlight, theme primary/ring (see index.css .dark) */
   --writer-accent-blue: #2083ea;
+  --writer-accent-orange: #e67f01;
 
   --writer-home-divider-gradient: linear-gradient(
     to left,
@@ -72,6 +73,9 @@
 }
 
 .writer-home-section-description {
+  display: block;
+  width: 100%;
+  max-width: none;
   font-size: 16px;
   font-weight: 300;
   line-height: 1.5;
