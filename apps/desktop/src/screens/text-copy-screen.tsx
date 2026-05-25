@@ -102,6 +102,13 @@ export function TextCopyScreen() {
               }
               resetConversation();
             }}
+            onRequestChangeProduct={() => {
+              if (pendingRewrite) {
+                setConfirmNewOpen(true);
+                return;
+              }
+              resetConversation();
+            }}
           />
         ) : (
           <p className="writer-type-body-compact writer-text-secondary">Workspace is loading…</p>

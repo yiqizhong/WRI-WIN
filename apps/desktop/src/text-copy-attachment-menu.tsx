@@ -1,4 +1,4 @@
-import { FileText, Plus, Sheet } from "lucide-react";
+import { FileText, Loader2, Plus, Sheet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +40,7 @@ export function TextCopyAttachmentMenu({
             aria-label="Attach file"
             disabled={disabled || attaching}
           >
-            <Plus className="size-4" />
+            {attaching ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
           </Button>
         }
       />

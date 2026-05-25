@@ -37,11 +37,11 @@ export function TextCopyProductPicker({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <WriterPrimaryButton type="button" onClick={onContinueWithoutProduct} disabled={disabled}>
-            Start audit
-          </WriterPrimaryButton>
-          <Button type="button" variant="outline" className="w-fit" onClick={onAddProduct} disabled={disabled}>
+          <WriterPrimaryButton type="button" onClick={onAddProduct} disabled={disabled}>
             Add product in Guidelines
+          </WriterPrimaryButton>
+          <Button type="button" variant="ghost" className="w-fit" onClick={onContinueWithoutProduct} disabled={disabled}>
+            Start audit
           </Button>
         </div>
       </div>
@@ -73,11 +73,11 @@ export function TextCopyProductPicker({
         <Button
           type="button"
           variant="ghost"
-          className="writer-home-text w-fit justify-start text-sm text-[#e5f1ff]/70"
+          className="writer-home-text w-fit justify-start text-sm text-[#e5f1ff]/85"
           disabled={disabled}
           onClick={onContinueWithoutProduct}
         >
-          Continue without product-specific guidelines
+          Skip — use company rules only
         </Button>
       </div>
     </div>

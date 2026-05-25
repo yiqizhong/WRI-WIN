@@ -60,6 +60,7 @@ type TextCopyChatProps = {
   conversation: PasteTextConversation | null;
   onConversationChange: (conversation: PasteTextConversation | null) => void;
   onRequestNewConversation: () => void;
+  onRequestChangeProduct: () => void;
 };
 
 export function TextCopyChat({
@@ -71,7 +72,8 @@ export function TextCopyChat({
   productName,
   conversation,
   onConversationChange,
-  onRequestNewConversation
+  onRequestNewConversation,
+  onRequestChangeProduct
 }: TextCopyChatProps) {
   const [draftText, setDraftText] = useState("");
   const [rowIndex, setRowIndex] = useState("0");
@@ -181,8 +183,8 @@ export function TextCopyChat({
     return created;
   }, [client, conversation, onConversationChange, productId, projectId]);
 
-  async function handleSend() {
-    const text = draftText.trim();
+  async function handleSend(overrideText?: string) {
+    const text = (overrideText ?? draftText).trim();
     if (!text || !daemonConnected || !workspaceReady) {
       return;
     }
@@ -265,11 +267,16 @@ export function TextCopyChat({
         title={productName}
         description="Paste copy below to rewrite against your active guideline stack."
         actions={
-          conversation ? (
-            <Button variant="outline" size="sm" className={hugWidth} onClick={onRequestNewConversation}>
-              New conversation
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className={hugWidth} onClick={onRequestChangeProduct}>
+              Change
             </Button>
-          ) : null
+            {conversation ? (
+              <Button variant="outline" size="sm" className={hugWidth} onClick={onRequestNewConversation}>
+                New conversation
+              </Button>
+            ) : null}
+          </div>
         }
       />
 
@@ -341,6 +348,22 @@ export function TextCopyChat({
                       </>
                     )}
                   </div>
+                  {isAssistant && isFailed ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={hugWidth}
+                      disabled={composerDisabled}
+                      onClick={() => {
+                        const messages = conversation?.messages ?? [];
+                        const idx = messages.findIndex((m) => m.id === message.id);
+                        const lastUser = [...messages.slice(0, idx)].reverse().find((m: PasteTextMessage) => m.role === "user");
+                        if (lastUser) void handleSend(lastUser.text);
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  ) : null}
                   {isAssistant && !isPending && !isFailed ? (
                     <Button
                       variant="ghost"
