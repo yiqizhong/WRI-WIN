@@ -20,13 +20,54 @@ import {
 } from "./mcp-caller";
 import {
   extractCharactersFromDesignContext,
-  isMcpCodegenNoise,
+  isExtractableFigmaText,
+  toExtractedCopy,
   toSurfaceCopy
 } from "./figma-text-sanitize";
 import { extractMcpToolText } from "./mcp-tool-text";
 import { buildFigmaTextReadScript, parseFigmaTextReadResult } from "./figma-text-read-mcp";
 
-export { extractCharactersFromDesignContext, toSurfaceCopy };
+export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
+
+function textNodeFromRef(
+  ref: MetadataTextRef,
+  characters: string,
+  styleHints?: Record<string, unknown>
+): FigmaTextNode {
+  return {
+    id: ref.id,
+    name: ref.name,
+    path: ref.path,
+    characters,
+    styleHints,
+    visible: ref.visible
+  };
+}
+
+function resolveExtractedCharacters(
+  ref: MetadataTextRef,
+  candidates: Array<string | null | undefined>
+): string {
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined) {
+      continue;
+    }
+
+    const copy = toExtractedCopy(candidate);
+
+    if (isExtractableFigmaText(copy)) {
+      return copy;
+    }
+  }
+
+  const fromName = toExtractedCopy(ref.name);
+
+  if (isExtractableFigmaText(fromName)) {
+    return fromName;
+  }
+
+  return "";
+}
 
 export function extractStyleHintsFromDesignContext(code: string): Record<string, unknown> | undefined {
   const hints: Record<string, unknown> = {};
@@ -68,11 +109,7 @@ export async function extractFigmaTextNodesViaMcp(
   const nodes: FigmaTextNode[] = [];
 
   for (const ref of textRefs) {
-    const node = await buildTextNode(scope, ref, mcpCaller);
-
-    if (node) {
-      nodes.push(node);
-    }
+    nodes.push(await buildTextNode(scope, ref, mcpCaller));
   }
 
   const extraction: FigmaTextExtraction = {
@@ -193,18 +230,12 @@ async function buildTextNode(
   scope: FigmaReviewScope,
   ref: MetadataTextRef,
   mcpCaller: McpCaller
-): Promise<FigmaTextNode | null> {
+): Promise<FigmaTextNode> {
   try {
     const readCharacters = await readTextCharactersViaMcp(scope.fileKey, ref.id, mcpCaller);
 
-    if (readCharacters) {
-      return {
-        id: ref.id,
-        name: ref.name,
-        path: ref.path,
-        characters: readCharacters,
-        visible: ref.visible
-      };
+    if (readCharacters !== null) {
+      return textNodeFromRef(ref, readCharacters);
     }
 
     const response = await mcpCaller.callTool("get_design_context", {
@@ -213,26 +244,16 @@ async function buildTextNode(
     });
 
     if (!response.ok) {
-      return null;
+      return textNodeFromRef(ref, resolveExtractedCharacters(ref, []));
     }
 
     const code = extractMcpToolText(response.result) ?? "";
-    const characters = toSurfaceCopy(extractCharactersFromDesignContext(code, ref.name));
+    const raw = extractCharactersFromDesignContext(code, ref.name);
+    const characters = resolveExtractedCharacters(ref, [raw]);
 
-    if (!characters || (isMcpCodegenNoise(characters) && characters !== ref.name)) {
-      return null;
-    }
-
-    return {
-      id: ref.id,
-      name: ref.name,
-      path: ref.path,
-      characters,
-      styleHints: extractStyleHintsFromDesignContext(code),
-      visible: ref.visible
-    };
+    return textNodeFromRef(ref, characters, extractStyleHintsFromDesignContext(code));
   } catch {
-    return null;
+    return textNodeFromRef(ref, resolveExtractedCharacters(ref, []));
   }
 }
 
@@ -264,9 +285,9 @@ async function readTextCharactersViaMcp(
     return null;
   }
 
-  const sanitized = toSurfaceCopy(parsed.characters);
+  const sanitized = toExtractedCopy(parsed.characters);
 
-  if (!sanitized || isMcpCodegenNoise(sanitized)) {
+  if (!isExtractableFigmaText(sanitized)) {
     return null;
   }
 

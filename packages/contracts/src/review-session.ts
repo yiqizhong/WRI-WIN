@@ -2,6 +2,11 @@ import { z } from "zod";
 
 import { connectionDiagnosticSchema } from "./connection-diagnostic";
 import { designContextSchema } from "./design-context";
+import {
+  figmaAuditModeSchema,
+  frameScreenshotSchema,
+  sessionWritebackReportSchema
+} from "./figma-audit";
 import { figmaTextExtractionSchema } from "./figma-text-node";
 import { sessionGuidelineSnapshotSchema } from "./guideline";
 
@@ -27,6 +32,11 @@ export const reviewSessionSchema = z.object({
   designContext: designContextSchema.optional(),
   diagnostic: connectionDiagnosticSchema.optional(),
   guidelineSnapshot: sessionGuidelineSnapshotSchema.optional(),
+  featureName: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  mode: figmaAuditModeSchema.optional(),
+  frameScreenshots: z.array(frameScreenshotSchema).optional(),
+  writebackReport: sessionWritebackReportSchema.optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 });
@@ -35,7 +45,10 @@ export const createReviewSessionInputSchema = z.object({
   projectId: z.string().min(1),
   productId: z.string().min(1).optional(),
   sourceType: reviewSourceTypeSchema,
-  scope: z.record(z.string(), z.unknown()).default({})
+  scope: z.record(z.string(), z.unknown()).default({}),
+  featureName: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  mode: figmaAuditModeSchema.optional()
 });
 
 export const reviewSessionListSchema = z.object({

@@ -9,7 +9,7 @@ describe("daemon status view model", () => {
       health: {
         status: "running",
         version: "0.1.0",
-        apiRevision: "2",
+        apiRevision: "3",
         capabilities: [{ id: "desktop-shell", status: "enabled" }]
       }
     });
@@ -37,7 +37,7 @@ describe("daemon status view model", () => {
         health: {
           status: "degraded",
           version: "0.1.0",
-          apiRevision: "2",
+          apiRevision: "3",
           capabilities: [
             { id: "desktop-shell", status: "enabled" },
             { id: "figma-mcp", status: "degraded", message: "Sign in required" }

@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ChangeStatus, ReviewChange } from "@writer/contracts";
 
 import type { DaemonClient } from "./daemon-client";
+import { runFigmaWritebackWithPermission, summarizeWritebackResult } from "./figma-writeback-flow";
 import { WriterSectionHeader } from "./layout/writer-headings";
 import { stackFill, surfaceBody, surfaceFillHeight } from "./layout/writer-sizing";
 
@@ -68,8 +69,6 @@ export function ReviewQueuePanel({
 }: ReviewQueuePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftAfter, setDraftAfter] = useState("");
-  const [pendingWritePermissionId, setPendingWritePermissionId] = useState<string | null>(null);
-
   const changes = (queue?.changes ?? []).filter(
     (change) => statusFilter === "all" || change.status === statusFilter
   );
@@ -122,7 +121,7 @@ export function ReviewQueuePanel({
     );
   }
 
-  async function applyApprovedToFigma(permissionRequestId?: string) {
+  async function applyApprovedToFigma() {
     if (!sessionId || !queue) {
       return;
     }
@@ -135,55 +134,15 @@ export function ReviewQueuePanel({
     }
 
     try {
-      const result = await client.runFigmaWriteback({
+      const result = await runFigmaWritebackWithPermission(client, {
         sessionId,
-        changeIds: eligible.map((change) => change.id),
-        permissionRequestId
+        changeIds: eligible.map((change) => change.id)
       });
 
-      const applied = result.results.filter((item) => item.status === "applied").length;
-      const failed = result.results.filter((item) => item.status === "failed").length;
-      const skipped = result.results.filter((item) => item.status === "skipped").length;
-
-      if (result.permissionRequestId) {
-        setPendingWritePermissionId(result.permissionRequestId);
-        onMessage(
-          "Writer needs permission to edit Figma. Click “Allow Figma write & apply” to confirm, then text will be written to your file."
-        );
-        return;
-      }
-
-      setPendingWritePermissionId(null);
-
-      if (applied > 0) {
-        onMessage(`Figma writeback: ${applied} applied, ${failed} failed, ${skipped} skipped.`);
-      } else if (failed > 0) {
-        const detail = result.results.find((item) => item.status === "failed")?.message;
-        onMessage(detail ? `Figma writeback failed: ${detail}` : `Figma writeback failed (${failed} items).`);
-      } else {
-        onMessage(`Figma writeback: ${skipped} skipped, nothing written.`);
-      }
-
+      onMessage(summarizeWritebackResult(result));
       onQueueUpdated();
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Figma writeback failed.");
-    }
-  }
-
-  async function allowFigmaWriteAndApply() {
-    if (!pendingWritePermissionId) {
-      await applyApprovedToFigma();
-      return;
-    }
-
-    try {
-      await client.decidePermission({
-        requestId: pendingWritePermissionId,
-        decision: "approved"
-      });
-      await applyApprovedToFigma(pendingWritePermissionId);
-    } catch (error) {
-      onMessage(error instanceof Error ? error.message : "Could not approve Figma write permission.");
     }
   }
 
@@ -228,23 +187,13 @@ export function ReviewQueuePanel({
               >
                 Approve filtered
               </Button>
-              {pendingWritePermissionId ? (
-                <Button
-                  size="sm"
-                  disabled={!sessionId || !hasEligibleWriteback}
-                  onClick={() => void allowFigmaWriteAndApply()}
-                >
-                  Allow Figma write & apply
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={!sessionId || !hasEligibleWriteback}
-                  onClick={() => void applyApprovedToFigma()}
-                >
-                  Apply approved to Figma
-                </Button>
-              )}
+              <Button
+                size="sm"
+                disabled={!sessionId || !hasEligibleWriteback}
+                onClick={() => void applyApprovedToFigma()}
+              >
+                Apply approved to Figma
+              </Button>
             </div>
           }
         />

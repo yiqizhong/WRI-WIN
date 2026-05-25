@@ -75,4 +75,33 @@ describe("copywriter-skill", () => {
     expect(rulesIndex).toBeLessThan(historyIndex);
     expect(historyIndex).toBeLessThan(copyIndex);
   });
+
+  it("emits feature context after writing rules and before history", () => {
+    const prompt = buildCopywriterPrompt({
+      companyBase: "Company rules",
+      featureName: "Checkout",
+      description: "Payment confirmation flow",
+      history: [{ role: "user", text: "Old copy" }],
+      userText: "New copy"
+    });
+
+    expect(prompt.full).toContain("Feature context:");
+    expect(prompt.full).toContain("Feature: Checkout");
+    expect(prompt.full).toContain("Description: Payment confirmation flow");
+
+    const rulesIndex = prompt.full.indexOf("Writing rules (Company Base):");
+    const featureIndex = prompt.full.indexOf("Feature context:");
+    const historyIndex = prompt.full.indexOf("Conversation history:");
+    expect(rulesIndex).toBeLessThan(featureIndex);
+    expect(featureIndex).toBeLessThan(historyIndex);
+  });
+
+  it("omits feature context when both fields are absent", () => {
+    const prompt = buildCopywriterPrompt({
+      companyBase: "Company rules",
+      userText: "New copy"
+    });
+
+    expect(prompt.full).not.toContain("Feature context:");
+  });
 });

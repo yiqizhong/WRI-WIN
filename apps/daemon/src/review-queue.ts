@@ -5,6 +5,7 @@ import {
   type ReportArtifact,
   type ReviewChange,
   type RewriteCandidate,
+  type SessionWritebackReport,
   type UxCopyFinding,
   type WritebackResult,
   reviewChangeSchema,
@@ -16,8 +17,10 @@ import {
 } from "@writer/contracts";
 import {
   extractFigmaTextNodesViaMcp,
+  isExtractableFigmaText,
   isWritebackEligible,
   runStubAudit,
+  toExtractedCopy,
   toSurfaceCopy,
   writeFigmaTextNodeViaMcp
 } from "@writer/review-core";
@@ -27,6 +30,7 @@ import { getCachedTree } from "./guidelines/cache";
 import { discoverGuidelines } from "./guidelines/discovery";
 import { buildResolvedTree } from "./guidelines/inheritance";
 import { buildThreeLayerSnapshot } from "./guidelines/snapshot";
+import { captureSessionFrameScreenshots } from "./figma-screenshots";
 import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import { assertFigmaWritePermission } from "./figma-write-permission";
 import {
@@ -165,12 +169,27 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     state.store.upsertReviewChange(change);
   }
 
+  if (session.sourceType === "figma" && !diagnostic) {
+    seedReviewChangesFromExtraction(state, session.id, updatedScope);
+  }
+
+  const timestamp = new Date().toISOString();
+  let frameScreenshots = session.frameScreenshots;
+
+  if (session.sourceType === "figma" && !diagnostic) {
+    frameScreenshots = await captureSessionFrameScreenshots(state, {
+      ...session,
+      scope: updatedScope
+    });
+  }
+
   state.store.upsertSession({
     ...session,
     scope: updatedScope,
     guidelineSnapshot,
-    status: session.status === "draft" ? "reviewing" : session.status,
-    updatedAt: new Date().toISOString()
+    frameScreenshots,
+    status: diagnostic ? session.status : "completed",
+    updatedAt: timestamp
   });
 
   state.store.appendAuditEntry({
@@ -227,6 +246,45 @@ async function extractFigmaForAudit(
   }
 
   return extraction;
+}
+
+function seedReviewChangesFromExtraction(
+  state: DaemonState,
+  sessionId: string,
+  scope: Record<string, unknown>
+): void {
+  const extraction = scope.extraction as
+    | { nodes?: Array<{ id: string; name?: string; characters: string }> }
+    | undefined;
+  const nodes = extraction?.nodes ?? [];
+  const existing = state.store.listReviewChanges(sessionId);
+  const covered = new Set(existing.map((change) => change.sourceId));
+  const timestamp = new Date().toISOString();
+
+  for (const node of nodes) {
+    if (covered.has(node.id)) {
+      continue;
+    }
+
+    const extracted = toExtractedCopy(node.characters);
+    const before =
+      extracted.length > 0 && isExtractableFigmaText(extracted)
+        ? extracted
+        : toExtractedCopy(node.name ?? "") || "(empty text layer)";
+
+    state.store.upsertReviewChange({
+      id: `chg-${randomUUID()}`,
+      sessionId,
+      sourceId: node.id,
+      status: "proposed",
+      before,
+      after: before,
+      rationale: "Extracted from Figma TEXT layer. No automated rewrite suggested.",
+      updatedAt: timestamp,
+      updatedBy: "system"
+    });
+    covered.add(node.id);
+  }
 }
 
 function buildAuditItems(
@@ -288,6 +346,9 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
   const parsed = writebackSchema.parse(input);
   const results: WritebackResult["results"] = [];
   let permissionRequestId: string | undefined;
+  let written = 0;
+  let skipped = 0;
+  const writebackFailures: SessionWritebackReport["failed"] = [];
 
   const sessions = state.store.listSessions(null);
   const session = sessions.sessions.find((item) => item.id === parsed.sessionId);
@@ -325,6 +386,18 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
         status: "skipped",
         message: `Change not eligible (status: ${change.status})`
       });
+      skipped += 1;
+      continue;
+    }
+
+    if (toSurfaceCopy(change.after) === toSurfaceCopy(change.before)) {
+      results.push({
+        changeId,
+        sourceId: change.sourceId,
+        status: "skipped",
+        message: "No text change from original Figma copy"
+      });
+      skipped += 1;
       continue;
     }
 
@@ -341,6 +414,11 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
         sourceId: change.sourceId,
         status: "failed",
         message: permission.message
+      });
+      writebackFailures.push({
+        nodeId: change.sourceId,
+        errorCode: "permission_denied",
+        errorMessage: permission.message
       });
 
       state.store.appendAuditEntry({
@@ -366,17 +444,17 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
     );
 
     if (!writeResult.ok) {
-      const failed = reviewChangeSchema.parse({
+      const failedChange = reviewChangeSchema.parse({
         ...change,
         status: "failed",
         updatedAt: new Date().toISOString(),
         updatedBy: "system"
       });
-      state.store.upsertReviewChange(failed);
+      state.store.upsertReviewChange(failedChange);
 
       state.store.appendAuditEntry({
         type: "tool_attempt",
-        timestamp: failed.updatedAt,
+        timestamp: failedChange.updatedAt,
         actor: "system",
         summary: `Figma writeback failed for ${change.sourceId}`,
         details: {
@@ -394,6 +472,11 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
         sourceId: change.sourceId,
         status: "failed",
         message: writeResult.diagnostic.message
+      });
+      writebackFailures.push({
+        nodeId: change.sourceId,
+        errorCode: writeResult.diagnostic.code,
+        errorMessage: writeResult.diagnostic.message
       });
       continue;
     }
@@ -427,14 +510,28 @@ export async function runFigmaWriteback(state: DaemonState, input: unknown): Pro
       status: "applied",
       message: `Updated Figma node ${change.sourceId}.`
     });
+    written += 1;
   }
+
+  const writebackReport: SessionWritebackReport = {
+    attemptedAt: new Date().toISOString(),
+    written,
+    skipped,
+    failed: writebackFailures
+  };
+
+  state.store.upsertSession({
+    ...session,
+    writebackReport,
+    updatedAt: writebackReport.attemptedAt
+  });
 
   await state.store.save();
 
   return {
     sessionId: parsed.sessionId,
     results,
-    completedAt: new Date().toISOString(),
+    completedAt: writebackReport.attemptedAt,
     permissionRequestId
   };
 }

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractCharactersFromDesignContext,
+  isExtractableFigmaText,
   isMcpCodegenNoise,
   isUsableSurfaceCopy,
   sanitizeCharactersForFigmaWrite,
+  toExtractedCopy,
   toSurfaceCopy
 } from "./figma-text-sanitize";
 
@@ -39,5 +41,17 @@ SUPER CRITICAL: DO NOT install`)).toBe("View details");
   it("extracts JSX label without boilerplate from design context", () => {
     const code = `<button className="btn">View details</button>\n${POLLUTED}`;
     expect(extractCharactersFromDesignContext(code, "Fallback")).toBe("View details");
+  });
+
+  it("keeps long TEXT content for extraction without the writeback length cap", () => {
+    const longCopy = "A".repeat(600);
+    expect(toExtractedCopy(longCopy)).toHaveLength(600);
+    expect(isExtractableFigmaText(longCopy)).toBe(true);
+    expect(toSurfaceCopy(longCopy)).toHaveLength(500);
+  });
+
+  it("treats empty strings as extractable, not MCP noise", () => {
+    expect(isMcpCodegenNoise("")).toBe(false);
+    expect(isExtractableFigmaText("")).toBe(true);
   });
 });

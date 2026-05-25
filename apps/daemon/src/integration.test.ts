@@ -43,7 +43,7 @@ describe("daemon integration smoke", () => {
       logDir: await mkdtemp(join(tmpdir(), "writer-integration-logs-")),
       logLevel: "error",
       version: "test",
-      apiRevision: "2"
+      apiRevision: "3"
     };
     testState = await createTestState();
     await refreshAgentDetection(testState);
@@ -193,8 +193,10 @@ describe("daemon integration smoke", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        mode: "single_frame",
         projectId: project.id,
-        productId: "checkout",
+        featureName: "Checkout",
+        description: "Integration smoke frame",
         url: "https://www.figma.com/design/abc123/Demo?node-id=1-10"
       })
     });

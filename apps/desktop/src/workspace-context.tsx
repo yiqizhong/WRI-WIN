@@ -173,7 +173,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   }
 
   async function runFigmaAudit(): Promise<boolean> {
-    if (!workspaceProjectId || !selectedProductId || !figmaUrl.trim()) {
+    if (!workspaceProjectId || !figmaUrl.trim()) {
       return false;
     }
 
@@ -181,8 +181,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     try {
       const session = await daemonClient.createFigmaSession({
+        mode: "single_frame",
         projectId: workspaceProjectId,
-        productId: selectedProductId,
+        productId: selectedProductId ?? undefined,
+        featureName: "Legacy Figma audit",
+        description: "Started from Settings sources tab",
         url: figmaUrl.trim()
       });
       setActiveSessionId(session.id);

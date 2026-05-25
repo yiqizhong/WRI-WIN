@@ -9,6 +9,8 @@ export type CopywriterSkillInput = {
   companyBase?: string;
   softwareWriting?: string;
   productGuideline?: string;
+  featureName?: string;
+  description?: string;
   history?: CopywriterMessage[];
   userText: string;
   rowContext?: string;
@@ -60,6 +62,16 @@ export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPr
 
   if (hasGuidelineLayers(input)) {
     systemExtras.push(CONFLICT_RESOLUTION);
+  }
+
+  const featureName = input.featureName?.trim();
+  const featureDescription = input.description?.trim();
+  if (featureName || featureDescription) {
+    const featureLines = [
+      featureName ? `Feature: ${featureName}` : undefined,
+      featureDescription ? `Description: ${featureDescription}` : undefined
+    ].filter((line): line is string => Boolean(line));
+    userSections.push(`Feature context:\n${featureLines.join("\n")}`);
   }
 
   if (input.backgroundContext?.trim()) {

@@ -86,6 +86,9 @@ export async function createSession(state: DaemonState, input: unknown): Promise
     scope: parsed.scope,
     status: "draft",
     agentRunIds: [],
+    featureName: parsed.featureName,
+    description: parsed.description,
+    mode: parsed.mode,
     createdAt: timestamp,
     updatedAt: timestamp
   });

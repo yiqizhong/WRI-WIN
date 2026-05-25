@@ -8,6 +8,7 @@ import {
   type ReviewChange,
   type ReviewSession,
   parseChangeTransitionInput,
+  parseCreateFigmaSessionInput,
   parseFigmaReviewScope,
   reviewChangeSchema
 } from "@writer/contracts";
@@ -22,6 +23,10 @@ import {
   toSurfaceCopy
 } from "@writer/review-core";
 
+import { getCachedTree } from "./guidelines/cache";
+import { discoverGuidelines } from "./guidelines/discovery";
+import { buildResolvedTree } from "./guidelines/inheritance";
+import { buildPasteTextGuidelineSnapshot } from "./guidelines/paste-text-snapshot";
 import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import type { DaemonState } from "./state";
 import { createSession } from "./state";
@@ -74,12 +79,6 @@ export async function extractFigmaNodes(state: DaemonState, input: unknown) {
   };
 }
 
-const figmaSessionInputSchema = z.object({
-  projectId: z.string().min(1),
-  productId: z.string().min(1),
-  url: z.string().url()
-});
-
 export async function createPastedTextSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
   const parsed = pastedTextInputSchema.parse(input);
 
@@ -95,18 +94,48 @@ export async function createPastedTextSession(state: DaemonState, input: unknown
 }
 
 export async function createFigmaReviewSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
-  const parsed = figmaSessionInputSchema.parse(input);
-  const figma = parseFigmaUrl(parsed.url);
+  const parsed = parseCreateFigmaSessionInput(input);
+  const guidelineTree = getCachedTree() ?? (await discoverGuidelines());
+  const resolvedTree = buildResolvedTree(guidelineTree);
+
+  if (parsed.productId) {
+    buildPasteTextGuidelineSnapshot(resolvedTree, parsed.productId);
+  }
+
+  if (parsed.mode === "single_frame") {
+    const figma = parseFigmaUrl(parsed.url);
+
+    return createSession(state, {
+      projectId: parsed.projectId,
+      productId: parsed.productId,
+      sourceType: "figma",
+      featureName: parsed.featureName,
+      description: parsed.description,
+      mode: parsed.mode,
+      scope: {
+        url: parsed.url,
+        fileKey: figma.fileKey,
+        nodeId: figma.nodeId,
+        suggestedScope: figma.suggestedScope
+      }
+    });
+  }
 
   return createSession(state, {
     projectId: parsed.projectId,
     productId: parsed.productId,
     sourceType: "figma",
+    featureName: parsed.featureName,
+    description: parsed.description,
+    mode: parsed.mode,
     scope: {
-      url: parsed.url,
-      fileKey: figma.fileKey,
-      nodeId: figma.nodeId,
-      suggestedScope: figma.suggestedScope
+      fileKey: parsed.fileKey,
+      suggestedScope: {
+        kind: "flow",
+        fileKey: parsed.fileKey,
+        nodeIds: parsed.nodeIds,
+        flowName: parsed.flowName
+      }
     }
   });
 }
@@ -145,6 +174,8 @@ export function assembleSessionContext(state: DaemonState, input: unknown) {
     scope,
     brandVoice: parsed.brandVoice,
     glossary: parsed.glossary,
+    featureName: session.featureName,
+    description: session.description,
     pastedText,
     textNodes,
     designContext

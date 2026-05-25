@@ -61,7 +61,7 @@ export function HomeScreen() {
           <WorkflowCard
             type="Figma"
             label="Copy"
-            onClick={() => navigate("/settings?tab=sources")}
+            onClick={() => navigate("/figma-audit")}
           />
           <WorkflowCard
             type="Text"

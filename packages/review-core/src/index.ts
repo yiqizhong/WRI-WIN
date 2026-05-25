@@ -14,9 +14,18 @@ export {
   extractStyleHintsFromDesignContext
 } from "./figma-extract-mcp";
 export {
+  buildListPageFramesResponse,
+  detectFlowDirection,
+  listDirectPageFrames,
+  sortFramesByDirection
+} from "./figma-page-frames";
+export { parseMetadataXml, type MetadataXmlNode } from "./figma-metadata-xml";
+export {
+  isExtractableFigmaText,
   isMcpCodegenNoise,
   isUsableSurfaceCopy,
   stripMcpCodegenBoilerplate,
+  toExtractedCopy,
   toSurfaceCopy
 } from "./figma-text-sanitize";
 export { buildFigmaTextReadScript, parseFigmaTextReadResult } from "./figma-text-read-mcp";

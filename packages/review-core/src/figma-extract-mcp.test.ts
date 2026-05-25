@@ -156,6 +156,31 @@ describe("extractFigmaTextNodesViaMcp", () => {
     expect(result.extraction.nodes.some((node) => node.characters === "Welcome back")).toBe(true);
   });
 
+  it("falls back to TEXT layer name when MCP read and design context fail", async () => {
+    const metadata = `
+<frame id="1:10" name="Login" type="FRAME">
+  <text id="1:11" name="Save your work" type="TEXT" visible="true" />
+</frame>
+`;
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({
+        metadata,
+        failReadFor: "1:11",
+        failDesignContextFor: "1:11"
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.extraction.nodes).toEqual([
+      expect.objectContaining({ id: "1:11", characters: "Save your work" })
+    ]);
+  });
+
   it("returns mcp_not_ready when caller is disconnected", async () => {
     const result = await extractFigmaTextNodesViaMcp(
       frameScope,
@@ -168,7 +193,31 @@ describe("extractFigmaTextNodesViaMcp", () => {
     });
   });
 
-  it("degrades per-node failures when read and design context both fail", async () => {
+  it("includes empty TEXT layers when MCP returns blank characters", async () => {
+    const metadata = `
+<frame id="1:10" name="Login" type="FRAME">
+  <text id="1:11" name="Optional note" type="TEXT" visible="true" />
+</frame>
+`;
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({
+        metadata,
+        designContextByNode: { "1:11": "" }
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.extraction.nodes).toEqual([
+      expect.objectContaining({ id: "1:11", characters: "" })
+    ]);
+  });
+
+  it("uses layer name fallback when read and design context both fail", async () => {
     const result = await extractFigmaTextNodesViaMcp(
       frameScope,
       createFakeCaller({ failReadFor: "1:11", failDesignContextFor: "1:11" })
@@ -180,7 +229,11 @@ describe("extractFigmaTextNodesViaMcp", () => {
       return;
     }
 
-    expect(result.extraction.nodes).toHaveLength(1);
-    expect(result.extraction.nodes[0]?.id).toBe("1:12");
+    expect(result.extraction.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "1:11", characters: "Primary CTA" }),
+        expect.objectContaining({ id: "1:12" })
+      ])
+    );
   });
 });

@@ -281,6 +281,34 @@ export {
 } from "./figma-scope";
 export type { FigmaReviewScope, FigmaScopeKind, ParsedFigmaUrl } from "./figma-scope";
 
+export {
+  createFigmaSessionInputSchema,
+  figmaAuditModeSchema,
+  flowDirectionSchema,
+  frameBoundingBoxSchema,
+  frameScreenshotSchema,
+  listPageFramesRequestSchema,
+  listPageFramesResponseSchema,
+  pageFrameListItemSchema,
+  parseCreateFigmaSessionInput,
+  parseListPageFramesRequest,
+  parseListPageFramesResponse,
+  sessionWritebackReportSchema,
+  writebackReportFailedItemSchema
+} from "./figma-audit";
+export type {
+  CreateFigmaSessionInput,
+  FigmaAuditMode,
+  FlowDirection,
+  FrameBoundingBox,
+  FrameScreenshot,
+  ListPageFramesRequest,
+  ListPageFramesResponse,
+  PageFrameListItem,
+  SessionWritebackReport,
+  WritebackReportFailedItem
+} from "./figma-audit";
+
 export { figmaTextExtractionSchema, figmaTextNodeSchema, parseFigmaTextExtraction } from "./figma-text-node";
 export type { FigmaTextExtraction, FigmaTextNode } from "./figma-text-node";
 

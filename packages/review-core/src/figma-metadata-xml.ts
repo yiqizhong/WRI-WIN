@@ -1,9 +1,17 @@
+export type FrameBoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type MetadataXmlNode = {
   id: string;
   name: string;
   type: string;
   visible: boolean;
   path: string[];
+  boundingBox?: FrameBoundingBox;
   children: MetadataXmlNode[];
 };
 
@@ -92,11 +100,34 @@ function elementToNode(element: XmlElement, ancestorPath: string[]): MetadataXml
 
   const path = [...ancestorPath, name];
   const visible = element.attrs.visible !== "false";
+  const boundingBox = parseBoundingBoxAttrs(element.attrs);
   const children = element.children
     .map((child) => elementToNode(child, path))
     .filter((child): child is MetadataXmlNode => child !== null);
 
-  return { id, name, type, visible, path, children };
+  return { id, name, type, visible, path, boundingBox, children };
+}
+
+function parseBoundingBoxAttrs(attrs: Record<string, string>): FrameBoundingBox | undefined {
+  const x = parseNumericAttr(attrs.x ?? attrs.left);
+  const y = parseNumericAttr(attrs.y ?? attrs.top);
+  const width = parseNumericAttr(attrs.width ?? attrs.w);
+  const height = parseNumericAttr(attrs.height ?? attrs.h);
+
+  if (x === undefined || y === undefined || width === undefined || height === undefined) {
+    return undefined;
+  }
+
+  return { x, y, width, height };
+}
+
+function parseNumericAttr(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function parseXmlDocument(xml: string): XmlElement[] {

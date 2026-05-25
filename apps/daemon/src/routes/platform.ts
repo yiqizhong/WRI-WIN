@@ -77,6 +77,21 @@ export async function handlePlatformRequest(
     return true;
   }
 
+  const sessionMatch = path.match(/^\/sessions\/([^/]+)$/);
+  if (sessionMatch && request.method === "GET") {
+    const sessionId = decodeURIComponent(sessionMatch[1]!);
+    const sessions = state.store.listSessions(null);
+    const session = sessions.sessions.find((item) => item.id === sessionId);
+
+    if (!session) {
+      notFound(response, "Session not found.");
+      return true;
+    }
+
+    sendJson(response, 200, session);
+    return true;
+  }
+
   if (request.method === "POST" && path === "/sessions") {
     try {
       const session = await createSession(state, await readJsonBody(request));

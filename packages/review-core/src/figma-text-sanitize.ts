@@ -18,11 +18,7 @@ export function isMcpCodegenNoise(text: string): boolean {
   const trimmed = text.trim();
 
   if (!trimmed) {
-    return true;
-  }
-
-  if (trimmed.length > MAX_UI_COPY_LENGTH) {
-    return true;
+    return false;
   }
 
   return MCP_CODEGEN_MARKERS.some((marker) => trimmed.includes(marker));
@@ -53,9 +49,18 @@ export function stripMcpCodegenBoilerplate(text: string): string {
   return stripCodegenSyntaxTail(result.trim());
 }
 
+/** Full TEXT layer content for extraction (no writeback length cap). */
+export function toExtractedCopy(text: string): string {
+  return sanitizeExtractedCharacters(text);
+}
+
 /** Visible UI copy only — what a user sees on screen, with no MCP or codegen payload. */
 export function toSurfaceCopy(text: string): string {
   return sanitizeCharactersForFigmaWrite(text);
+}
+
+export function isExtractableFigmaText(text: string): boolean {
+  return !isMcpCodegenNoise(toExtractedCopy(text));
 }
 
 export function isUsableSurfaceCopy(text: string): boolean {
@@ -63,7 +68,7 @@ export function isUsableSurfaceCopy(text: string): boolean {
   return surface.length > 0 && !isMcpCodegenNoise(surface);
 }
 
-export function sanitizeCharactersForFigmaWrite(characters: string): string {
+function sanitizeExtractedCharacters(characters: string, maxLength?: number): string {
   let text = stripMcpCodegenBoilerplate(characters);
 
   const templateMatch = text.match(/\{\s*`([^`]+)`\s*\}/);
@@ -80,11 +85,15 @@ export function sanitizeCharactersForFigmaWrite(characters: string): string {
       .trim()
   );
 
-  if (text.length > MAX_UI_COPY_LENGTH) {
-    text = text.slice(0, MAX_UI_COPY_LENGTH).trim();
+  if (maxLength !== undefined && text.length > maxLength) {
+    text = text.slice(0, maxLength).trim();
   }
 
   return text;
+}
+
+export function sanitizeCharactersForFigmaWrite(characters: string): string {
+  return sanitizeExtractedCharacters(characters, MAX_UI_COPY_LENGTH);
 }
 
 function cleanTextCandidate(value: string): string {
@@ -100,7 +109,7 @@ function cleanTextCandidate(value: string): string {
 export function extractCharactersFromDesignContext(code: string, fallbackName: string): string {
   const candidates: string[] = [];
 
-  for (const match of code.matchAll(/>([^<]{1,200})</g)) {
+  for (const match of code.matchAll(/>([^<]{1,8000})</g)) {
     candidates.push(cleanTextCandidate(match[1] ?? ""));
   }
 
@@ -108,7 +117,7 @@ export function extractCharactersFromDesignContext(code: string, fallbackName: s
     candidates.push(cleanTextCandidate(match[1] ?? ""));
   }
 
-  for (const match of code.matchAll(/\{\s*`([^`]{1,200})`\s*\}/g)) {
+  for (const match of code.matchAll(/\{\s*`([^`]{1,8000})`\s*\}/g)) {
     candidates.push(cleanTextCandidate(match[1] ?? ""));
   }
 
@@ -116,18 +125,20 @@ export function extractCharactersFromDesignContext(code: string, fallbackName: s
     candidates.push(cleanTextCandidate(match[1] ?? ""));
   }
 
-  const usable = candidates.filter((candidate) => candidate.length > 0 && !isMcpCodegenNoise(candidate));
+  const usable = candidates
+    .map((candidate) => toExtractedCopy(candidate))
+    .filter((candidate) => candidate.length > 0 && !isMcpCodegenNoise(candidate));
 
   if (usable.length > 0) {
-    return usable.sort((left, right) => left.length - right.length)[0];
+    return usable.sort((left, right) => right.length - left.length)[0];
   }
 
   const stripped = stripMcpCodegenBoilerplate(code.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-  const sanitized = sanitizeCharactersForFigmaWrite(stripped);
+  const sanitized = toExtractedCopy(stripped);
 
   if (sanitized && !isMcpCodegenNoise(sanitized)) {
     return sanitized;
   }
 
-  return fallbackName;
+  return toExtractedCopy(fallbackName);
 }

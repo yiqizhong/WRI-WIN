@@ -7,7 +7,7 @@ describe("daemon health contract", () => {
     const health = parseDaemonHealth({
       status: "running",
       version: "0.1.0",
-      apiRevision: "2",
+      apiRevision: "3",
       capabilities: [
         { id: "desktop-shell", status: "enabled" },
         { id: "figma-mcp", status: "degraded", message: "Not configured" }
@@ -23,7 +23,7 @@ describe("daemon health contract", () => {
       parseDaemonHealth({
         status: "online",
         version: "0.1.0",
-        apiRevision: "2",
+        apiRevision: "3",
         capabilities: []
       })
     ).toThrow();

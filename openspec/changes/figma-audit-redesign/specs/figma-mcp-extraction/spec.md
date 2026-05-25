@@ -6,7 +6,7 @@
 
 ### Requirement: List frames on a Figma page
 
-The system SHALL expose a daemon endpoint that, given a Figma page URL, returns the list of direct-child frames on that page along with their spatial bounding boxes and an auto-detected flow direction.
+The system SHALL expose a daemon endpoint that, given a Figma page URL, returns the list of UI `FRAME` nodes on that page (including frames nested inside `SECTION` containers) along with their spatial bounding boxes and an auto-detected flow direction. `SECTION`, `RECTANGLE`, component sets, and other non-frame node types SHALL be excluded from the returned list.
 
 #### Scenario: Horizontal flow page
 
@@ -15,6 +15,14 @@ The system SHALL expose a daemon endpoint that, given a Figma page URL, returns 
 - **THEN** daemon returns `{ frames, detectedDirection: "horizontal" }`
 - **AND** `frames` is ordered by ascending `boundingBox.x`
 - **AND** each frame carries `nodeId`, `name`, `parentPath`, `boundingBox: { x, y, width, height }`
+- **AND** no returned entry has node type `SECTION`
+
+#### Scenario: Page with section containers
+
+- **GIVEN** a page whose top level includes `SECTION` nodes that wrap designer UI frames
+- **WHEN** the endpoint is called
+- **THEN** `frames` includes only `FRAME` nodes (including frames inside sections)
+- **AND** `SECTION` nodes themselves are not included in `frames`
 
 #### Scenario: Vertical flow page
 

@@ -19,8 +19,12 @@ import {
   parsePasteTextMessageResult,
   parseProject,
   parseProjectList,
+  parseListPageFramesResponse,
   parseReviewSession,
+  parseReviewSessionList,
   parseWorkspaceInfo,
+  type CreateFigmaSessionInput,
+  type ListPageFramesResponse,
   parsePermissionRequest,
   parseWritebackResult,
   parseSpreadsheetParseResult,
@@ -57,6 +61,37 @@ export class DaemonClientError extends Error {
   }
 }
 
+function throwDaemonResponseError(response: Response, payload: unknown): never {
+  if (isApiError(payload)) {
+    const parts = [payload.message];
+    if (payload.guidance) {
+      parts.push(payload.guidance);
+    }
+    throw new DaemonClientError(payload.code, parts.join(" "));
+  }
+
+  const diagnostic = (payload as {
+    diagnostic?: { code?: string; message?: string; recoveryAction?: string };
+  }).diagnostic;
+
+  if (diagnostic?.message) {
+    const parts = [diagnostic.message];
+    if (diagnostic.recoveryAction) {
+      parts.push(diagnostic.recoveryAction);
+    }
+    throw new DaemonClientError(diagnostic.code ?? "service_unavailable", parts.join(" "));
+  }
+
+  if (response.status === 404) {
+    throw new DaemonClientError(
+      "not_found",
+      "Daemon API is out of date. Fully quit Writer (Cmd+Q) and reopen the app."
+    );
+  }
+
+  throw new DaemonClientError("service_unavailable", `Daemon returned HTTP ${response.status}`);
+}
+
 function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -75,11 +110,7 @@ async function request<T>(
   const payload: unknown = await response.json();
 
   if (!response.ok) {
-    if (isApiError(payload)) {
-      throw new DaemonClientError(payload.code, payload.message);
-    }
-
-    throw new DaemonClientError("service_unavailable", `Daemon returned HTTP ${response.status}`);
+    throwDaemonResponseError(response, payload);
   }
 
   return parse ? parse(payload) : (payload as T);
@@ -171,6 +202,32 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         },
         parseParsedFigmaUrl
       ),
+
+    listPageFrames: (pageUrl: string) =>
+      request(
+        baseUrl,
+        "/figma/list-page-frames",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ pageUrl })
+        },
+        parseListPageFramesResponse
+      ),
+
+    listSessions: (projectId: string) =>
+      request(
+        baseUrl,
+        `/sessions?projectId=${encodeURIComponent(projectId)}`,
+        undefined,
+        parseReviewSessionList
+      ),
+
+    getSession: (sessionId: string) =>
+      request(baseUrl, `/sessions/${encodeURIComponent(sessionId)}`, undefined, parseReviewSession),
+
+    sessionScreenshotUrl: (sessionId: string, frameId: string) =>
+      `${baseUrl}/sessions/${encodeURIComponent(sessionId)}/screenshots/${encodeURIComponent(frameId.replace(/:/g, "-"))}`,
 
     createPastedTextSession: (input: { projectId: string; productId: string; text: string }) =>
       request(
@@ -287,7 +344,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         `/review/changelog?sessionId=${encodeURIComponent(sessionId)}`
       ),
 
-    createFigmaSession: (input: { projectId: string; productId: string; url: string }) =>
+    createFigmaSession: (input: CreateFigmaSessionInput) =>
       request(
         baseUrl,
         "/sessions/figma",

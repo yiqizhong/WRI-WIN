@@ -1,7 +1,11 @@
+import { createReadStream } from "node:fs";
+import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { getQueryParam, readJsonBody } from "../http";
 import { FigmaUrlParseError } from "@writer/review-core";
+import { listFigmaPageFrames } from "../figma-page-frames";
+import { resolveScreenshotPath } from "../figma-screenshots";
 
 import {
   assembleSessionContext,
@@ -60,6 +64,26 @@ export async function handleReviewRequest(
     return true;
   }
 
+  if (request.method === "POST" && path === "/figma/list-page-frames") {
+    try {
+      sendJson(response, 200, await listFigmaPageFrames(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof FigmaUrlParseError) {
+        invalidRequest(response, error.message, "Use a figma.com/design/... page URL.");
+        return true;
+      }
+
+      const diagnostic = (error as { diagnostic?: { code?: string; message?: string } }).diagnostic;
+      if (diagnostic?.code === "mcp_not_ready") {
+        sendJson(response, 503, { diagnostic });
+        return true;
+      }
+
+      invalidRequest(response, "Invalid list-page-frames payload.", "Provide pageUrl.");
+    }
+    return true;
+  }
+
   if (request.method === "POST" && path === "/figma/extract") {
     try {
       sendJson(response, 200, await extractFigmaNodes(state, await readJsonBody(request)));
@@ -79,7 +103,16 @@ export async function handleReviewRequest(
         return true;
       }
 
-      invalidRequest(response, "Invalid Figma session payload.", "Provide projectId, productId, and url.");
+      if (error instanceof Error && error.message.includes("Unknown productId")) {
+        invalidRequest(response, error.message);
+        return true;
+      }
+
+      invalidRequest(
+        response,
+        "Invalid Figma session payload.",
+        "Provide projectId, featureName, description, mode, and url or workflow nodeIds."
+      );
     }
     return true;
   }
@@ -380,6 +413,23 @@ export async function handleReviewRequest(
         "Provide text and ensure an agent adapter is available."
       );
     }
+    return true;
+  }
+
+  const screenshotMatch = path?.match(/^\/sessions\/([^/]+)\/screenshots\/([^/]+)$/);
+  if (screenshotMatch && request.method === "GET") {
+    const sessionId = decodeURIComponent(screenshotMatch[1]!);
+    const frameId = decodeURIComponent(screenshotMatch[2]!).replace(/-/g, ":");
+    const filePath = resolveScreenshotPath(state, sessionId, frameId);
+
+    try {
+      await access(filePath);
+      response.writeHead(200, { "content-type": "image/png" });
+      createReadStream(filePath).pipe(response);
+    } catch {
+      notFound(response, "Screenshot not found.");
+    }
+
     return true;
   }
 

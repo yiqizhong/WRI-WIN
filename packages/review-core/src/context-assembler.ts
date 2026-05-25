@@ -16,6 +16,8 @@ export type ContextAssemblerInput = {
   scope: Record<string, unknown>;
   brandVoice?: string;
   glossary?: string[];
+  featureName?: string;
+  description?: string;
   designContext?: DesignContext;
   pastedText?: string;
   textNodes?: Array<{ id: string; characters: string; path: string[] }>;
@@ -36,6 +38,14 @@ export function assembleReviewContext(input: ContextAssemblerInput): AssembledRe
 
   if (input.glossary?.length) {
     lines.push(`Glossary: ${input.glossary.join(", ")}`);
+  }
+
+  if (input.featureName?.trim()) {
+    lines.push(`Feature: ${input.featureName.trim()}`);
+  }
+
+  if (input.description?.trim()) {
+    lines.push(`Feature description: ${input.description.trim()}`);
   }
 
   if (input.designContext) {

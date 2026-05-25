@@ -1,3 +1,4 @@
+/** @deprecated Use `/audits` for the session list and `/audits/:sessionId` for per-frame detail. */
 import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 
