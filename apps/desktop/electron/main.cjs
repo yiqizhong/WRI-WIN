@@ -100,12 +100,17 @@ ipcMain.handle("writer:pick-glossary-file", async () => {
   return { filename: path.basename(filePath), content, format: ext === "csv" ? "csv" : "md" };
 });
 
-ipcMain.handle("writer:pick-paste-text-attachment", async () => {
+ipcMain.handle("writer:pick-paste-text-attachment", async (_event, kind) => {
+  const filters =
+    kind === "spreadsheet"
+      ? [{ name: "Spreadsheet", extensions: ["csv", "xlsx", "xls"] }]
+      : kind === "plain_text"
+        ? [{ name: "Text file", extensions: ["txt", "md"] }]
+        : [{ name: "Paste text attachments", extensions: ["csv", "xlsx", "xls", "txt", "md"] }];
+
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
-    filters: [
-      { name: "Paste text attachments", extensions: ["csv", "xlsx", "xls", "txt", "md"] }
-    ]
+    filters
   });
 
   if (result.canceled || result.filePaths.length === 0) {

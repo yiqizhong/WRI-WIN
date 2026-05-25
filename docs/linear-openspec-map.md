@@ -261,6 +261,34 @@ Replaces the flat company+product model from WRI-103 with a 3-layer structure th
 
 **Suggested order:** WRI-113 → (WRI-114, WRI-115, WRI-117 in parallel) → (WRI-116, WRI-118 in parallel) → (WRI-119, WRI-120 in parallel) → close WRI-112
 
+## text-copy-chat-redesign (OpenSpec: `openspec/changes/text-copy-chat-redesign/`)
+
+**Epic:** [WRI-126](https://linear.app/uicb/issue/WRI-126) — Text Copy Chat Redesign (v2 UX + three-layer guideline injection)
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.4 | [WRI-127](https://linear.app/uicb/issue/WRI-127) | Contracts: `productId` + `guidelineSnapshot` on `PasteTextConversation` |
+| 2.1–2.5 | [WRI-128](https://linear.app/uicb/issue/WRI-128) | Daemon snapshot resolution + create validation |
+| 3.1–3.6 | [WRI-129](https://linear.app/uicb/issue/WRI-129) | Copywriter Skill three-layer prompt injection |
+| 4.1–4.3 | [WRI-130](https://linear.app/uicb/issue/WRI-130) | Back-compat in-Settings paste-text Card |
+| 5.1–5.11 | [WRI-131](https://linear.app/uicb/issue/WRI-131) | Desktop `TextCopyScreen` + picker + ribbon + plus-menu |
+| 6.1–6.8 | [WRI-132](https://linear.app/uicb/issue/WRI-132) | End-to-end manual verification |
+| 7.1–7.4 | [WRI-133](https://linear.app/uicb/issue/WRI-133) | Docs + Linear sync + archive |
+
+**Suggested order:** WRI-127 → WRI-128 → WRI-129 → WRI-130 → WRI-131 → WRI-132 → WRI-133 → close WRI-126
+
+**Planning commit:** `5940191` — OpenSpec proposal (`docs(openspec): draft text-copy-chat-redesign change`)
+
+**Implementation status (2026-05-25):**
+
+| Issue | Commit | Status |
+|-------|--------|--------|
+| WRI-127..WRI-131 | `07d62e7` | Done (contracts, daemon, skill, back-compat, desktop) |
+| WRI-132 | `07d62e7` | Done (manual E2E sign-off) |
+| WRI-133 | `07d62e7` | Done (PRODUCT.md, verify, archive, main specs) |
+
+Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-copy-chat-redesign/`
+
 **Implementation status (`feat/guidelines-runtime`, 2026-05-24):**
 
 | Issue | Commit | Status |

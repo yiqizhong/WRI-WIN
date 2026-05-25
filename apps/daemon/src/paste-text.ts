@@ -15,6 +15,10 @@ import {
 import { buildCopywriterPrompt, extractSuggestedTextFromAgentEvents } from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 
+import { getCachedTree, setCachedTree } from "./guidelines/cache";
+import { discoverGuidelines } from "./guidelines/discovery";
+import { buildResolvedTree } from "./guidelines/inheritance";
+import { buildPasteTextGuidelineSnapshot } from "./guidelines/paste-text-snapshot";
 import { launchAgentRun, type AgentRunResult } from "./agents";
 import type { DaemonState } from "./state";
 import { createSession } from "./state";
@@ -89,16 +93,27 @@ async function ensureLinkedSession(
   };
 }
 
+async function resolveGuidelineSnapshot(productId?: string) {
+  const treeResult = getCachedTree() ?? (await discoverGuidelines());
+  setCachedTree(treeResult);
+
+  const resolved = buildResolvedTree(treeResult);
+  return buildPasteTextGuidelineSnapshot(resolved, productId);
+}
+
 export async function createPasteTextConversation(
   state: DaemonState,
   input: unknown
 ): Promise<PasteTextConversation> {
   const parsed = createPasteTextConversationInputSchema.parse(input);
   const timestamp = nowIso();
+  const guidelineSnapshot = await resolveGuidelineSnapshot(parsed.productId);
 
   const conversation: PasteTextConversation = {
     id: randomUUID(),
     projectId: parsed.projectId,
+    ...(parsed.productId ? { productId: parsed.productId } : {}),
+    guidelineSnapshot,
     backgroundContext: parsed.backgroundContext,
     inputMode: "plain_text",
     messages: [],
@@ -279,9 +294,13 @@ export async function sendPasteTextMessage(
     rowContext = conversation.attachment.textContent;
   }
 
+  const snapshot = conversation.guidelineSnapshot;
   const prompt = buildCopywriterPrompt({
     backgroundContext: conversation.backgroundContext,
     brandVoice: getProjectBrandVoice(state, conversation.projectId),
+    companyBase: snapshot?.companyBase?.content,
+    softwareWriting: snapshot?.softwareWriting?.content,
+    productGuideline: snapshot?.productGuideline?.content,
     history: historyFromMessages(conversation.messages),
     userText: parsed.text,
     rowContext

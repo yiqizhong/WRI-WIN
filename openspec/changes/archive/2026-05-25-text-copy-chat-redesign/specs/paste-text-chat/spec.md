@@ -1,12 +1,12 @@
 # paste-text-chat Specification — Delta for `text-copy-chat-redesign`
 
-> This delta extends the v1 `paste-text-chat` capability with required product binding, three-layer guideline snapshot, and prompt injection. Existing v1 requirements remain unless explicitly modified.
+> This delta extends the v1 `paste-text-chat` capability with optional product binding, three-layer guideline snapshot, and prompt injection. Existing v1 requirements remain unless explicitly modified.
 
 ## Modified Requirements
 
 ### Requirement: Create conversation
 
-The system SHALL require `projectId` AND `productId` when creating a paste-text conversation. The system SHALL resolve and snapshot the Company Base, Software Writing, and Product-specific guideline layers at creation time.
+The system SHALL require `projectId` when creating a paste-text conversation. `productId` is optional. The system SHALL resolve and snapshot available guideline layers at creation time: Company Base and Software Writing always when present; Product-specific layer only when `productId` is provided and resolvable.
 
 #### Scenario: Create with valid product
 
@@ -22,8 +22,10 @@ The system SHALL require `projectId` AND `productId` when creating a paste-text 
 
 #### Scenario: Create without product
 
-- **WHEN** client sends `POST /paste-text/conversations` without `productId`
-- **THEN** daemon returns a 400-class error; conversation is not created
+- **WHEN** client sends `POST /paste-text/conversations` with `{ projectId }` only (no `productId`)
+- **THEN** daemon snapshots Company Base and Software Writing layers when present
+- **AND** omits the Product-specific layer
+- **AND** returns `{ conversation }` without `productId`, with `inputMode: "plain_text"`, empty messages
 
 ### Requirement: Conversation history in prompt
 
@@ -64,22 +66,23 @@ The system SHALL use the snapshot captured at conversation creation for all subs
 - **WHEN** the user edits the product `.md` file on disk between two messages
 - **THEN** the second message's prompt uses the snapshot content, not the edited file
 
-### Requirement: Empty-products fast fail
+### Requirement: Zero products does not block audit
 
-The system SHALL reject conversation creation requests targeting a `productId` when the Guidelines tree has zero products discovered.
+The system SHALL allow conversation creation when the Guidelines tree has zero products, as long as `productId` is omitted. Product-specific grounding remains optional.
 
-#### Scenario: Zero products
+#### Scenario: Zero products, no productId
 
 - **WHEN** `GET /guidelines` returns a tree with no products
-- **AND** a client attempts `POST /paste-text/conversations` with any `productId`
-- **THEN** daemon returns an error indicating no products are available
+- **AND** a client sends `POST /paste-text/conversations` with `{ projectId }` only
+- **THEN** daemon creates the conversation using Company Base and Software Writing snapshots when available
+- **AND** does not require adding a product first
 
 ## API surface (delta)
 
 | Method | Path | Change |
 |--------|------|--------|
-| POST | `/paste-text/conversations` | Request body adds required `productId: string`; response `conversation` carries new `productId` and optional `guidelineSnapshot` |
-| GET | `/paste-text/conversations/:id` | Response `conversation` carries `productId` and `guidelineSnapshot` |
+| POST | `/paste-text/conversations` | Request body adds optional `productId: string`; response `conversation` carries optional `productId` and `guidelineSnapshot` |
+| GET | `/paste-text/conversations/:id` | Response `conversation` carries optional `productId` and `guidelineSnapshot` |
 
 Existing endpoints (`/paste-text/conversations/:id/messages`, `/paste-text/attachments`) are unchanged on the wire; their internal prompt assembly now consumes the snapshot.
 

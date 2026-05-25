@@ -41,16 +41,22 @@ The Home screen "Text Copy" card SHALL navigate to `/text-copy` (not `/settings?
 - **AND** the picker is replaced by a slim "Auditing {productName}" header above the message list
 - **AND** the composer becomes enabled
 
-### Requirement: Empty-state for zero products
+### Requirement: Optional product selection on first load
 
-When the Guidelines tree contains zero products, `TextCopyScreen` SHALL render an empty-state bubble with a primary CTA navigating to `/settings?tab=guidelines`. No conversation SHALL be created in this state.
+`TextCopyScreen` SHALL let users start an audit without choosing a product. Product-specific guidelines are optional.
 
 #### Scenario: Zero products on first load
 
 - **WHEN** `GET /guidelines` returns zero products
-- **THEN** the bubble text is the documented empty-state copy
-- **AND** the CTA navigates to `/settings?tab=guidelines`
-- **AND** the composer is disabled
+- **THEN** the bubble explains that product-specific rules are optional
+- **AND** a primary **Start audit** action enters the chat without `productId`
+- **AND** a secondary CTA may navigate to `/settings?tab=guidelines` to add a product
+
+#### Scenario: Products available but user skips product
+
+- **WHEN** the picker lists one or more products
+- **THEN** the user may pick a product OR choose **Continue without product-specific guidelines**
+- **AND** skipping creates a conversation without `productId`, using company and software layers only
 
 ### Requirement: Thinking ribbon for pending assistant turns
 

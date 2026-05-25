@@ -66,7 +66,7 @@ export function HomeScreen() {
           <WorkflowCard
             type="Text"
             label="Copy"
-            onClick={() => navigate("/settings?tab=review")}
+            onClick={() => navigate("/text-copy")}
           />
         </div>
       </div>

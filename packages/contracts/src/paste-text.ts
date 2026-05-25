@@ -18,6 +18,18 @@ export const pasteTextMessageSchema = z.object({
   createdAt: z.iso.datetime()
 });
 
+export const pasteTextGuidelineLayerSnapshotSchema = z.object({
+  id: z.string().min(1),
+  contentHash: z.string().min(1),
+  content: z.string()
+});
+
+export const pasteTextGuidelineSnapshotSchema = z.object({
+  companyBase: pasteTextGuidelineLayerSnapshotSchema.optional(),
+  softwareWriting: pasteTextGuidelineLayerSnapshotSchema.optional(),
+  productGuideline: pasteTextGuidelineLayerSnapshotSchema.optional()
+});
+
 export const pasteTextAttachmentSchema = z.object({
   id: z.string().min(1),
   fileName: z.string().min(1),
@@ -31,6 +43,8 @@ export const pasteTextAttachmentSchema = z.object({
 export const pasteTextConversationSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
+  productId: z.string().min(1).optional(),
+  guidelineSnapshot: pasteTextGuidelineSnapshotSchema.optional(),
   backgroundContext: z.string().optional(),
   inputMode: pasteTextInputModeSchema,
   sessionId: z.string().min(1).optional(),
@@ -42,6 +56,7 @@ export const pasteTextConversationSchema = z.object({
 
 export const createPasteTextConversationInputSchema = z.object({
   projectId: z.string().min(1),
+  productId: z.string().min(1).optional(),
   backgroundContext: z.string().optional()
 });
 
@@ -72,6 +87,8 @@ export type PasteTextInputMode = z.infer<typeof pasteTextInputModeSchema>;
 export type PasteTextMessageRole = z.infer<typeof pasteTextMessageRoleSchema>;
 export type PasteTextMessageStatus = z.infer<typeof pasteTextMessageStatusSchema>;
 export type PasteTextMessage = z.infer<typeof pasteTextMessageSchema>;
+export type PasteTextGuidelineLayerSnapshot = z.infer<typeof pasteTextGuidelineLayerSnapshotSchema>;
+export type PasteTextGuidelineSnapshot = z.infer<typeof pasteTextGuidelineSnapshotSchema>;
 export type PasteTextAttachment = z.infer<typeof pasteTextAttachmentSchema>;
 export type PasteTextConversation = z.infer<typeof pasteTextConversationSchema>;
 export type CreatePasteTextConversationInput = z.infer<typeof createPasteTextConversationInputSchema>;

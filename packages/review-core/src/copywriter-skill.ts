@@ -6,6 +6,9 @@ export type CopywriterMessage = {
 export type CopywriterSkillInput = {
   backgroundContext?: string;
   brandVoice?: string;
+  companyBase?: string;
+  softwareWriting?: string;
+  productGuideline?: string;
   history?: CopywriterMessage[];
   userText: string;
   rowContext?: string;
@@ -16,6 +19,9 @@ export type CopywriterPrompt = {
   user: string;
   full: string;
 };
+
+const CONFLICT_RESOLUTION =
+  "When writing rules conflict, prefer Product over Software Writing over Company Base.";
 
 const SYSTEM_PROMPT = `You are a Senior Software Copywriter specializing in UX and product interface text.
 
@@ -30,8 +36,31 @@ Hard constraints:
 
 const HISTORY_LIMIT = 6;
 
+function hasGuidelineLayers(input: CopywriterSkillInput): boolean {
+  return Boolean(
+    input.companyBase?.trim() || input.softwareWriting?.trim() || input.productGuideline?.trim()
+  );
+}
+
 export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPrompt {
   const userSections: string[] = [];
+  const systemExtras: string[] = [];
+
+  if (input.companyBase?.trim()) {
+    userSections.push(`Writing rules (Company Base):\n${input.companyBase.trim()}`);
+  }
+
+  if (input.softwareWriting?.trim()) {
+    userSections.push(`Writing rules (Software Writing):\n${input.softwareWriting.trim()}`);
+  }
+
+  if (input.productGuideline?.trim()) {
+    userSections.push(`Writing rules (Product):\n${input.productGuideline.trim()}`);
+  }
+
+  if (hasGuidelineLayers(input)) {
+    systemExtras.push(CONFLICT_RESOLUTION);
+  }
 
   if (input.backgroundContext?.trim()) {
     userSections.push(`UI background and writing rules:\n${input.backgroundContext.trim()}`);
@@ -55,9 +84,10 @@ export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPr
   userSections.push("Respond with only the rewritten text.");
 
   const user = userSections.join("\n\n");
-  const full = `${SYSTEM_PROMPT}\n\n---\n\n${user}`;
+  const system = systemExtras.length > 0 ? `${SYSTEM_PROMPT}\n\n${systemExtras.join("\n")}` : SYSTEM_PROMPT;
+  const full = `${system}\n\n---\n\n${user}`;
 
-  return { system: SYSTEM_PROMPT, user, full };
+  return { system, user, full };
 }
 
 export function parseCopywriterResponse(raw: string): { suggestedText: string; rationale?: string } {

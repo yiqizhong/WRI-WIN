@@ -110,9 +110,10 @@ export class PlatformStore {
         reviewChanges: (parsed.reviewChanges ?? []).map((change) => reviewChangeSchema.parse(change)),
         findings: (parsed.findings ?? []).map((finding) => uxCopyFindingSchema.parse(finding)),
         rewrites: (parsed.rewrites ?? []).map((rewrite) => rewriteCandidateSchema.parse(rewrite)),
-        pasteTextConversations: (parsed.pasteTextConversations ?? []).map((conversation) =>
-          pasteTextConversationSchema.parse(conversation)
-        )
+        pasteTextConversations: (parsed.pasteTextConversations ?? []).flatMap((conversation) => {
+          const result = pasteTextConversationSchema.safeParse(conversation);
+          return result.success ? [result.data] : [];
+        })
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {

@@ -1,3 +1,4 @@
+/** @deprecated Prefer full-screen Text Copy at `/text-copy` via `screens/text-copy-screen.tsx`. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Paperclip } from "lucide-react";
 import type { AgentRunEvent, PasteTextConversation, PasteTextMessage } from "@writer/contracts";
@@ -174,17 +175,18 @@ export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPan
 
     const created = await client.createPasteTextConversation({
       projectId: workspaceProjectId,
+      ...(selectedProductId ? { productId: selectedProductId } : {}),
       backgroundContext: backgroundContext.trim() || undefined
     });
     setConversation(created);
     return created;
-  }, [workspaceProjectId, backgroundContext, client, conversation]);
+  }, [workspaceProjectId, backgroundContext, client, conversation, selectedProductId]);
 
   const pendingRewrite = hasPendingAssistant(conversation);
 
   async function handleSend() {
     const text = draftText.trim();
-    if (!text || !daemonConnected || !workspaceReady || !selectedProductId) {
+    if (!text || !daemonConnected || !workspaceReady) {
       return;
     }
 
@@ -282,14 +284,6 @@ export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPan
             ) : null
           }
         />
-
-        {!selectedProductId ? (
-          <InlineAlert
-            kind="info"
-            title="Select a product"
-            subtitle="Choose a product in the Figma audit panel before rewriting copy."
-          />
-        ) : null}
 
         {showBackground || !conversation ? (
           <div className="flex flex-col gap-3">
@@ -404,7 +398,7 @@ export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPan
               rows={3}
               value={draftText}
               onChange={(event) => setDraftText(event.target.value)}
-              disabled={!workspaceReady || !selectedProductId || !daemonConnected || sending || pendingRewrite}
+              disabled={!workspaceReady || !daemonConnected || sending || pendingRewrite}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault();
@@ -427,7 +421,6 @@ export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPan
             <Button
               disabled={
                 !workspaceReady ||
-                !selectedProductId ||
                 !daemonConnected ||
                 sending ||
                 pendingRewrite ||

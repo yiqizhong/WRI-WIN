@@ -402,7 +402,11 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         60_000
       ) as Promise<PasteTextConversation>,
 
-    createPasteTextConversation: (input: { projectId: string; backgroundContext?: string }) =>
+    createPasteTextConversation: (input: {
+      projectId: string;
+      productId?: string;
+      backgroundContext?: string;
+    }) =>
       request(
         baseUrl,
         "/paste-text/conversations",

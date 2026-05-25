@@ -15,6 +15,8 @@
 
 Help teams audit, propose, approve, and apply UX/UI copy changes from Figma (or pasted text / spreadsheets) with a mandatory human gate before writeback. Audits are optionally grounded in file-backed UX writing guidelines in `~/.writer/guidelines/` using a **three-layer model**: company-wide brand voice (`company-base.md`), cross-product UX writing rules (`software-writing.md`), optional company glossary, and per-product packages under `products/<id>/` (required `background.md` with audience/environment/purpose, optional glossary and writing guide). Each project binds one active product for review context. Findings trace to named rules or forbidden terms from the merged layers.
 
+**Text Copy chat** (`/text-copy`) rewrites pasted UX copy in a full-screen chat surface. At conversation creation the daemon snapshots available guideline layers into the conversation: Company Base and Software Writing when present; Product-specific rules only when the user selects a product (optional — users can audit with company + software layers alone). The Copywriter Skill injects those layers into the rewrite prompt in priority order (Product > Software Writing > Company Base on conflict). The in-Settings paste-text Card remains for backward compatibility but `/text-copy` is the primary entry from Home.
+
 ## Brand personality
 
 - **Quiet confidence** — competent, calm, no hype.
