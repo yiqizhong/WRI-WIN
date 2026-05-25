@@ -1,16 +1,33 @@
-import { Settings } from "lucide-react";
+import { ArrowLeft, Settings } from "lucide-react";
 
 import "../styles/writer-masthead.css";
 
 type WindowMastheadProps = {
+  title?: string;
+  onBack?: () => void;
   onSettings?: () => void;
 };
 
-export function WindowMasthead({ onSettings }: WindowMastheadProps) {
+export function WindowMasthead({ title, onBack, onSettings }: WindowMastheadProps) {
   const win = window.writerDesktop;
 
   return (
     <div className="writer-masthead">
+      <div className="writer-masthead__leading">
+        {onBack ? (
+          <button
+            type="button"
+            className="writer-masthead__back"
+            onClick={onBack}
+            aria-label="Go back"
+            tabIndex={-1}
+          >
+            <ArrowLeft size={14} strokeWidth={1.5} aria-hidden />
+          </button>
+        ) : null}
+        {title ? <span className="writer-masthead__title">{title}</span> : null}
+      </div>
+
       <div className="writer-masthead__buttons">
         {/* Settings */}
         {onSettings && (

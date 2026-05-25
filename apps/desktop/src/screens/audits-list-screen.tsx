@@ -7,11 +7,7 @@ import { GlassCard } from "@/components/writer/glass-card";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
 import { deriveAuditRunBadge, isFigmaAuditSession } from "../audit-run-status";
-import {
-  WorkflowBackLink,
-  WorkflowPageIntro,
-  WorkflowScreenShell
-} from "../layout/workflow-screen-shell";
+import { WorkflowPageIntro, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 export function AuditsListScreen() {
@@ -34,7 +30,6 @@ export function AuditsListScreen() {
 
   return (
     <WorkflowScreenShell>
-      <WorkflowBackLink to="/figma-audit" label="Back" />
       <WorkflowPageIntro
         title="Audits"
         description="Past Figma audit sessions for this workspace."

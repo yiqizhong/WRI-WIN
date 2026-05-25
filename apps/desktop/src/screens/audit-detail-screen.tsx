@@ -9,7 +9,6 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 import { AuditDetailFrameSection } from "../audit-detail-frame-section";
 import { AuditWritebackButton } from "../audit-writeback-button";
 import {
-  WorkflowBackLink,
   WorkflowGlassPanel,
   WorkflowPageIntro,
   WorkflowScreenShell
@@ -89,7 +88,6 @@ export function AuditDetailScreen() {
 
   return (
     <WorkflowScreenShell>
-      <WorkflowBackLink to="/audits" label="Back" />
       <WorkflowPageIntro
         title={session.featureName ?? "Audit"}
         {...(session.description ? { description: session.description } : {})}

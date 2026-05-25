@@ -30,13 +30,20 @@
 }
 
 .glass-card--filled.glass-card--interactive:hover::after,
+.glass-card--filled.glass-card--interactive:focus-visible::after,
 .glass-card--filled.glass-card--selected::after {
   opacity: 1;
 }
 
 .glass-card--interactive:hover::before,
+.glass-card--interactive:focus-visible::before,
 .glass-card--selected::before {
   opacity: 1;
+}
+
+.glass-card--interactive:focus-visible {
+  outline: 2px solid rgb(32 131 234 / 0.45);
+  outline-offset: 2px;
 }
 
 .glass-card::before {

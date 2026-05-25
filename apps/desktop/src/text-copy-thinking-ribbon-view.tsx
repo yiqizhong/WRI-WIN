@@ -46,7 +46,7 @@ export function TextCopyThinkingRibbonView({
   );
 
   return (
-    <ul className="flex flex-col gap-1" role="status" aria-live="polite">
+    <ul className="flex flex-col gap-1 animate-pulse" role="status" aria-live="polite">
       {THINKING_RIBBON_PHASES.map((phase, index) => {
         const done = index < activeIndex;
         const active = index === activeIndex;
