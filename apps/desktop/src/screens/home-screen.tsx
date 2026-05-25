@@ -22,7 +22,7 @@ function WorkflowCard({ type, label, onClick, typeSize = "68px", typeLeading = "
   return (
     <GlassCard
       className="flex shrink-0 flex-col items-start justify-between"
-      style={{ width: 320, height: 320, padding: "14.606px 23.512px" }}
+      style={{ width: 320, height: 320, padding: "14.606px 23.512px 24px" }}
     >
       <div className="flex flex-col gap-2">
         <p className="font-[200] tracking-[2.5px] text-[#e5f1ff]" style={{ fontSize: typeSize, lineHeight: typeLeading }}>
@@ -57,7 +57,7 @@ export function HomeScreen() {
             <span>{greeting()}</span>
           </div>
           <div
-            className="h-px w-full opacity-20"
+            className="h-px w-full opacity-25"
             style={{ background: "linear-gradient(to left, rgba(19,42,82,0.5) 0%, rgba(32,131,234,1) 91%, rgba(19,42,82,0.5) 100%)" }}
           />
         </div>
