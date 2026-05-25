@@ -1,0 +1,112 @@
+/* Chat welcome — Figma AI-test node 1082:24 */
+
+.writer-chat-welcome-shell {
+  width: 100%;
+  max-width: 744px;
+  gap: 38px;
+  /* Slight lift so the block doesn’t read “low” in the window under the header chrome */
+  transform: translateY(-1.75rem);
+}
+
+.writer-chat-welcome-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  text-align: center;
+}
+
+.writer-chat-welcome-heading-lead {
+  white-space: nowrap;
+}
+
+.writer-chat-welcome-product-trigger {
+  color: inherit;
+}
+
+.writer-chat-welcome-product-label {
+  text-decoration: underline;
+  text-decoration-color: rgb(32 131 234 / 0.55);
+  text-underline-offset: 0.2em;
+}
+
+/* Border matches Home workflow cards via GlassCard (.glass-card::before gradient mask) */
+.writer-chat-welcome-composer {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: 16px;
+  padding-inline: 16px;
+  background: rgb(0 0 0 / 0.2);
+  box-shadow: 0 17px 80.9px rgb(47 146 248 / 0.19);
+}
+
+/* Default GlassCard ring is ::before opacity 0.5; bump slightly for welcome composer only */
+.writer-chat-welcome-composer.glass-card::before {
+  opacity: 0.62;
+}
+
+.writer-chat-welcome-composer-stack {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0;
+}
+
+.writer-chat-welcome-composer-field {
+  width: 100%;
+  min-width: 0;
+}
+
+.writer-chat-welcome-toolbar {
+  display: flex;
+  width: 100%;
+  margin-top: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.writer-chat-welcome-input {
+  width: 100%;
+  min-width: 0;
+  resize: none;
+  border: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  min-height: 0;
+  font-size: 1.0625rem; /* ~17px on default root */
+  /* Tighter leading + symmetric padding avoids multiline-placeholder box looking “heavy” bottom */
+  line-height: 1.35;
+  /* Softer than #e5f1ff — full white-blue reads harsh in the composer */
+  color: rgb(188 206 226);
+  letter-spacing: 0.0175em;
+  box-shadow: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.writer-chat-welcome-input::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+@media (max-width: 767px) {
+  .writer-chat-welcome-input {
+    font-size: 1rem; /* 16px on narrow widths */
+  }
+}
+
+.writer-chat-welcome-input::placeholder {
+  color: rgb(188 206 226 / 0.5);
+}
+
+.writer-chat-welcome-input:focus-visible {
+  outline: none;
+}

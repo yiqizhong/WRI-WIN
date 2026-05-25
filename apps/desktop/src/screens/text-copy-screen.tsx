@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRef, useState } from "react";
 import type { PasteTextConversation } from "@writer/contracts";
 
 import {
@@ -11,16 +10,11 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/writer/glass-card";
-import { InlineAlert } from "@/components/writer/inline-alert";
 
 import { TextCopyChat } from "../text-copy-chat";
-import { TextCopyProductPicker } from "../text-copy-product-picker";
-import { WorkflowPageIntro, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 export function TextCopyScreen() {
-  const navigate = useNavigate();
   const {
     daemonClient,
     daemonConnected,
@@ -30,98 +24,68 @@ export function TextCopyScreen() {
     setSelectedProductId
   } = useWorkspace();
 
-  const [chatStarted, setChatStarted] = useState(false);
   const [pickedProductId, setPickedProductId] = useState<string | undefined>(undefined);
   const [conversation, setConversation] = useState<PasteTextConversation | null>(null);
   const [confirmNewOpen, setConfirmNewOpen] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
 
-  const auditLabel = useMemo(() => {
-    if (!pickedProductId) {
-      return "Company & software writing guidelines";
-    }
-    return products.find((product) => product.id === pickedProductId)?.name ?? pickedProductId;
-  }, [pickedProductId, products]);
+  const productName = pickedProductId
+    ? (products.find((p) => p.id === pickedProductId)?.name ?? pickedProductId)
+    : "Company & software rules";
 
   const pendingRewrite = conversation?.messages.some(
-    (message) => message.role === "assistant" && message.status === "pending"
+    (m) => m.role === "assistant" && m.status === "pending"
   );
 
-  async function startChat(productId?: string) {
-    setPickedProductId(productId);
-    if (productId) {
-      await setSelectedProductId(productId);
+  function withPendingGuard(action: () => void) {
+    if (pendingRewrite) {
+      pendingActionRef.current = action;
+      setConfirmNewOpen(true);
+      return;
     }
-    setConversation(null);
-    setChatStarted(true);
+    action();
   }
 
-  function resetConversation() {
-    setConversation(null);
-    setChatStarted(false);
-    setPickedProductId(undefined);
+  function handleChangeProduct(productId: string | undefined) {
+    withPendingGuard(() => {
+      setPickedProductId(productId);
+      if (productId) void setSelectedProductId(productId);
+      setConversation(null);
+    });
+  }
+
+  function handleNewConversation() {
+    withPendingGuard(() => {
+      setConversation(null);
+    });
   }
 
   return (
-    <WorkflowScreenShell className="overflow-hidden">
-      <WorkflowPageIntro
-        title="Chat"
-        description="Paste copy for a quick rewrite against company, software, and optional product guidelines."
-      />
-
-      {!daemonConnected ? (
-        <InlineAlert
-          kind="warning"
-          title="Daemon disconnected"
-          subtitle="Start the Writer daemon to send messages and run rewrites."
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      {workspaceProjectId ? (
+        <TextCopyChat
+          client={daemonClient}
+          daemonConnected={daemonConnected}
+          workspaceReady={workspaceReady}
+          projectId={workspaceProjectId}
+          productId={pickedProductId}
+          productName={productName}
+          products={products}
+          conversation={conversation}
+          onConversationChange={setConversation}
+          onRequestNewConversation={handleNewConversation}
+          onChangeProduct={handleChangeProduct}
         />
-      ) : null}
-
-      <GlassCard variant="outline" className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-        {!chatStarted ? (
-          <TextCopyProductPicker
-            products={products}
-            onPick={(productId) => void startChat(productId)}
-            onContinueWithoutProduct={() => void startChat()}
-            onAddProduct={() => navigate("/settings?tab=guidelines")}
-            disabled={!workspaceReady || !daemonConnected}
-          />
-        ) : workspaceProjectId ? (
-          <TextCopyChat
-            client={daemonClient}
-            daemonConnected={daemonConnected}
-            workspaceReady={workspaceReady}
-            projectId={workspaceProjectId}
-            productId={pickedProductId}
-            productName={auditLabel}
-            conversation={conversation}
-            onConversationChange={setConversation}
-            onRequestNewConversation={() => {
-              if (pendingRewrite) {
-                setConfirmNewOpen(true);
-                return;
-              }
-              resetConversation();
-            }}
-            onRequestChangeProduct={() => {
-              if (pendingRewrite) {
-                setConfirmNewOpen(true);
-                return;
-              }
-              resetConversation();
-            }}
-          />
-        ) : (
-          <p className="writer-type-body-compact writer-text-secondary">Workspace is loading…</p>
-        )}
-      </GlassCard>
+      ) : (
+        <p className="writer-type-body-compact writer-text-secondary p-4">Workspace is loading…</p>
+      )}
 
       <Dialog open={confirmNewOpen} onOpenChange={setConfirmNewOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start a new conversation?</DialogTitle>
+            <DialogTitle>Start over?</DialogTitle>
             <DialogDescription>
-              A rewrite is still in progress. Starting over will discard the pending response for this
-              conversation.
+              A rewrite is still in progress. Starting over will discard the pending response.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -132,14 +96,15 @@ export function TextCopyScreen() {
               type="button"
               onClick={() => {
                 setConfirmNewOpen(false);
-                resetConversation();
+                pendingActionRef.current?.();
+                pendingActionRef.current = null;
               }}
             >
-              New conversation
+              Start over
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </WorkflowScreenShell>
+    </div>
   );
 }

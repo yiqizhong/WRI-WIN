@@ -23,6 +23,8 @@ body,
 
 /* ProductChrome sits below masthead; flex-1 + min-h-0 fills remaining height */
 .writer-app-viewport > .writer-app-viewport__content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -69,7 +71,12 @@ body,
   overflow: hidden;
 }
 
-.writer-chat-scroll,
+.writer-chat-scroll {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .writer-changelog-list,
 .writer-queue-filter {
   overflow: hidden;
