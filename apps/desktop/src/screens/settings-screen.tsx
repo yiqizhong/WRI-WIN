@@ -1,5 +1,4 @@
-import { ArrowLeft } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -11,7 +10,6 @@ import { SourcesScreen } from "./sources-screen";
 const SETTINGS_TABS = ["review", "sources", "guidelines", "agents"] as const;
 
 export function SettingsScreen() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromQuery = searchParams.get("tab");
   const defaultTab =
@@ -19,16 +17,6 @@ export function SettingsScreen() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <button
-        type="button"
-        onClick={() => navigate("/")}
-        className="writer-home-text inline-flex w-fit shrink-0 items-center gap-2 rounded-md py-1 text-sm font-normal tracking-[0.08em] text-[#e5f1ff]/75 transition-colors hover:text-[#e5f1ff]"
-        aria-label="Back to home"
-      >
-        <ArrowLeft className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-        Back
-      </button>
-
       <Tabs defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col gap-6">
         <TabsList variant="minimal" className="shrink-0 w-full">
           <TabsTrigger value="review">Review</TabsTrigger>

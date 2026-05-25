@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,10 @@ type GlassCardProps = {
   variant?: GlassCardVariant;
   selected?: boolean;
   onClick?: (event: MouseEvent<HTMLDivElement>) => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
+  role?: string;
+  tabIndex?: number;
+  "aria-label"?: string;
 };
 
 export function GlassCard({
@@ -22,7 +26,11 @@ export function GlassCard({
   style,
   variant = "outline",
   selected = false,
-  onClick
+  onClick,
+  onKeyDown,
+  role,
+  tabIndex,
+  "aria-label": ariaLabel
 }: GlassCardProps) {
   return (
     <div
@@ -35,6 +43,10 @@ export function GlassCard({
       )}
       style={style}
       onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={role}
+      tabIndex={tabIndex}
+      aria-label={ariaLabel}
     >
       {children}
     </div>

@@ -16,11 +16,7 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 
 import { TextCopyChat } from "../text-copy-chat";
 import { TextCopyProductPicker } from "../text-copy-product-picker";
-import {
-  WorkflowBackLink,
-  WorkflowPageIntro,
-  WorkflowScreenShell
-} from "../layout/workflow-screen-shell";
+import { WorkflowPageIntro, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 export function TextCopyScreen() {
@@ -67,9 +63,8 @@ export function TextCopyScreen() {
 
   return (
     <WorkflowScreenShell className="overflow-hidden">
-      <WorkflowBackLink />
       <WorkflowPageIntro
-        title="Text Copy"
+        title="Chat"
         description="Paste copy for a quick rewrite against company, software, and optional product guidelines."
       />
 

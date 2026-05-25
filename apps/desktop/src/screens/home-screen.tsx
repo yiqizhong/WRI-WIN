@@ -1,8 +1,23 @@
+import { ChevronRight, MessageCircle } from "lucide-react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { GlassCard } from "@/components/writer/glass-card";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
+const FIGMA_LOGO = "/mcp-server-logos/figma.png";
+const WORKFLOW_CARD_ICON_CLASS = "size-10";
+
+function WorkflowCardIcon({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className={`flex ${WORKFLOW_CARD_ICON_CLASS} shrink-0 items-center justify-center overflow-hidden`}
+      aria-hidden
+    >
+      {children}
+    </div>
+  );
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -13,28 +28,59 @@ function greeting() {
 
 type WorkflowCardProps = {
   type: string;
-  label: string;
+  description: string;
+  icon: ReactNode;
   onClick: () => void;
   typeSize?: string;
   typeLeading?: string;
 };
 
-function WorkflowCard({ type, label, onClick, typeSize = "68px", typeLeading = "80px" }: WorkflowCardProps) {
+function WorkflowCard({
+  type,
+  description,
+  icon,
+  onClick,
+  typeSize = "68px",
+  typeLeading = "80px"
+}: WorkflowCardProps) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onClick();
+    }
+  }
+
   return (
     <GlassCard
       variant="filled"
       className="flex shrink-0 flex-col items-start justify-between"
       style={{ width: 320, height: 320, padding: "14.606px 23.512px 24px" }}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`${type}: ${description}`}
     >
       <div className="flex flex-col gap-2">
-        <p className="writer-home-text writer-home-card-display" style={{ fontSize: typeSize, lineHeight: typeLeading }}>
+        <p
+          className="writer-home-text writer-home-card-display"
+          style={{ fontSize: typeSize, lineHeight: typeLeading }}
+        >
           {type}
         </p>
-        <p className="writer-home-text writer-home-card-label">{label}</p>
+        <p className="writer-home-section-description mt-1 max-w-[260px]">{description}</p>
       </div>
-      <div className="flex w-full justify-end">
-        <WriterPrimaryButton className="w-[100px] px-1.5 py-3" onClick={onClick}>
-          Go
+      <div className="flex w-full items-end justify-between gap-auto">
+        {icon}
+        <WriterPrimaryButton
+          className="w-[100px] px-1.5 py-3"
+          aria-label="Go"
+          onClick={(event) => {
+            event.stopPropagation();
+            onClick();
+          }}
+        >
+          <ChevronRight className="size-5" strokeWidth={2} aria-hidden />
         </WriterPrimaryButton>
       </div>
     </GlassCard>
@@ -47,7 +93,6 @@ export function HomeScreen() {
   return (
     <div className="mt-[76px] flex h-full w-full items-center justify-center">
       <div className="flex flex-col gap-16">
-        {/* Greeting */}
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
             <span>Hi, Alex</span>
@@ -56,16 +101,30 @@ export function HomeScreen() {
           <div className="writer-home-divider" aria-hidden />
         </div>
 
-        {/* Cards */}
         <div className="flex gap-[90px]">
           <WorkflowCard
             type="Figma"
-            label="Copy"
+            description="Audit frames in Figma and write approved edits back."
+            icon={
+              <WorkflowCardIcon>
+                <img
+                  src={FIGMA_LOGO}
+                  alt=""
+                  draggable={false}
+                  className="relative size-full -translate-x-[3px] object-cover object-center opacity-65"
+                />
+              </WorkflowCardIcon>
+            }
             onClick={() => navigate("/figma-audit")}
           />
           <WorkflowCard
-            type="Text"
-            label="Copy"
+            type="Chat"
+            description="Paste copy for a quick rewrite in chat."
+            icon={
+              <WorkflowCardIcon>
+                <MessageCircle className="size-7 text-[#e5f1ff]/75" strokeWidth={1.25} aria-hidden />
+              </WorkflowCardIcon>
+            }
             onClick={() => navigate("/text-copy")}
           />
         </div>

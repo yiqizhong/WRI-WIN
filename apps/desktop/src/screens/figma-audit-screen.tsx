@@ -19,7 +19,6 @@ import type { CreateFigmaSessionInput, FigmaAuditMode } from "@writer/contracts"
 import { FigmaAuditWorkflowTabs, type WorkflowSubmitPayload } from "../figma-audit-workflow-tabs";
 import { DaemonClientError } from "../daemon-client";
 import {
-  WorkflowBackLink,
   WorkflowGlassPanel,
   WorkflowPageIntro,
   WorkflowScreenShell
@@ -115,7 +114,6 @@ export function FigmaAuditScreen() {
 
   return (
     <WorkflowScreenShell>
-      <WorkflowBackLink />
       <WorkflowPageIntro
         title="Figma Audit"
         description="Review UX copy in Figma frames against your guideline stack, then write approved edits back."
