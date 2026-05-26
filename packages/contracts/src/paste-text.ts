@@ -36,6 +36,7 @@ export const pasteTextAttachmentSchema = z.object({
   filePath: z.string().min(1),
   mimeKind: z.enum(["spreadsheet", "plain_text"]),
   parseResult: z.record(z.string(), z.unknown()).optional(),
+  parseResultPath: z.string().min(1).optional(),
   textContent: z.string().optional(),
   createdAt: z.iso.datetime()
 });

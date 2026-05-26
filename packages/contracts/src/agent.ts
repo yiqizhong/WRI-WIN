@@ -66,7 +66,7 @@ export const agentRunSchema = z.object({
   sessionId: z.string().min(1),
   adapterId: z.string().min(1),
   status: agentRunStatusSchema,
-  prompt: z.string().min(1),
+  prompt: z.string().optional(),
   startedAt: z.iso.datetime(),
   endedAt: z.iso.datetime().optional()
 });

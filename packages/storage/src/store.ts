@@ -1,6 +1,6 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { randomUUID } from "node:crypto";
 
@@ -28,10 +28,17 @@ import {
   reviewSessionSchema,
   rewriteCandidateSchema,
   uxCopyFindingSchema,
-  pasteTextConversationSchema
+  pasteTextConversationSchema,
+  type PasteTextAttachment
 } from "@writer/contracts";
 
+import { getPasteTextParseResultPath } from "./paste-text-paths";
+
 export const STORAGE_VERSION = 1;
+
+export const AUDIT_LOG_CAP = 10_000;
+
+const TERMINAL_AGENT_RUN_STATUSES = new Set(["completed", "failed", "canceled"]);
 
 export type PlatformStoreSnapshot = {
   version: number;
@@ -115,6 +122,11 @@ export class PlatformStore {
           return result.success ? [result.data] : [];
         })
       };
+
+      const migrated = await this.migrateLoadedSnapshot();
+      if (migrated) {
+        await this.save();
+      }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
         await this.save();
@@ -203,6 +215,9 @@ export class PlatformStore {
       ...entry
     });
     this.snapshot.auditLog.push(validated);
+    if (this.snapshot.auditLog.length > AUDIT_LOG_CAP) {
+      this.snapshot.auditLog.splice(0, this.snapshot.auditLog.length - AUDIT_LOG_CAP);
+    }
     return validated;
   }
 
@@ -243,6 +258,10 @@ export class PlatformStore {
 
   listAgentRunEvents(runId: string): AgentRunEvent[] {
     return this.snapshot.agentRunEvents.filter((event) => event.runId === runId);
+  }
+
+  purgeAgentRunEvents(runId: string): void {
+    this.snapshot.agentRunEvents = this.snapshot.agentRunEvents.filter((event) => event.runId !== runId);
   }
 
   upsertReviewChange(change: ReviewChange): ReviewChange {
@@ -327,5 +346,49 @@ export class PlatformStore {
     return projectId
       ? this.snapshot.pasteTextConversations.filter((conversation) => conversation.projectId === projectId)
       : this.snapshot.pasteTextConversations;
+  }
+
+  private async migrateLoadedSnapshot(): Promise<boolean> {
+    let migrated = false;
+
+    for (const conversation of this.snapshot.pasteTextConversations) {
+      const attachment = conversation.attachment;
+      if (!attachment?.parseResult) {
+        continue;
+      }
+
+      const parseResultPath =
+        attachment.parseResultPath ?? getPasteTextParseResultPath(this.dataDir, conversation.id);
+
+      try {
+        await access(parseResultPath);
+      } catch {
+        await mkdir(dirname(parseResultPath), { recursive: true });
+        await writeFile(parseResultPath, JSON.stringify(attachment.parseResult), "utf8");
+      }
+
+      const nextAttachment: PasteTextAttachment = {
+        ...attachment,
+        parseResultPath,
+        parseResult: undefined
+      };
+
+      conversation.attachment = nextAttachment;
+      migrated = true;
+    }
+
+    for (const run of this.snapshot.agentRuns) {
+      if (!TERMINAL_AGENT_RUN_STATUSES.has(run.status)) {
+        continue;
+      }
+
+      const before = this.snapshot.agentRunEvents.length;
+      this.purgeAgentRunEvents(run.id);
+      if (this.snapshot.agentRunEvents.length !== before) {
+        migrated = true;
+      }
+    }
+
+    return migrated;
   }
 }

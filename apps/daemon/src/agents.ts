@@ -226,6 +226,7 @@ async function consumeAgentRun(
     }
 
     state.store.upsertAgentRun(handle.run);
+    state.store.purgeAgentRunEvents(runId);
     await recordRunLifecycle(state, handle.run, handle.run.status);
     await state.store.save();
 
@@ -249,6 +250,7 @@ export async function cancelAgentRun(state: DaemonState, runId: string): Promise
       timestamp: run.endedAt ?? new Date().toISOString(),
       payload: {}
     });
+    state.store.purgeAgentRunEvents(runId);
     state.activeRuns.delete(runId);
     await recordRunLifecycle(state, run, "canceled");
     await state.store.save();

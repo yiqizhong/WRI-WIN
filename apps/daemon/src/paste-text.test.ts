@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { PlatformStore } from "@writer/storage";
+import { getPasteTextParseResultPath, PlatformStore } from "@writer/storage";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { invalidateCache, setCachedTree } from "./guidelines/cache";
@@ -236,6 +236,20 @@ Brand only.
 
     expect(withAttachment.inputMode).toBe("structured_file");
     expect(withAttachment.attachment?.mimeKind).toBe("spreadsheet");
+    expect(withAttachment.attachment?.parseResult).toBeUndefined();
+    expect(withAttachment.attachment?.parseResultPath).toBe(
+      getPasteTextParseResultPath(dataDir, conversation.id)
+    );
+    await access(withAttachment.attachment!.parseResultPath!);
+    const onDisk = JSON.parse(
+      await readFile(withAttachment.attachment!.parseResultPath!, "utf8")
+    ) as { rows: unknown[] };
+    expect(onDisk.rows.length).toBeGreaterThan(0);
+
+    const rawStore = JSON.parse(await readFile(join(dataDir, "platform-store.json"), "utf8")) as {
+      pasteTextConversations: Array<{ attachment?: { parseResult?: unknown } }>;
+    };
+    expect(rawStore.pasteTextConversations[0]?.attachment?.parseResult).toBeUndefined();
 
     const result = await sendPasteTextMessage(state, conversation.id, {
       text: "Click here",

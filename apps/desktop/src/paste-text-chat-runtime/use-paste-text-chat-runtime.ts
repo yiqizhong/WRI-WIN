@@ -64,14 +64,19 @@ export function usePasteTextChatRuntime({
 
   const pendingRewrite = Boolean(pendingAssistant);
 
+  const handleRunSyncConversationChange = useCallback(
+    (fresh: PasteTextConversation) => {
+      setOptimisticTurn(null);
+      onConversationChange(fresh);
+    },
+    [onConversationChange]
+  );
+
   const { streamingText, runStatus, runEvents } = usePasteTextRunSync({
     client,
     conversation,
     pendingAssistant,
-    onConversationChange: (fresh) => {
-      setOptimisticTurn(null);
-      onConversationChange(fresh);
-    }
+    onConversationChange: handleRunSyncConversationChange
   });
 
   const scrollToEnd = useCallback((reason: ScrollReason) => {

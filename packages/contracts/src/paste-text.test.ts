@@ -59,6 +59,24 @@ describe("paste-text contracts", () => {
     expect(parsed.productId).toBeUndefined();
   });
 
+  it("accepts attachment with parseResultPath and no inline parseResult", () => {
+    const parsed = pasteTextConversationSchema.parse({
+      ...baseConversation,
+      inputMode: "structured_file",
+      attachment: {
+        id: "att-1",
+        fileName: "rows.csv",
+        filePath: "/tmp/rows.csv",
+        mimeKind: "spreadsheet",
+        parseResultPath: "/tmp/writer/conversations/conv-1/attachment-parse-result.json",
+        createdAt: "2026-05-25T12:00:00.000Z"
+      }
+    });
+
+    expect(parsed.attachment?.parseResultPath).toContain("attachment-parse-result.json");
+    expect(parsed.attachment?.parseResult).toBeUndefined();
+  });
+
   it("accepts create input without productId", () => {
     const parsed = createPasteTextConversationInputSchema.parse({
       projectId: "proj-1"

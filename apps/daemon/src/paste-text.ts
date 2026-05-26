@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { basename, extname } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { basename, dirname, extname } from "node:path";
 
 import {
   attachPasteTextFileInputSchema,
@@ -14,6 +14,7 @@ import {
 } from "@writer/contracts";
 import { buildCopywriterPrompt, extractSuggestedTextFromAgentEvents } from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
+import { getPasteTextParseResultPath } from "@writer/storage";
 
 import { getCachedTree, setCachedTree } from "./guidelines/cache";
 import { discoverGuidelines } from "./guidelines/discovery";
@@ -138,12 +139,15 @@ export async function attachPasteTextFile(
 
   if (mimeKind === "spreadsheet") {
     const parseResult = await parseSpreadsheetFile(parsed.filePath);
+    const parseResultPath = getPasteTextParseResultPath(state.store.dataDir, conversation.id);
+    await mkdir(dirname(parseResultPath), { recursive: true });
+    await writeFile(parseResultPath, JSON.stringify(parseResult), "utf8");
     attachment = {
       id: randomUUID(),
       fileName,
       filePath: parsed.filePath,
       mimeKind,
-      parseResult,
+      parseResultPath,
       createdAt: timestamp
     };
   } else {
@@ -285,7 +289,11 @@ export async function sendPasteTextMessage(
 
   let rowContext: string | undefined;
   if (parsed.rowIndex !== undefined && conversation.attachment?.mimeKind === "spreadsheet") {
-    const parseResult = conversation.attachment.parseResult as SpreadsheetParseResult | undefined;
+    const parseResultPath =
+      conversation.attachment.parseResultPath ??
+      getPasteTextParseResultPath(state.store.dataDir, conversation.id);
+    const raw = await readFile(parseResultPath, "utf8");
+    const parseResult = JSON.parse(raw) as SpreadsheetParseResult;
     if (!parseResult?.rows?.length) {
       throw new Error("Spreadsheet attachment is missing parsed rows");
     }

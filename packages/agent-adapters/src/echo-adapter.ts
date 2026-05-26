@@ -46,7 +46,6 @@ async function runEcho(request: AgentRunRequest): Promise<AgentRunHandle> {
     sessionId: request.sessionId,
     adapterId: "echo",
     status: "running",
-    prompt: request.prompt,
     startedAt
   };
 

@@ -222,7 +222,6 @@ async function runCliAdapter(config: CliAdapterConfig, request: AgentRunRequest)
     sessionId: request.sessionId,
     adapterId: config.id,
     status: "running",
-    prompt: request.prompt,
     startedAt
   };
 
@@ -483,7 +482,6 @@ function failedRunHandle(adapterId: string, request: AgentRunRequest, message: s
     sessionId: request.sessionId,
     adapterId,
     status: "failed",
-    prompt: request.prompt,
     startedAt,
     endedAt: startedAt
   };
