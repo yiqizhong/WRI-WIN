@@ -32,7 +32,7 @@ describe("health route", () => {
         logDir: "/tmp",
         logLevel: "info",
         version: "0.1.0",
-        apiRevision: "3"
+        apiRevision: "4"
       },
       getCapabilitySummary: () => [{ id: "desktop-shell", status: "enabled" }]
     });
@@ -43,6 +43,6 @@ describe("health route", () => {
     const health = parseDaemonHealth(JSON.parse(state.body));
     expect(health.status).toBe("running");
     expect(health.version).toBe("0.1.0");
-    expect(health.apiRevision).toBe("3");
+    expect(health.apiRevision).toBe("4");
   });
 });

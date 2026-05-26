@@ -82,7 +82,7 @@
   background: transparent;
   border: none;
   outline: none;
-  cursor: default;
+  cursor: pointer;
   padding: 0;
   color: rgba(255, 255, 255, 0.80);
   transition: background 80ms ease, color 80ms ease;

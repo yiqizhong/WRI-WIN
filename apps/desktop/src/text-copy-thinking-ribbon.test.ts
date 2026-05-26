@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { deriveThinkingRibbonPhase } from "./text-copy-thinking-ribbon";
 
 describe("deriveThinkingRibbonPhase", () => {
-  it("starts at connecting with no events", () => {
-    expect(deriveThinkingRibbonPhase({ events: [] })).toBe("connecting");
+  it("shows thinking with no events", () => {
+    expect(deriveThinkingRibbonPhase({ events: [] })).toBe("thinking");
   });
 
-  it("moves to loading-guidelines on first non-text event", () => {
+  it("shows thinking while tools run", () => {
     expect(
       deriveThinkingRibbonPhase({
         events: [
@@ -20,10 +20,10 @@ describe("deriveThinkingRibbonPhase", () => {
           }
         ]
       })
-    ).toBe("loading-guidelines");
+    ).toBe("thinking");
   });
 
-  it("moves to thinking on stream delta", () => {
+  it("shows thinking on stream delta", () => {
     expect(
       deriveThinkingRibbonPhase({
         events: [
@@ -39,7 +39,7 @@ describe("deriveThinkingRibbonPhase", () => {
     ).toBe("thinking");
   });
 
-  it("moves to integrating on stream final", () => {
+  it("shows thinking after stream final", () => {
     expect(
       deriveThinkingRibbonPhase({
         events: [
@@ -53,7 +53,7 @@ describe("deriveThinkingRibbonPhase", () => {
         ],
         runStatus: "completed"
       })
-    ).toBe("integrating");
+    ).toBe("thinking");
   });
 
   it("surfaces failed state", () => {

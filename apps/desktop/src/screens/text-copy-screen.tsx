@@ -31,7 +31,7 @@ export function TextCopyScreen() {
 
   const productName = pickedProductId
     ? (products.find((p) => p.id === pickedProductId)?.name ?? pickedProductId)
-    : "Company & software rules";
+    : "General purpose";
 
   const pendingRewrite = conversation?.messages.some(
     (m) => m.role === "assistant" && m.status === "pending"

@@ -5,6 +5,7 @@ import { basename, dirname, extname } from "node:path";
 import {
   attachPasteTextFileInputSchema,
   createPasteTextConversationInputSchema,
+  regeneratePasteTextAssistantMessageInputSchema,
   sendPasteTextMessageInputSchema,
   type PasteTextAttachment,
   type PasteTextConversation,
@@ -195,7 +196,10 @@ type RewriteJob = {
 async function updateAssistantMessage(
   state: DaemonState,
   job: RewriteJob,
-  patch: Pick<PasteTextMessage, "status" | "text" | "suggestedText" | "errorMessage" | "agentRunId">
+  patch: Pick<
+    PasteTextMessage,
+    "status" | "text" | "suggestedText" | "errorMessage" | "agentRunId" | "variants" | "variantIndex"
+  >
 ): Promise<void> {
   const conversation = getPasteTextConversation(state, job.conversationId);
   const messages = conversation.messages.map((message) =>
@@ -242,10 +246,18 @@ async function finishPasteTextRewrite(
       throw new Error("Agent returned empty rewrite");
     }
 
+    const conversation = getPasteTextConversation(state, job.conversationId);
+    const message = conversation.messages.find((item) => item.id === job.assistantMessageId);
+    const priorVariants = message?.variants ?? [];
+    const variants =
+      priorVariants.length > 0 ? [...priorVariants, suggestedText] : [suggestedText];
+
     await updateAssistantMessage(state, job, {
       status: "complete",
       text: suggestedText,
-      suggestedText
+      suggestedText,
+      variants,
+      variantIndex: variants.length - 1
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Rewrite failed";
@@ -353,4 +365,125 @@ export async function sendPasteTextMessage(
     userMessage,
     assistantMessage: reloadedAssistant
   };
+}
+
+function findAssistantTurn(
+  conversation: PasteTextConversation,
+  assistantMessageId: string
+): { assistantIndex: number; userMessage: PasteTextMessage; assistantMessage: PasteTextMessage } {
+  const assistantIndex = conversation.messages.findIndex((message) => message.id === assistantMessageId);
+
+  if (assistantIndex < 0) {
+    throw new Error("Assistant message not found");
+  }
+
+  const assistantMessage = conversation.messages[assistantIndex]!;
+
+  if (assistantMessage.role !== "assistant") {
+    throw new Error("Message is not an assistant reply");
+  }
+
+  const userMessage = conversation.messages[assistantIndex - 1];
+
+  if (!userMessage || userMessage.role !== "user") {
+    throw new Error("Assistant message has no paired user turn");
+  }
+
+  return { assistantIndex, userMessage, assistantMessage };
+}
+
+async function buildRewritePromptForTurn(
+  state: DaemonState,
+  conversation: PasteTextConversation,
+  assistantIndex: number,
+  userMessage: PasteTextMessage
+): Promise<string> {
+  let rowContext: string | undefined;
+
+  if (userMessage.rowIndex !== undefined && conversation.attachment?.mimeKind === "spreadsheet") {
+    const parseResultPath =
+      conversation.attachment.parseResultPath ??
+      getPasteTextParseResultPath(state.store.dataDir, conversation.id);
+    const raw = await readFile(parseResultPath, "utf8");
+    const parseResult = JSON.parse(raw) as SpreadsheetParseResult;
+    if (!parseResult?.rows?.length) {
+      throw new Error("Spreadsheet attachment is missing parsed rows");
+    }
+    rowContext = buildRowContext(parseResult, userMessage.rowIndex);
+  } else if (conversation.attachment?.mimeKind === "plain_text" && conversation.attachment.textContent) {
+    rowContext = conversation.attachment.textContent;
+  }
+
+  const snapshot = conversation.guidelineSnapshot;
+  const prompt = buildCopywriterPrompt({
+    backgroundContext: conversation.backgroundContext,
+    brandVoice: getProjectBrandVoice(state, conversation.projectId),
+    companyBase: snapshot?.companyBase?.content,
+    softwareWriting: snapshot?.softwareWriting?.content,
+    productGuideline: snapshot?.productGuideline?.content,
+    history: historyFromMessages(conversation.messages.slice(0, assistantIndex)),
+    userText: userMessage.text,
+    rowContext
+  });
+
+  return prompt.full;
+}
+
+export async function regeneratePasteTextAssistantMessage(
+  state: DaemonState,
+  conversationId: string,
+  assistantMessageId: string,
+  input: unknown
+): Promise<PasteTextConversation> {
+  const parsed = regeneratePasteTextAssistantMessageInputSchema.parse(input ?? {});
+  let conversation = getPasteTextConversation(state, conversationId);
+  const { assistantIndex, userMessage, assistantMessage } = findAssistantTurn(
+    conversation,
+    assistantMessageId
+  );
+
+  if (assistantMessage.status === "pending") {
+    throw new Error("Assistant message is already rewriting");
+  }
+
+  conversation = await ensureLinkedSession(state, conversation, userMessage.text);
+
+  const existingVariants =
+    assistantMessage.variants ??
+    (assistantMessage.suggestedText ?? assistantMessage.text
+      ? [assistantMessage.suggestedText ?? assistantMessage.text]
+      : []);
+
+  const prompt = await buildRewritePromptForTurn(state, conversation, assistantIndex, userMessage);
+
+  const job: RewriteJob = {
+    conversationId: conversation.id,
+    assistantMessageId,
+    sessionId: conversation.sessionId!,
+    prompt,
+    adapterId: parsed.adapterId
+  };
+
+  if (parsed.sync) {
+    await updateAssistantMessage(state, job, {
+      status: "pending",
+      text: "Rewriting…",
+      variants: existingVariants,
+      variantIndex: Math.max(0, existingVariants.length - 1)
+    });
+    await runPasteTextRewrite(state, job);
+    return getPasteTextConversation(state, conversationId);
+  }
+
+  await updateAssistantMessage(state, job, {
+    status: "pending",
+    text: "Rewriting…",
+    variants: existingVariants,
+    variantIndex: Math.max(0, existingVariants.length - 1)
+  });
+
+  const { completion } = await startPasteTextRewrite(state, job);
+  void finishPasteTextRewrite(state, job, completion);
+
+  return getPasteTextConversation(state, conversationId);
 }

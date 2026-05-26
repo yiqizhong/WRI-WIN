@@ -1,0 +1,43 @@
+/**
+ * Pointer on clickable controls; text cursor on text fields.
+ */
+
+:is(
+  a[href],
+  button:not(:disabled):not([disabled]),
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([data-disabled]),
+  [role="tab"]:not([aria-disabled="true"]):not(:disabled),
+  [role="switch"]:not([aria-disabled="true"]):not(:disabled),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="link"],
+  [data-slot="button"]:not(:disabled):not([aria-disabled="true"]),
+  [data-slot="dropdown-menu-item"]:not([data-disabled]),
+  [data-slot="select-trigger"]:not([data-disabled]),
+  [data-slot="select-item"]:not([data-disabled]),
+  [data-slot="accordion-trigger"]:not([aria-disabled="true"]),
+  [data-slot="tabs-trigger"]:not([aria-disabled="true"]):not(:disabled),
+  [data-sidebar="menu-button"]:not([data-disabled]):not([aria-disabled="true"]),
+  [data-sidebar="menu-action"]:not([data-disabled]),
+  .glass-card--interactive,
+  .writer-product-menu-item:not([data-disabled]),
+  .writer-accent-radio:not(:disabled)
+) {
+  cursor: pointer;
+}
+
+:is(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not(
+      [type="submit"]
+    ):not([type="reset"]):not([type="file"]):not([type="image"]):not([type="range"]):not(
+      [type="color"]
+    ),
+  textarea
+) {
+  cursor: text;
+}
+
+:is(button:disabled, [disabled], [aria-disabled="true"], [data-disabled]) {
+  cursor: not-allowed;
+}

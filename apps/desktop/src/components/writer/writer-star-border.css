@@ -1,0 +1,117 @@
+/* Rotate: constant speed full turn. Fade: separate linear tail + stroke crossfade. */
+
+.writer-star-border {
+  position: relative;
+  width: 100%;
+  border-radius: 2px;
+  isolation: isolate;
+}
+
+.writer-star-border__ring {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: var(--writer-star-thickness, 1.5px);
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateZ(0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.writer-star-border__spin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  opacity: 1;
+  backface-visibility: hidden;
+  /* Single narrow peak at 315° (= top-left at rotate 0); arc < 20° avoids a second dot on the far side */
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 307deg,
+    rgb(157 202 251 / 0.4) 312deg,
+    var(--writer-accent-blue, #2083ea) 315deg,
+    rgb(157 202 251 / 0.4) 318deg,
+    transparent 323deg,
+    transparent 360deg
+  );
+  /* One full turn at constant speed; opacity fade is a separate track */
+  animation:
+    writer-star-border-rotate var(--writer-star-duration, 2.5s) linear forwards,
+    writer-star-border-beam-fade var(--writer-star-beam-fade-duration, 0.5s) linear
+      var(--writer-star-beam-fade-delay, 2s) forwards;
+}
+
+.writer-star-border__inner {
+  position: relative;
+  z-index: 1;
+  border-radius: 2px;
+  overflow: visible;
+}
+
+.writer-star-border .writer-chat-welcome-composer.glass-card {
+  box-shadow: 0 17px 80.9px rgb(47 146 248 / 0.19);
+}
+
+.writer-star-border:not(.writer-star-border--idle)
+  .writer-chat-welcome-composer.glass-card {
+  background: rgb(18 25 43);
+}
+
+.writer-star-border:not(.writer-star-border--idle)
+  .writer-chat-welcome-composer.glass-card::before {
+  opacity: 0;
+  animation: writer-star-border-stroke-in var(--writer-star-stroke-fade-duration, 0.55s)
+    linear var(--writer-star-stroke-fade-delay, 1.95s) forwards;
+}
+
+.writer-star-border--idle .writer-star-border__ring {
+  display: none;
+}
+
+.writer-star-border--idle .writer-chat-welcome-composer.glass-card::before {
+  opacity: 1;
+  animation: none;
+}
+
+/* Clockwise from top-left (315°) back to top-left after one turn */
+@keyframes writer-star-border-rotate {
+  from {
+    transform: translate3d(-50%, -50%, 0) rotate(0deg);
+  }
+
+  to {
+    transform: translate3d(-50%, -50%, 0) rotate(calc(var(--writer-star-loops, 1) * 1turn));
+  }
+}
+
+@keyframes writer-star-border-beam-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes writer-star-border-stroke-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-star-border__ring {
+    display: none;
+  }
+
+  .writer-star-border .writer-chat-welcome-composer.glass-card::before {
+    animation: none;
+    opacity: 1;
+  }
+}

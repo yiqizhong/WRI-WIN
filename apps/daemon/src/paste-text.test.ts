@@ -13,6 +13,7 @@ import {
   attachPasteTextFile,
   createPasteTextConversation,
   getPasteTextConversation,
+  regeneratePasteTextAssistantMessage,
   sendPasteTextMessage
 } from "./paste-text";
 import { createProject } from "./state";
@@ -292,5 +293,36 @@ Brand only.
     const assistant = reloaded.messages.find((message) => message.role === "assistant");
     expect(assistant?.status).toBe("complete");
     expect(assistant?.suggestedText).toBeTruthy();
+  });
+
+  it("regenerates in place and appends a variant on the same assistant message", async () => {
+    await seedGuidelinesTree();
+    const state = await createTestState();
+    const project = await createProject(state, { name: "Demo", rootPath: "/tmp/demo" });
+
+    const conversation = await createPasteTextConversation(state, {
+      projectId: project.id,
+      productId: "checkout"
+    });
+
+    const first = await sendPasteTextMessage(state, conversation.id, {
+      text: "Click here",
+      adapterId: "echo",
+      sync: true
+    });
+
+    expect(first.conversation.messages).toHaveLength(2);
+    const assistantId = first.assistantMessage.id;
+
+    const second = await regeneratePasteTextAssistantMessage(state, conversation.id, assistantId, {
+      adapterId: "echo",
+      sync: true
+    });
+
+    expect(second.messages).toHaveLength(2);
+    const assistant = second.messages.find((message) => message.id === assistantId);
+    expect(assistant?.variants).toHaveLength(2);
+    expect(assistant?.variantIndex).toBe(1);
+    expect(assistant?.suggestedText).toBe(assistant?.variants?.[1]);
   });
 });

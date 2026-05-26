@@ -6,6 +6,7 @@ import { DaemonClientError } from "../daemon-client";
 import type { PasteTextAttachmentKind } from "../text-copy-attachment-menu";
 import { deriveChatPhase } from "./chat-phase";
 import { mergeDisplayMessages, createOptimisticTurn, type OptimisticTurn } from "./optimistic-turn";
+import { messageVariantText } from "./message-display";
 import {
   createScrollThrottle,
   isNearBottom,
@@ -39,6 +40,9 @@ export function usePasteTextChatRuntime({
   const [attaching, setAttaching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [localVariantIndexByMessageId, setLocalVariantIndexByMessageId] = useState<
+    Record<string, number>
+  >({});
   const [optimisticTurn, setOptimisticTurn] = useState<OptimisticTurn | null>(null);
   const [forceWelcome, setForceWelcome] = useState(false);
 
@@ -234,12 +238,80 @@ export function usePasteTextChatRuntime({
     scrollThrottleRef.current.reset();
   }, []);
 
-  const copySuggestion = useCallback(async (message: PasteTextMessage) => {
-    const text = message.suggestedText ?? message.text;
-    await navigator.clipboard.writeText(text);
-    setCopiedId(message.id);
-    window.setTimeout(() => setCopiedId(null), 2000);
+  const resolveMessageVariantIndex = useCallback(
+    (message: PasteTextMessage) => {
+      const local = localVariantIndexByMessageId[message.id];
+      if (local !== undefined) {
+        return local;
+      }
+
+      if (message.variantIndex !== undefined) {
+        return message.variantIndex;
+      }
+
+      const count = message.variants?.length ?? 0;
+      return count > 0 ? count - 1 : 0;
+    },
+    [localVariantIndexByMessageId]
+  );
+
+  const setMessageVariantIndex = useCallback((messageId: string, index: number) => {
+    setLocalVariantIndexByMessageId((current) => ({
+      ...current,
+      [messageId]: index
+    }));
   }, []);
+
+  const copySuggestion = useCallback(
+    async (message: PasteTextMessage, variantIndex?: number) => {
+      const text = messageVariantText(message, variantIndex ?? resolveMessageVariantIndex(message));
+      await navigator.clipboard.writeText(text);
+      setCopiedId(message.id);
+      window.setTimeout(() => setCopiedId(null), 2000);
+    },
+    [resolveMessageVariantIndex]
+  );
+
+  const regenerateAssistant = useCallback(
+    async (assistantMessageId: string) => {
+      if (!conversation?.id || !daemonConnected || !workspaceReady || pendingRewrite) {
+        return;
+      }
+
+      setError(null);
+
+      try {
+        const updated = await client.regeneratePasteTextAssistantMessage(
+          conversation.id,
+          assistantMessageId
+        );
+        setLocalVariantIndexByMessageId((current) => {
+          const next = { ...current };
+          delete next[assistantMessageId];
+          return next;
+        });
+        onConversationChange(updated);
+        scrollToEnd("send");
+      } catch (err) {
+        setError(
+          err instanceof DaemonClientError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Could not regenerate suggestion."
+        );
+      }
+    },
+    [
+      client,
+      conversation?.id,
+      daemonConnected,
+      onConversationChange,
+      pendingRewrite,
+      scrollToEnd,
+      workspaceReady
+    ]
+  );
 
   const composerSendDisabled =
     !workspaceReady || !daemonConnected || submitting || pendingRewrite;
@@ -270,6 +342,9 @@ export function usePasteTextChatRuntime({
     sendMessage,
     attachFile,
     resetToWelcome,
-    copySuggestion
+    copySuggestion,
+    regenerateAssistant,
+    resolveMessageVariantIndex,
+    setMessageVariantIndex
   };
 }

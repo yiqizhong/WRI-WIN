@@ -59,3 +59,14 @@ html[data-window-chrome="transparent"] [data-slot="accordion-item"] {
   border-color: rgba(157, 202, 251, 0.12) !important;
   background: transparent !important;
 }
+
+html[data-window-chrome="transparent"] .writer-chat-active-shell,
+html[data-window-chrome="transparent"] .writer-chat-composer-footer,
+html[data-window-chrome="transparent"] .writer-chat-composer-footer__inner,
+html[data-window-chrome="transparent"] .writer-chat-composer-panel {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

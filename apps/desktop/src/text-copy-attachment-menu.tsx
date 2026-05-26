@@ -14,6 +14,7 @@ type TextCopyAttachmentMenuProps = {
   disabled?: boolean;
   attaching?: boolean;
   onAttach: (kind: PasteTextAttachmentKind) => void;
+  triggerClassName?: string;
 };
 
 export function attachmentKindFromPath(filePath: string): PasteTextAttachmentKind {
@@ -27,7 +28,8 @@ export function attachmentKindFromPath(filePath: string): PasteTextAttachmentKin
 export function TextCopyAttachmentMenu({
   disabled = false,
   attaching = false,
-  onAttach
+  onAttach,
+  triggerClassName
 }: TextCopyAttachmentMenuProps) {
   return (
     <DropdownMenu>
@@ -37,6 +39,7 @@ export function TextCopyAttachmentMenu({
             type="button"
             variant="ghost"
             size="icon-sm"
+            className={triggerClassName}
             aria-label="Attach file"
             disabled={disabled || attaching}
           >

@@ -1,14 +1,13 @@
-import { useEffect, useState } from "react";
 import type { AgentRunEvent } from "@writer/contracts";
+
+import { cn } from "@/lib/utils";
 
 import {
   deriveThinkingRibbonPhase,
-  THINKING_RIBBON_LABELS,
-  THINKING_RIBBON_PHASES,
-  type ThinkingRibbonPhase
+  THINKING_RIBBON_FAILED_LABEL,
+  THINKING_RIBBON_LABEL
 } from "./text-copy-thinking-ribbon";
-
-const MIN_PHASE_MS = 200;
+import { TextCopyThinkingRibbonIcon } from "./text-copy-thinking-ribbon-icon";
 
 type TextCopyThinkingRibbonViewProps = {
   runStatus?: string;
@@ -21,48 +20,21 @@ export function TextCopyThinkingRibbonView({
   events,
   assistantFailed
 }: TextCopyThinkingRibbonViewProps) {
-  const targetPhase = deriveThinkingRibbonPhase({ runStatus, events, assistantFailed });
-  const [displayPhase, setDisplayPhase] = useState<ThinkingRibbonPhase>(targetPhase);
-
-  useEffect(() => {
-    if (targetPhase === displayPhase) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => setDisplayPhase(targetPhase), MIN_PHASE_MS);
-    return () => window.clearTimeout(timer);
-  }, [targetPhase, displayPhase]);
-
-  if (displayPhase === "failed") {
-    return (
-      <p className="writer-type-helper text-destructive" role="status">
-        {THINKING_RIBBON_LABELS.failed}
-      </p>
-    );
-  }
-
-  const activeIndex = THINKING_RIBBON_PHASES.indexOf(
-    THINKING_RIBBON_PHASES.includes(displayPhase) ? displayPhase : "connecting"
-  );
+  const phase = deriveThinkingRibbonPhase({ runStatus, events, assistantFailed });
+  const failed = phase === "failed";
 
   return (
-    <ul className="flex flex-col gap-1 animate-pulse" role="status" aria-live="polite">
-      {THINKING_RIBBON_PHASES.map((phase, index) => {
-        const done = index < activeIndex;
-        const active = index === activeIndex;
-        return (
-          <li
-            key={phase}
-            className={
-              "writer-type-helper " +
-              (done ? "text-muted-foreground line-through" : active ? "text-foreground" : "text-muted-foreground/60")
-            }
-          >
-            {done ? "✓ " : active ? "● " : "○ "}
-            {THINKING_RIBBON_LABELS[phase]}
-          </li>
-        );
-      })}
-    </ul>
+    <p
+      className={cn("writer-type-helper flex items-center gap-2", failed && "text-destructive")}
+      role="status"
+      aria-live="polite"
+    >
+      <TextCopyThinkingRibbonIcon failed={failed} />
+      {failed ? (
+        <span>{THINKING_RIBBON_FAILED_LABEL}</span>
+      ) : (
+        <span className="writer-chat-thinking-label">{THINKING_RIBBON_LABEL}</span>
+      )}
+    </p>
   );
 }

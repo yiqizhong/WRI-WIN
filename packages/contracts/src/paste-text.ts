@@ -11,6 +11,10 @@ export const pasteTextMessageSchema = z.object({
   role: pasteTextMessageRoleSchema,
   text: z.string(),
   suggestedText: z.string().optional(),
+  /** Completed rewrite variants for this assistant turn (oldest first). */
+  variants: z.array(z.string()).optional(),
+  /** Index into `variants` for the variant shown in the UI. */
+  variantIndex: z.number().int().nonnegative().optional(),
   status: pasteTextMessageStatusSchema.optional(),
   errorMessage: z.string().optional(),
   agentRunId: z.string().min(1).optional(),
@@ -69,6 +73,12 @@ export const sendPasteTextMessageInputSchema = z.object({
   sync: z.boolean().optional()
 });
 
+export const regeneratePasteTextAssistantMessageInputSchema = z.object({
+  adapterId: z.string().min(1).optional(),
+  /** Test and debug only — await LLM rewrite before HTTP response. */
+  sync: z.boolean().optional()
+});
+
 export const attachPasteTextFileInputSchema = z.object({
   conversationId: z.string().min(1),
   filePath: z.string().min(1)
@@ -94,6 +104,9 @@ export type PasteTextAttachment = z.infer<typeof pasteTextAttachmentSchema>;
 export type PasteTextConversation = z.infer<typeof pasteTextConversationSchema>;
 export type CreatePasteTextConversationInput = z.infer<typeof createPasteTextConversationInputSchema>;
 export type SendPasteTextMessageInput = z.infer<typeof sendPasteTextMessageInputSchema>;
+export type RegeneratePasteTextAssistantMessageInput = z.infer<
+  typeof regeneratePasteTextAssistantMessageInputSchema
+>;
 export type AttachPasteTextFileInput = z.infer<typeof attachPasteTextFileInputSchema>;
 export type PasteTextMessageResult = z.infer<typeof pasteTextMessageResultSchema>;
 export type PasteTextConversationList = z.infer<typeof pasteTextConversationListSchema>;

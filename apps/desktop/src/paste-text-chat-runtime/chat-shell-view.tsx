@@ -32,13 +32,20 @@ export function ChatShellView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div ref={threadScrollRef} className="writer-chat-scroll min-h-0 flex-1 px-4 py-4">
-        {thread}
+    <div className="writer-chat-active-shell flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="writer-chat-scroll-region relative min-h-0 flex-1">
+        <div ref={threadScrollRef} className="writer-chat-scroll h-full min-h-0 px-4 py-4">
+          {thread}
+        </div>
       </div>
-      {error ? <div className="shrink-0 px-3">{error}</div> : null}
-      <div className="mt-auto shrink-0 border-t border-border/40 bg-background/80 px-3 pb-3 pt-2 backdrop-blur-sm">
-        {composer}
+      {error ? <div className="shrink-0 px-4">{error}</div> : null}
+      <div className="writer-chat-composer-footer mt-auto shrink-0 px-4 pb-4 pt-2">
+        <div className="writer-chat-composer-footer__inner">
+          {composer}
+          <p className="writer-chat-composer-disclaimer" role="note">
+            AI can make mistakes
+          </p>
+        </div>
       </div>
     </div>
   );

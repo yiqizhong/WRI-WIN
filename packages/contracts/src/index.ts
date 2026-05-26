@@ -355,6 +355,7 @@ export {
   pasteTextMessageRoleSchema,
   pasteTextMessageSchema,
   pasteTextMessageStatusSchema,
+  regeneratePasteTextAssistantMessageInputSchema,
   sendPasteTextMessageInputSchema
 } from "./paste-text";
 export type {
@@ -370,5 +371,6 @@ export type {
   PasteTextMessageResult,
   PasteTextMessageRole,
   PasteTextMessageStatus,
+  RegeneratePasteTextAssistantMessageInput,
   SendPasteTextMessageInput
 } from "./paste-text";

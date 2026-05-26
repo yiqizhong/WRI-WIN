@@ -29,7 +29,7 @@ export function WriterSwitch({
       className={cn(
         "relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border border-[rgb(32_131_234/0.28)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[rgb(32_131_234/0.5)]",
         checked ? "bg-[var(--writer-accent-blue)]" : "bg-[rgba(229,241,255,0.12)]",
-        disabled && "cursor-not-allowed opacity-50",
+        disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
         className
       )}
     >

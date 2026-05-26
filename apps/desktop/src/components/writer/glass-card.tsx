@@ -38,7 +38,7 @@ export function GlassCard({
         "glass-card",
         variant === "filled" && "glass-card--filled",
         selected && "glass-card--selected",
-        onClick && "glass-card--interactive cursor-pointer",
+        (onClick || role === "button") && "glass-card--interactive cursor-pointer",
         className
       )}
       style={style}

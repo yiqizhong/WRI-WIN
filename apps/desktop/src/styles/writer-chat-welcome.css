@@ -1,11 +1,224 @@
 /* Chat welcome — Figma AI-test node 1082:24 */
 
+/* Active chat: no filled strip under the composer — only the glass card is painted */
+.writer-chat-active-shell,
+.writer-chat-composer-footer,
+.writer-chat-composer-footer__inner,
+.writer-chat-composer-panel {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.writer-chat-composer-footer__inner {
+  display: flex;
+  width: 100%;
+  max-width: 744px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-inline: auto;
+}
+
+/* Active chat — lift composer + disclaimer */
+.writer-chat-composer-footer {
+  transform: translateY(-20px);
+}
+
+.writer-chat-composer-disclaimer {
+  margin: 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: rgb(188 206 226 / 0.55);
+}
+
+.writer-chat-thread {
+  width: 100%;
+  max-width: 744px;
+  margin-inline: auto;
+}
+
+/* Active chat — toolbar under masthead (Check left, new chat right, home gradient divider) */
+.writer-chat-subheader {
+  display: flex;
+  shrink: 0;
+  flex-direction: column;
+  width: 100%;
+  margin-top: -12px;
+}
+
+.writer-chat-subheader__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px 10px;
+}
+
+.writer-chat-subheader__divider {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.writer-chat-subheader__lead {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.writer-chat-subheader__back {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  margin: 0;
+  padding: 4px;
+  color: #e5f1ff;
+  cursor: pointer;
+}
+
+.writer-chat-subheader__back-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.writer-chat-subheader__title {
+  margin: 0;
+  min-width: 0;
+  line-height: 1.375;
+  color: #e5f1ff;
+  pointer-events: none;
+  user-select: text;
+}
+
+.writer-chat-subheader__new-chat {
+  display: inline-flex !important;
+  height: auto !important;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 6px 10px !important;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  color: var(--writer-accent-blue) !important;
+}
+
+.writer-chat-subheader__new-chat:hover:not(:disabled) {
+  background: rgb(32 131 234 / 0.14) !important;
+  color: var(--writer-accent-blue) !important;
+}
+
+.writer-chat-user-bubble {
+  border-radius: 2px !important;
+  padding: 12px 16px !important;
+  letter-spacing: normal;
+}
+
+.writer-chat-assistant-text {
+  color: #e5f1ff;
+  letter-spacing: normal;
+}
+
+.writer-chat-message-actions .writer-chat-toolbar-btn {
+  color: rgb(212 226 244 / 0.94);
+  opacity: 1 !important;
+}
+
+.writer-chat-message-actions .writer-chat-toolbar-btn:hover:not(:disabled) {
+  color: #e5f1ff;
+  background: rgb(157 202 251 / 0.1);
+}
+
+.writer-chat-message-actions .writer-chat-toolbar-btn:disabled {
+  color: rgb(188 206 226 / 0.32) !important;
+  opacity: 1 !important;
+}
+
+.writer-chat-variant-nav .writer-chat-toolbar-btn:not(:disabled) {
+  color: rgb(229 241 255 / 0.92);
+}
+
+.writer-chat-variant-indicator {
+  min-width: 3.25rem;
+  padding-inline: 0.35rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: rgb(229 241 255 / 0.88);
+}
+
+/* Thinking ribbon — accent blue, flowing gradient on label + icon */
+:root {
+  --writer-thinking-accent: var(--writer-accent-blue);
+  --writer-thinking-accent-dim: color-mix(in srgb, var(--writer-accent-blue) 52%, rgb(8 18 36));
+}
+
+.writer-chat-thinking-icon {
+  display: inline-flex;
+  color: var(--writer-accent-blue);
+}
+
+.writer-chat-thinking-label {
+  display: inline-block;
+  background-image: linear-gradient(
+    90deg,
+    var(--writer-thinking-accent-dim) 0%,
+    var(--writer-thinking-accent-dim) 32%,
+    var(--writer-thinking-accent) 48%,
+    var(--writer-thinking-accent) 52%,
+    var(--writer-thinking-accent-dim) 68%,
+    var(--writer-thinking-accent-dim) 100%
+  );
+  background-size: 240% 100%;
+  background-position: 120% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: writer-chat-thinking-label-flow 2.2s linear infinite;
+}
+
+@keyframes writer-chat-thinking-label-flow {
+  0% {
+    background-position: 120% 50%;
+  }
+
+  100% {
+    background-position: -20% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-chat-thinking-label {
+    animation: none;
+    background-image: none;
+    background-clip: unset;
+    -webkit-background-clip: unset;
+    color: var(--writer-accent-blue);
+  }
+}
+
 .writer-chat-welcome-shell {
   width: 100%;
   max-width: 744px;
   gap: 38px;
   /* Slight lift so the block doesn’t read “low” in the window under the header chrome */
   transform: translateY(-1.75rem);
+}
+
+/* Welcome — lift composer only (heading position unchanged) */
+.writer-chat-welcome-shell .writer-chat-composer-panel {
+  margin-top: -12px;
 }
 
 .writer-chat-welcome-heading {
@@ -23,15 +236,83 @@
 
 .writer-chat-welcome-product-trigger {
   color: inherit;
+  background: transparent !important;
+}
+
+.writer-chat-welcome-product-trigger:hover,
+.writer-chat-welcome-product-trigger[data-popup-open] {
+  background: transparent !important;
 }
 
 .writer-chat-welcome-product-label {
+  color: var(--writer-accent-blue);
   text-decoration: underline;
-  text-decoration-color: rgb(32 131 234 / 0.55);
+  text-decoration-color: var(--writer-accent-blue);
+  text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
+  transition:
+    color 160ms ease,
+    text-decoration-color 160ms ease;
 }
 
-/* Border matches Home workflow cards via GlassCard (.glass-card::before gradient mask) */
+.writer-chat-welcome-product-trigger:hover .writer-chat-welcome-product-label,
+.writer-chat-welcome-product-trigger[data-popup-open] .writer-chat-welcome-product-label {
+  color: rgb(157 202 251);
+  text-decoration-color: rgb(157 202 251);
+}
+
+.writer-chat-welcome-product-chevron {
+  color: rgb(229 241 255 / 0.65);
+  transition: color 160ms ease;
+}
+
+.writer-chat-welcome-product-trigger:hover .writer-chat-welcome-product-chevron,
+.writer-chat-welcome-product-trigger[data-popup-open] .writer-chat-welcome-product-chevron {
+  color: var(--writer-accent-blue);
+}
+
+/* Product picker — matches tooltip / glass panels + accent blue */
+.writer-product-menu {
+  min-width: 12.5rem;
+  border-radius: 2px !important;
+  border: 1px solid rgb(157 202 251 / 0.22) !important;
+  background: rgb(8 18 38 / 0.94) !important;
+  padding: 0.375rem !important;
+  color: rgb(229 241 255 / 0.88) !important;
+  box-shadow:
+    0 10px 28px rgb(0 0 0 / 0.38),
+    0 0 36px rgb(32 131 234 / 0.14) !important;
+  backdrop-filter: blur(10px);
+  --tw-ring-color: transparent !important;
+}
+
+.writer-product-menu-item {
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 0.5rem 0.625rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  color: rgb(229 241 255 / 0.72);
+  transition:
+    color 200ms ease,
+    transform 200ms ease;
+}
+
+.writer-product-menu-item[data-highlighted] {
+  background: transparent !important;
+  color: #e5f1ff !important;
+  transform: translateX(8px);
+}
+
+.writer-product-menu-item--selected {
+  color: var(--writer-accent-blue) !important;
+  background: transparent !important;
+}
+
+/* Border + fill when not wrapped in WriterStarBorder */
 .writer-chat-welcome-composer {
   display: flex;
   width: 100%;
@@ -40,13 +321,13 @@
   justify-content: center;
   padding-block: 16px;
   padding-inline: 16px;
-  background: rgb(0 0 0 / 0.2);
+  background: rgb(18 25 43);
   box-shadow: 0 17px 80.9px rgb(47 146 248 / 0.19);
 }
 
-/* Default GlassCard ring is ::before opacity 0.5; bump slightly for welcome composer only */
+/* Chat composer only — full-strength gradient stroke; homepage / workflow GlassCards stay at 0.5 */
 .writer-chat-welcome-composer.glass-card::before {
-  opacity: 0.62;
+  opacity: 1;
 }
 
 .writer-chat-welcome-composer-stack {
@@ -68,6 +349,20 @@
   margin-top: 6px;
   justify-content: flex-end;
   align-items: center;
+}
+
+/* Shadcn Textarea defaults (border, min-h-16, dark:bg-input/30) must not show inside the card */
+.writer-chat-welcome-composer textarea[data-slot="textarea"] {
+  min-height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.writer-chat-welcome-composer textarea[data-slot="textarea"]:focus-visible {
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .writer-chat-welcome-input {
@@ -104,7 +399,7 @@
 }
 
 .writer-chat-welcome-input::placeholder {
-  color: rgb(188 206 226 / 0.5);
+  color: rgb(188 206 226 / 0.7) !important;
 }
 
 .writer-chat-welcome-input:focus-visible {

@@ -15,7 +15,7 @@ export function WorkflowBackLink({ to = "/", label = "Back" }: { to?: string; la
     <button
       type="button"
       onClick={() => navigate(to)}
-      className="writer-home-text inline-flex w-fit shrink-0 items-center gap-2 rounded-md py-1 text-sm font-normal tracking-[0.08em] text-[#e5f1ff]/75 transition-colors hover:text-[#e5f1ff]"
+      className="writer-home-text inline-flex w-fit shrink-0 cursor-pointer items-center gap-2 rounded-md py-1 text-sm font-normal tracking-[0.08em] text-[#e5f1ff]/75 transition-colors hover:text-[#e5f1ff]"
       aria-label={label === "Back" ? "Back to home" : label}
     >
       <ArrowLeft className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />

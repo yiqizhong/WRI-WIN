@@ -20,6 +20,7 @@ import {
 import {
   createPasteTextConversation,
   getPasteTextConversation,
+  regeneratePasteTextAssistantMessage,
   sendPasteTextMessage,
   attachPasteTextFile
 } from "../paste-text";
@@ -411,6 +412,36 @@ export async function handleReviewRequest(
         response,
         error instanceof Error ? error.message : "Unable to send paste-text message.",
         "Provide text and ensure an agent adapter is available."
+      );
+    }
+    return true;
+  }
+
+  const pasteTextRegenerateMatch = path?.match(
+    /^\/paste-text\/conversations\/([^/]+)\/messages\/([^/]+)\/regenerate$/
+  );
+  if (pasteTextRegenerateMatch && request.method === "POST") {
+    const conversationId = decodeURIComponent(pasteTextRegenerateMatch[1]!);
+    const assistantMessageId = decodeURIComponent(pasteTextRegenerateMatch[2]!);
+
+    try {
+      const conversation = await regeneratePasteTextAssistantMessage(
+        state,
+        conversationId,
+        assistantMessageId,
+        await readJsonBody(request)
+      );
+      sendJson(response, 200, { conversation });
+    } catch (error) {
+      if (error instanceof Error && error.message === "Paste text conversation not found") {
+        notFound(response, error.message);
+        return true;
+      }
+
+      invalidRequest(
+        response,
+        error instanceof Error ? error.message : "Unable to regenerate paste-text message.",
+        "Ensure the assistant message exists and an agent adapter is available."
       );
     }
     return true;

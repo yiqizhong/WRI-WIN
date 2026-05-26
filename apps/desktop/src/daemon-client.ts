@@ -498,6 +498,23 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         120_000
       ) as Promise<PasteTextMessageResult>,
 
+    regeneratePasteTextAssistantMessage: (
+      conversationId: string,
+      assistantMessageId: string,
+      input?: { adapterId?: string }
+    ) =>
+      request(
+        baseUrl,
+        `/paste-text/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(assistantMessageId)}/regenerate`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input ?? {})
+        },
+        (payload) => parsePasteTextConversation((payload as { conversation: unknown }).conversation),
+        120_000
+      ) as Promise<PasteTextConversation>,
+
     getGuidelinesTree: () => request(baseUrl, "/guidelines", undefined, parseGuidelinesTree),
 
     /** @deprecated use getGuidelinesTree */

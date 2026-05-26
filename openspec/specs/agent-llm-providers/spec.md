@@ -3,23 +3,25 @@
 ## Purpose
 
 Define concrete local LLM provider adapters for Cursor Agent and Devin.
-
 ## Requirements
-
 ### Requirement: Provider adapters detect local installation and auth readiness
-The system SHALL provide agent adapters for Cursor Agent and Devin that report whether the local interface is installed, executable, and ready to accept prompts.
+The system SHALL provide agent adapters for Cursor Agent, Codex, Claude Code, and Devin that report whether the local interface is installed, executable, authenticated when applicable, and ready to accept prompts.
 
 #### Scenario: Cursor detected on PATH
 - **WHEN** the daemon refreshes agent detection and the Cursor CLI is installed and invocable
-- **THEN** the `cursor-agent` adapter reports `available: true` with executable path metadata
+- **THEN** the `cursor-agent` adapter reports `available: true` with executable path metadata and a ready diagnostic
 
-#### Scenario: Cursor not installed
-- **WHEN** the Cursor CLI is not found
-- **THEN** the `cursor-agent` adapter reports `available: false` with setup instructions to install or fix PATH
+#### Scenario: Claude not installed
+- **WHEN** the Claude Code CLI is not found
+- **THEN** the `claude-code` adapter reports `available: false` with setup instructions to install or fix PATH
 
 #### Scenario: Devin needs login
 - **WHEN** the Devin CLI is installed but authentication is missing
 - **THEN** the `devin` adapter reports `available: false` with setup instructions referencing Devin login
+
+#### Scenario: Codex wrapper is broken
+- **WHEN** the Codex wrapper is found on PATH but `codex --version` fails because the vendor binary cannot be spawned
+- **THEN** the `codex` adapter reports `available: false` with a `broken_executable` diagnostic and reinstall guidance
 
 ### Requirement: Provider adapters expose runtime kind metadata
 Each provider adapter SHALL include capability metadata indicating whether execution is local-only or hybrid (local CLI with cloud inference).
@@ -29,15 +31,15 @@ Each provider adapter SHALL include capability metadata indicating whether execu
 - **THEN** capability metadata indicates hybrid runtime so the UI can label cloud-backed execution
 
 ### Requirement: Users can smoke-test a provider connection
-The daemon SHALL support a short smoke probe that verifies a selected adapter can return model output without starting a full review workflow.
+The daemon SHALL support a short smoke probe that verifies a selected adapter can return model output without starting a full review workflow and returns structured diagnostic detail on failure.
 
 #### Scenario: Successful smoke test
 - **WHEN** the user requests a smoke test for an available adapter
-- **THEN** the daemon returns success with truncated output text within a bounded timeout
+- **THEN** the daemon returns success with truncated output text, adapter ID, command path, and ready diagnostic within a bounded timeout
 
 #### Scenario: Smoke test failure
-- **WHEN** the smoke test fails due to auth, timeout, or CLI error
-- **THEN** the daemon returns a structured error with a recoverable message suitable for the desktop UI
+- **WHEN** the smoke test fails due to auth, timeout, CLI spawn error, or non-zero exit
+- **THEN** the daemon returns a structured error with diagnostic code, message, recovery action, and bounded stdout/stderr snippets suitable for the desktop UI
 
 ### Requirement: Provider adapters execute review prompts with normalized streaming
 Each implemented provider adapter SHALL run a non-interactive prompt, emit normalized `text` and `error` run events, and support cancellation of the underlying process.
@@ -49,3 +51,4 @@ Each implemented provider adapter SHALL run a non-interactive prompt, emit norma
 #### Scenario: Cancel in-flight Cursor Agent run
 - **WHEN** the user cancels an active Cursor Agent run
 - **THEN** the underlying process is terminated and the run status becomes `canceled`
+

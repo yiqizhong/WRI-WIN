@@ -14,7 +14,45 @@ export function streamingTextFromEvents(events: AgentRunEvent[]): string {
     .join(hasDeltas ? "" : "\n");
 }
 
-export function messagePreview(message: PasteTextMessage, streamingText?: string | null): string {
+export function getMessageVariants(message: PasteTextMessage): string[] {
+  if (message.variants && message.variants.length > 0) {
+    return message.variants;
+  }
+
+  if (message.status === "complete") {
+    const text = message.suggestedText ?? message.text;
+    if (text && text !== "Rewriting…") {
+      return [text];
+    }
+  }
+
+  return [];
+}
+
+export function resolveVariantIndex(message: PasteTextMessage, localIndex?: number): number {
+  const variants = getMessageVariants(message);
+  if (variants.length === 0) {
+    return 0;
+  }
+
+  const index = localIndex ?? message.variantIndex ?? variants.length - 1;
+  return Math.max(0, Math.min(index, variants.length - 1));
+}
+
+export function messageVariantText(message: PasteTextMessage, localIndex?: number): string {
+  const variants = getMessageVariants(message);
+  if (variants.length === 0) {
+    return message.suggestedText ?? message.text;
+  }
+
+  return variants[resolveVariantIndex(message, localIndex)] ?? message.text;
+}
+
+export function messagePreview(
+  message: PasteTextMessage,
+  streamingText?: string | null,
+  options?: { variantIndex?: number }
+): string {
   if (message.status === "pending") {
     if (streamingText) {
       return streamingText;
@@ -28,7 +66,7 @@ export function messagePreview(message: PasteTextMessage, streamingText?: string
   }
 
   if (message.role === "assistant") {
-    return message.suggestedText ?? message.text;
+    return messageVariantText(message, options?.variantIndex);
   }
 
   return message.text;
