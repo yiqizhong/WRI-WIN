@@ -9,6 +9,14 @@ export function scrollBehaviorForReason(reason: ScrollReason): ScrollBehavior {
   return reason === "send" || reason === "phase-active" ? "smooth" : "auto";
 }
 
+/** Scroll the chat thread container to the latest message (not the window). */
+export function scrollContainerToEnd(
+  container: HTMLElement,
+  behavior: ScrollBehavior = "auto"
+): void {
+  container.scrollTo({ top: container.scrollHeight, behavior });
+}
+
 export function createScrollThrottle(intervalMs: number) {
   let lastFiredAt = 0;
 

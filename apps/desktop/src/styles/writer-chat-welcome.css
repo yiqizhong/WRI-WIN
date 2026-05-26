@@ -22,9 +22,9 @@
   margin-inline: auto;
 }
 
-/* Active chat — lift composer + disclaimer */
+/* Composer stays in flex flow so thread height shrinks when the textarea grows */
 .writer-chat-composer-footer {
-  transform: translateY(-20px);
+  flex-shrink: 0;
 }
 
 .writer-chat-composer-disclaimer {
@@ -41,6 +41,13 @@
   width: 100%;
   max-width: 744px;
   margin-inline: auto;
+  /* Room for bottom edge fade mask (28px) + scroll end sentinel */
+  padding-bottom: 4px;
+}
+
+/* Clear top scroll fade mask on the first message when thread is at scroll top */
+.writer-chat-thread > :first-child {
+  margin-top: 8px;
 }
 
 /* Active chat — toolbar under masthead (Check left, new chat right, home gradient divider) */
@@ -121,6 +128,8 @@
 .writer-chat-user-bubble {
   border-radius: 2px !important;
   padding: 12px 16px !important;
+  background: var(--writer-home-card-fill) !important;
+  backdrop-filter: blur(8.90625px);
   letter-spacing: normal;
 }
 

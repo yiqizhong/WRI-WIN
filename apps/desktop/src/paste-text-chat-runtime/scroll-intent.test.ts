@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { createScrollThrottle, isNearBottom, scrollBehaviorForReason } from "./scroll-intent";
+import {
+  createScrollThrottle,
+  isNearBottom,
+  scrollBehaviorForReason,
+  scrollContainerToEnd
+} from "./scroll-intent";
 
 describe("scrollBehaviorForReason", () => {
   it("uses smooth scroll on send", () => {
@@ -31,6 +36,19 @@ describe("isNearBottom", () => {
     } as HTMLElement;
 
     expect(isNearBottom(element)).toBe(false);
+  });
+});
+
+describe("scrollContainerToEnd", () => {
+  it("sets scrollTop to scrollHeight on the container", () => {
+    const scrollTo = vi.fn();
+    const container = {
+      scrollHeight: 2400,
+      scrollTo
+    } as unknown as HTMLElement;
+
+    scrollContainerToEnd(container, "smooth");
+    expect(scrollTo).toHaveBeenCalledWith({ top: 2400, behavior: "smooth" });
   });
 });
 

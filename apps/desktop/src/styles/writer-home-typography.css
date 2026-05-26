@@ -16,6 +16,13 @@
     var(--writer-accent-blue) 91%,
     rgb(19 42 82 / 0.5) 100%
   );
+
+  /* Home workflow card fill (GlassCard --filled) */
+  --writer-home-card-fill: radial-gradient(
+    circle,
+    rgba(0, 35, 124, 0.12) 0%,
+    rgba(32, 131, 234, 0.18) 100%
+  );
 }
 
 .writer-home-divider {

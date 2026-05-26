@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { PasteTextConversation, PasteTextMessage } from "@writer/contracts";
 
 import type { DaemonClient } from "../daemon-client";
@@ -7,12 +7,7 @@ import type { PasteTextAttachmentKind } from "../text-copy-attachment-menu";
 import { deriveChatPhase } from "./chat-phase";
 import { mergeDisplayMessages, createOptimisticTurn, type OptimisticTurn } from "./optimistic-turn";
 import { messageVariantText } from "./message-display";
-import {
-  createScrollThrottle,
-  isNearBottom,
-  scrollBehaviorForReason,
-  type ScrollReason
-} from "./scroll-intent";
+import { scrollBehaviorForReason, scrollContainerToEnd, type ScrollReason } from "./scroll-intent";
 import { usePasteTextRunSync } from "./use-paste-text-run-sync";
 
 type UsePasteTextChatRuntimeInput = {
@@ -47,8 +42,9 @@ export function usePasteTextChatRuntime({
   const [forceWelcome, setForceWelcome] = useState(false);
 
   const threadScrollRef = useRef<HTMLDivElement>(null);
+  const composerFooterRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollThrottleRef = useRef(createScrollThrottle(300));
+  const stickToBottomRef = useRef(true);
 
   const displayMessages = useMemo(
     () => mergeDisplayMessages(conversation, optimisticTurn),
@@ -84,41 +80,75 @@ export function usePasteTextChatRuntime({
   });
 
   const scrollToEnd = useCallback((reason: ScrollReason) => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: scrollBehaviorForReason(reason)
-    });
+    const behavior = scrollBehaviorForReason(reason);
+    const run = () => {
+      const container = threadScrollRef.current;
+      if (!container) {
+        return;
+      }
+      scrollContainerToEnd(container, behavior);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
   }, []);
 
   useEffect(() => {
+    const container = threadScrollRef.current;
+    if (!container || phase !== "active") {
+      return;
+    }
+
+    const onScroll = () => {
+      const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+      stickToBottomRef.current = distance <= 80;
+    };
+
+    onScroll();
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [phase]);
+
+  useLayoutEffect(() => {
     if (phase !== "active") {
       return;
     }
     scrollToEnd("phase-active");
   }, [phase, scrollToEnd]);
 
+  useLayoutEffect(() => {
+    if (phase !== "active") {
+      return;
+    }
+    if (pendingAssistant || stickToBottomRef.current) {
+      scrollToEnd(pendingAssistant ? "stream" : "message");
+    }
+  }, [displayMessages, phase, pendingAssistant, scrollToEnd, streamingText]);
+
+  useLayoutEffect(() => {
+    if (phase !== "active" || !streamingText) {
+      return;
+    }
+    scrollToEnd("stream");
+  }, [phase, scrollToEnd, streamingText]);
+
   useEffect(() => {
     if (phase !== "active") {
       return;
     }
-    scrollToEnd("message");
-  }, [displayMessages.length, phase, scrollToEnd]);
 
-  useEffect(() => {
-    if (phase !== "active" || !streamingText) {
+    const footer = composerFooterRef.current;
+    if (!footer) {
       return;
     }
 
-    const container = threadScrollRef.current;
-    if (container && !isNearBottom(container)) {
-      return;
-    }
-
-    if (!scrollThrottleRef.current.shouldScroll()) {
-      return;
-    }
-
-    scrollToEnd("stream");
-  }, [phase, scrollToEnd, streamingText]);
+    const observer = new ResizeObserver(() => {
+      if (!stickToBottomRef.current) {
+        return;
+      }
+      scrollToEnd("message");
+    });
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [phase, scrollToEnd]);
 
   useEffect(() => {
     if (!conversation) {
@@ -151,6 +181,7 @@ export function usePasteTextChatRuntime({
       setError(null);
       setForceWelcome(false);
       setOptimisticTurn(createOptimisticTurn(text));
+      stickToBottomRef.current = true;
 
       try {
         const current = await ensureConversation();
@@ -235,7 +266,7 @@ export function usePasteTextChatRuntime({
     setForceWelcome(true);
     setDraftText("");
     setError(null);
-    scrollThrottleRef.current.reset();
+    stickToBottomRef.current = true;
   }, []);
 
   const resolveMessageVariantIndex = useCallback(
@@ -334,6 +365,7 @@ export function usePasteTextChatRuntime({
     runStatus,
     runEvents,
     threadScrollRef,
+    composerFooterRef,
     messagesEndRef,
     conversation,
     isStructured: conversation?.inputMode === "structured_file",

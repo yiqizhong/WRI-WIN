@@ -5,11 +5,7 @@
 }
 
 .glass-card--filled {
-  background: radial-gradient(
-    circle,
-    rgba(0, 35, 124, 0.12) 0%,
-    rgba(32, 131, 234, 0.18) 100%
-  );
+  background: var(--writer-home-card-fill);
   backdrop-filter: blur(8.90625px);
 }
 

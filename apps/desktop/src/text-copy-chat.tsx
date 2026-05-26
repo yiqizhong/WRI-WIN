@@ -82,6 +82,7 @@ export function TextCopyChat({
     runEvents,
     messagesEndRef,
     threadScrollRef,
+    composerFooterRef,
     isStructured,
     attachment,
     composerSendDisabled,
@@ -304,6 +305,7 @@ export function TextCopyChat({
       <ChatShellView
         phase={phase}
         threadScrollRef={threadScrollRef}
+        composerFooterRef={composerFooterRef}
         welcomeGreeting={
           <h1 className="writer-chat-welcome-heading writer-home-text writer-home-heading w-full">
             <span className="writer-chat-welcome-heading-lead">Audit copy for </span>
