@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./styles/writer-home-typography.css";
 @import "./styles/writer-chat-welcome.css";
+@import "./styles/writer-settings-page.css";
 @import "./styles/writer-interactive-cursor.css";
 @import "./styles/writer-tooltip.css";
 @import "tw-animate-css";

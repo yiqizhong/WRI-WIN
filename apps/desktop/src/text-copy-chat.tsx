@@ -1,12 +1,13 @@
 import type { KeyboardEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, Copy, Plus, RotateCw } from "lucide-react";
 import type { PasteTextConversation, PasteTextMessage, ProductPackageListItem } from "@writer/contracts";
 
 import { WriterChatComposer } from "@/components/writer/writer-chat-composer";
+import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InlineAlert } from "@/components/writer/inline-alert";
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -53,8 +54,6 @@ export function TextCopyChat({
   onRequestNewConversation,
   onChangeProduct
 }: TextCopyChatProps) {
-  const navigate = useNavigate();
-
   const runtime = usePasteTextChatRuntime({
     client,
     daemonConnected,
@@ -296,22 +295,12 @@ export function TextCopyChat({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="writer-chat-subheader shrink-0">
-        <div className="writer-chat-subheader__row">
-          <div className="writer-chat-subheader__lead">
-            <button
-              type="button"
-              className="writer-chat-subheader__back"
-              onClick={() => navigate("/")}
-              aria-label="Return to home"
-            >
-              <ChevronLeft className="writer-chat-subheader__back-icon shrink-0" strokeWidth={1.75} aria-hidden />
-            </button>
-            <p className="writer-chat-subheader__title writer-home-text writer-home-section-title truncate">
-              {subheaderTitle}
-            </p>
-          </div>
-          {showNewChat ? (
+      <WriterPageSubheader
+        title={subheaderTitle}
+        backTo="/"
+        backLabel="Return to home"
+        trailing={
+          showNewChat ? (
             <Button
               type="button"
               variant="ghost"
@@ -321,10 +310,9 @@ export function TextCopyChat({
               <Plus className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
               <span>New Chat</span>
             </Button>
-          ) : null}
-        </div>
-        <div className="writer-home-divider writer-chat-subheader__divider" aria-hidden />
-      </div>
+          ) : null
+        }
+      />
 
       <ChatShellView
         phase={phase}
@@ -367,7 +355,7 @@ export function TextCopyChat({
                       productId === product.id && "writer-product-menu-item--selected"
                     )}
                   >
-                    {product.name}
+                    {formatProductDisplayName(product.name)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

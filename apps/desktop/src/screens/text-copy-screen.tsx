@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+import { formatProductDisplayName } from "@/lib/writer-product-display";
+
 import { TextCopyChat } from "../text-copy-chat";
 import { useWorkspace } from "../workspace-context";
 
@@ -30,7 +32,7 @@ export function TextCopyScreen() {
   const pendingActionRef = useRef<(() => void) | null>(null);
 
   const productName = pickedProductId
-    ? (products.find((p) => p.id === pickedProductId)?.name ?? pickedProductId)
+    ? formatProductDisplayName(products.find((p) => p.id === pickedProductId)?.name ?? pickedProductId)
     : "General purpose";
 
   const pendingRewrite = conversation?.messages.some(

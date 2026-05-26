@@ -17,6 +17,7 @@ import {
   type AgentsLoadState
 } from "./agents-runtime";
 
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { checkDaemonHealth, getDaemonStatusView, type DaemonConnectionState } from "./daemon-status";
 import { formatConnectionDiagnostic } from "./connection-diagnostics";
 import { createDaemonClient, DaemonClientError, type DaemonClient, type ReviewQueue } from "./daemon-client";
@@ -110,7 +111,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!selectedProductId) {
       return null;
     }
-    return products.find((product) => product.id === selectedProductId)?.name ?? selectedProductId;
+    const name = products.find((product) => product.id === selectedProductId)?.name ?? selectedProductId;
+    return formatProductDisplayName(name);
   }, [products, selectedProductId]);
 
   const setSelectedProductId = useCallback(

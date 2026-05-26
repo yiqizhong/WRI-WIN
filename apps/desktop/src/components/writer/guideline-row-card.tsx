@@ -1,4 +1,4 @@
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/writer/glass-card";
@@ -22,7 +22,7 @@ export function GuidelineRowCard({ title, subtitle, className, onOpen }: Guideli
       onClick={onOpen}
     >
       <span className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <strong className="writer-home-text truncate font-semibold">{title}</strong>
+        <strong className="writer-home-text truncate font-semibold tracking-normal">{title}</strong>
         {subtitle ? <span className="text-xs text-[#e5f1ff]/60">{subtitle}</span> : null}
       </span>
       <ChevronDown className="size-4 shrink-0 text-[#e5f1ff]/60" aria-hidden />
@@ -55,19 +55,19 @@ export function GuidelineFileRow({
       )}
     >
       <span className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <strong className="writer-home-text truncate font-semibold">{title}</strong>
+        <strong className="writer-home-text truncate font-semibold tracking-normal">{title}</strong>
         {subtitle ? <span className="text-xs text-[#e5f1ff]/60">{subtitle}</span> : null}
       </span>
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
-        className="shrink-0 text-[var(--writer-accent-orange)] hover:bg-[rgb(230_127_1/0.14)] hover:text-[var(--writer-accent-orange)]"
+        size="sm"
+        className="h-auto shrink-0 px-2 py-1 text-sm font-normal text-[var(--writer-accent-orange)] hover:bg-[rgb(230_127_1/0.14)] hover:text-[var(--writer-accent-orange)]"
         disabled={removeDisabled}
         aria-label={removeLabel}
         onClick={onRemove}
       >
-        <X className="size-4" strokeWidth={1.5} aria-hidden />
+        Remove
       </Button>
     </GlassCard>
   );

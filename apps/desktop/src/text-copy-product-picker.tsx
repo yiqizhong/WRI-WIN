@@ -1,6 +1,7 @@
 import type { ProductPackageListItem } from "@writer/contracts";
 
 import { Button } from "@/components/ui/button";
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { GuidelineRowCard } from "@/components/writer/guideline-row-card";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
@@ -65,7 +66,7 @@ export function TextCopyProductPicker({
         {products.map((product) => (
           <GuidelineRowCard
             key={product.id}
-            title={product.name}
+            title={formatProductDisplayName(product.name)}
             subtitle={product.id}
             onOpen={() => onPick(product.id)}
           />

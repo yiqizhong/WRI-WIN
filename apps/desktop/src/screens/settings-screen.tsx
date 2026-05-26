@@ -1,43 +1,24 @@
 import { useSearchParams } from "react-router-dom";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-import { AgentsScreen } from "./agents-screen";
-import { GuidelinesScreen } from "./guidelines-screen";
-import { ReviewScreen } from "./review-screen";
-import { SourcesScreen } from "./sources-screen";
-
-const SETTINGS_TABS = ["review", "sources", "guidelines", "agents"] as const;
+import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
+import {
+  WriterSettingsTabs,
+  isSettingsTab,
+  type SettingsTab
+} from "@/components/writer/writer-settings-tabs";
 
 export function SettingsScreen() {
   const [searchParams] = useSearchParams();
   const fromQuery = searchParams.get("tab");
-  const defaultTab =
-    fromQuery && (SETTINGS_TABS as readonly string[]).includes(fromQuery) ? fromQuery : "review";
+  const defaultTab: SettingsTab =
+    fromQuery && isSettingsTab(fromQuery) ? fromQuery : "guidelines";
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      <Tabs defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col gap-6">
-        <TabsList variant="minimal" className="shrink-0 w-full">
-          <TabsTrigger value="review">Review</TabsTrigger>
-          <TabsTrigger value="sources">Sources</TabsTrigger>
-          <TabsTrigger value="guidelines">Guidelines</TabsTrigger>
-          <TabsTrigger value="agents">Agents</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="review" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
-          <ReviewScreen />
-        </TabsContent>
-        <TabsContent value="sources" className="flex min-h-0 flex-1 flex-col overflow-hidden pb-5">
-          <SourcesScreen />
-        </TabsContent>
-        <TabsContent value="guidelines" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-5">
-          <GuidelinesScreen />
-        </TabsContent>
-        <TabsContent value="agents" className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto pb-5">
-          <AgentsScreen />
-        </TabsContent>
-      </Tabs>
+    <div className="writer-settings-page flex h-full min-h-0 flex-col overflow-hidden">
+      <WriterPageSubheader title="Settings" backTo="/" backLabel="Return to home" />
+      <div className="writer-settings-page__body flex min-h-0 flex-1 flex-col">
+        <WriterSettingsTabs defaultTab={defaultTab} />
+      </div>
     </div>
   );
 }

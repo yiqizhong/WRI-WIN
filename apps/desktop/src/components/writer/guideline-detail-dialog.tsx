@@ -35,7 +35,7 @@ export function GuidelineDetailDialog({
       <DialogContent showCloseButton={false} className={cn("sm:max-w-lg", contentClassName)}>
         <div className="flex items-start justify-between gap-3">
           <DialogHeader className="min-w-0 flex-1 text-left">
-            <DialogTitle className="writer-home-text tracking-[0.08em]">{title}</DialogTitle>
+            <DialogTitle className="writer-home-text tracking-normal">{title}</DialogTitle>
             {description ? (
               <DialogDescription className="text-[#e5f1ff]/60">{description}</DialogDescription>
             ) : null}

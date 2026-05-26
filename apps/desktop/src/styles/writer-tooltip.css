@@ -9,7 +9,7 @@
   color: rgb(229 241 255 / 0.88);
   font-size: 0.75rem;
   line-height: 1.45;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   white-space: pre-line;
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.38);
   backdrop-filter: blur(10px);

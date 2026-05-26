@@ -57,7 +57,7 @@
   font-size: 0.75rem;
   font-weight: 400;
   line-height: 1.35;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   color: rgb(188 206 226 / 0.55);
 }
 
@@ -187,7 +187,7 @@
   text-align: center;
   font-size: 0.875rem;
   font-weight: 500;
-  letter-spacing: 0.14em;
+  letter-spacing: normal;
   color: rgb(229 241 255 / 0.88);
 }
 
@@ -305,6 +305,7 @@
   justify-content: center;
   gap: 0.35rem 0.5rem;
   text-align: center;
+  letter-spacing: normal;
 }
 
 .writer-chat-welcome-heading-lead {
@@ -322,6 +323,7 @@
 }
 
 .writer-chat-welcome-product-label {
+  letter-spacing: normal;
   color: var(--writer-accent-blue);
   text-decoration: underline;
   text-decoration-color: var(--writer-accent-blue);
@@ -371,7 +373,7 @@
   font-size: 0.9375rem;
   font-weight: 400;
   line-height: 1.35;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   color: rgb(229 241 255 / 0.72);
   transition:
     color 200ms ease,
@@ -481,7 +483,7 @@
   line-height: 1.35;
   /* Softer than #e5f1ff — full white-blue reads harsh in the composer */
   color: rgb(188 206 226);
-  letter-spacing: 0.0175em;
+  letter-spacing: normal;
   box-shadow: none;
   overflow-x: hidden;
   scrollbar-width: none;

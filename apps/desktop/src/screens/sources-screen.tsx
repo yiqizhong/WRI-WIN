@@ -12,6 +12,8 @@ import {
   SelectValue
 } from "@/components/ui/select";
 
+import { formatProductDisplayName } from "@/lib/writer-product-display";
+
 import {
   WriterPageGrid,
   WriterPageGridFull,
@@ -66,7 +68,7 @@ export function SourcesScreen() {
                     <SelectContent>
                       {workspace.products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name}
+                          {formatProductDisplayName(product.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>

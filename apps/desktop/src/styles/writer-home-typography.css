@@ -1,7 +1,7 @@
 /* Shared with HomeScreen greeting and workflow cards */
 .writer-home-text {
   color: #e5f1ff;
-  letter-spacing: 2.5px;
+  letter-spacing: normal;
 }
 
 /* Horizontal rule under greeting — match anywhere with .writer-home-divider-bottom (::after). */
@@ -74,7 +74,7 @@
 }
 
 .writer-home-section-title {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 200;
   line-height: 1.375;
 }
@@ -86,7 +86,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
-  letter-spacing: 0.02em;
+  letter-spacing: normal;
   color: rgb(229 241 255 / 60%);
 }
 

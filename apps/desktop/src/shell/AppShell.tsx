@@ -15,6 +15,7 @@ export function AppShell({ children }: AppShellProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { title, backTo } = mastheadConfigForPath(pathname);
+  const onSettings = pathname === "/settings" ? undefined : () => navigate("/settings");
 
   return (
     <WriterWindowBackground>
@@ -22,7 +23,7 @@ export function AppShell({ children }: AppShellProps) {
         <WindowMasthead
           title={title}
           {...(backTo ? { onBack: () => navigate(backTo) } : {})}
-          onSettings={() => navigate("/settings")}
+          {...(onSettings ? { onSettings } : {})}
         />
         <div className="writer-app-viewport__content">{children}</div>
       </div>

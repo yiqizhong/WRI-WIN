@@ -12,17 +12,16 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { InlineAlert } from "@/components/writer/inline-alert";
+import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
+import { cn } from "@/lib/utils";
 import type { CreateFigmaSessionInput, FigmaAuditMode } from "@writer/contracts";
 
 import { FigmaAuditWorkflowTabs, type WorkflowSubmitPayload } from "../figma-audit-workflow-tabs";
 import { DaemonClientError } from "../daemon-client";
-import {
-  WorkflowGlassPanel,
-  WorkflowPageIntro,
-  WorkflowScreenShell
-} from "../layout/workflow-screen-shell";
+import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { WriterPageGrid, WriterPageGridHalf } from "../layout/writer-grid";
 import { useWorkspace } from "../workspace-context";
 
@@ -113,19 +112,28 @@ export function FigmaAuditScreen() {
   }
 
   return (
-    <WorkflowScreenShell>
-      <WorkflowPageIntro
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <WriterPageSubheader
         title="Figma Audit"
-        description="Review UX copy in Figma frames against your guideline stack, then write approved edits back."
-        actions={
+        backTo="/"
+        backLabel="Return to home"
+        trailing={
           <Link
             to="/audits"
-            className="writer-home-text inline-flex h-8 items-center rounded-md border border-white/20 px-3 text-sm text-[#e5f1ff] transition-colors hover:bg-white/10"
+            className={cn(
+              "writer-chat-subheader__new-chat",
+              "inline-flex h-auto items-center no-underline hover:no-underline"
+            )}
           >
             View audits
           </Link>
         }
       />
+
+      <WorkflowScreenShell className="min-h-0 flex-1">
+        <p className="writer-type-body-compact m-0 max-w-2xl text-[#e5f1ff]/70">
+          Review UX copy in Figma frames against your guideline stack, then write approved edits back.
+        </p>
 
       {!daemonConnected ? (
         <InlineAlert
@@ -159,7 +167,7 @@ export function FigmaAuditScreen() {
                     <SelectItem value={NONE_PRODUCT}>(none)</SelectItem>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name}
+                        {formatProductDisplayName(product.name)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -263,6 +271,7 @@ export function FigmaAuditScreen() {
           </WorkflowGlassPanel>
         </WriterPageGridHalf>
       </WriterPageGrid>
-    </WorkflowScreenShell>
+      </WorkflowScreenShell>
+    </div>
   );
 }

@@ -309,7 +309,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
           ) : null}
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <p className="writer-home-text text-base font-normal leading-normal tracking-[2.5px]">
+              <p className="writer-home-text text-base font-normal leading-normal tracking-normal">
                 {statusView.label}
               </p>
               <DaemonStatusInfo tooltip={statusView.infoTooltip} />
@@ -367,7 +367,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         <LlmLogo adapter={adapter} />
                         <Label
                           htmlFor={`radio-${adapter.id}`}
-                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-[2.5px]"
+                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal"
                         >
                           {adapter.displayName}
                         </Label>
@@ -422,7 +422,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                       <McpServerLogo server={server} />
                       <Label
                         htmlFor={`mcp-${server.id}`}
-                        className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-[2.5px]"
+                        className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-normal"
                       >
                         {server.name}
                       </Label>

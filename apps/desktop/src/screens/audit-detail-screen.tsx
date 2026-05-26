@@ -5,14 +5,12 @@ import type { ReviewChange, ReviewSession } from "@writer/contracts";
 import { parseFigmaReviewScope } from "@writer/contracts";
 import { GlassCard } from "@/components/writer/glass-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
+import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 
 import { AuditDetailFrameSection } from "../audit-detail-frame-section";
 import { AuditWritebackButton } from "../audit-writeback-button";
-import {
-  WorkflowGlassPanel,
-  WorkflowPageIntro,
-  WorkflowScreenShell
-} from "../layout/workflow-screen-shell";
+import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 function frameIdsForSession(session: ReviewSession): string[] {
@@ -86,18 +84,22 @@ export function AuditDetailScreen() {
 
   const { nodeCount, diagnosticMessage } = extractionSummary(session);
 
+  const pageTitle = session.featureName?.trim() || "Audit";
+
   return (
-    <WorkflowScreenShell>
-      <WorkflowPageIntro
-        title={session.featureName ?? "Audit"}
-        {...(session.description ? { description: session.description } : {})}
-      />
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <WriterPageSubheader title={pageTitle} backTo="/audits" backLabel="Back to audits" />
+
+      <WorkflowScreenShell className="min-h-0 flex-1">
+        {session.description ? (
+          <p className="writer-type-body-compact m-0 max-w-2xl text-[#e5f1ff]/70">{session.description}</p>
+        ) : null}
 
       <WorkflowGlassPanel title="Session details">
         <dl className="writer-home-text grid gap-2 text-sm text-[#e5f1ff]/80">
           <div className="flex flex-wrap gap-x-2">
             <dt className="text-[#e5f1ff]/60">Product</dt>
-            <dd>{session.productId ?? "—"}</dd>
+            <dd>{session.productId ? formatProductDisplayName(session.productId) : "—"}</dd>
           </div>
           <div className="flex flex-wrap gap-x-2">
             <dt className="text-[#e5f1ff]/60">Guidelines</dt>
@@ -164,6 +166,7 @@ export function AuditDetailScreen() {
           }}
         />
       </GlassCard>
-    </WorkflowScreenShell>
+      </WorkflowScreenShell>
+    </div>
   );
 }

@@ -1,0 +1,153 @@
+/**
+ * Settings route — tabs and panels align with the chat-style page subheader inset.
+ */
+
+.writer-settings-page__body {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding-inline: 12px;
+}
+
+/* No visible scrollbars on Settings (content clips inside fixed window). */
+.writer-settings-page,
+.writer-settings-page * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.writer-settings-page *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.writer-settings-page [data-slot="tabs-content"] {
+  overflow: hidden;
+}
+
+.writer-settings-page {
+  --writer-settings-tab-indicator: linear-gradient(
+    90deg,
+    rgb(59 77 242 / 0) 0%,
+    #0672cb 33.17%,
+    #97c9ff 50.48%,
+    #0672cb 67.79%,
+    rgb(59 77 242 / 0) 100%
+  );
+  --writer-settings-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --writer-settings-motion-duration: 180ms;
+  --writer-settings-motion-distance: 10px;
+}
+
+.writer-settings-page [data-slot="tabs-list"] {
+  width: auto;
+  max-width: 100%;
+  margin-top: 12px;
+}
+
+.writer-settings-tabs-list {
+  position: relative;
+}
+
+/* No full-width rule under the tab row (minimal variant uses writer-home-divider-bottom). */
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"].writer-home-divider-bottom::after {
+  content: none;
+  display: none;
+}
+
+/* Settings tabs — same family/weight as section title, 26px per design. */
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
+  flex: none;
+  padding-inline: 0;
+  padding-bottom: 8px;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.375;
+  letter-spacing: normal;
+  color: rgb(229 241 255 / 58%);
+  transition:
+    color 150ms ease,
+    -webkit-text-fill-color 150ms ease;
+}
+
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"]::after {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"][data-active] {
+  /* Wins over TabsTrigger minimal variant `data-active:!text-foreground`. */
+  color: var(--writer-accent-blue) !important;
+  -webkit-text-fill-color: var(--writer-accent-blue);
+}
+
+.writer-settings-page
+  [data-slot="tabs-list"][data-variant="minimal"]
+  [data-slot="tabs-trigger"][data-active]:hover {
+  color: var(--writer-accent-blue) !important;
+  -webkit-text-fill-color: var(--writer-accent-blue);
+}
+
+.writer-settings-tab-indicator {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  height: 1px;
+  width: var(--active-tab-width);
+  border-radius: 18px;
+  background: var(--writer-settings-tab-indicator);
+  pointer-events: none;
+  transform: translateX(var(--active-tab-left));
+  transition:
+    transform var(--writer-settings-motion-duration) var(--writer-settings-motion-ease),
+    width var(--writer-settings-motion-duration) var(--writer-settings-motion-ease);
+  will-change: transform, width;
+}
+
+.writer-settings-panels {
+  contain: layout paint;
+}
+
+.writer-settings-tab-panel {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition: opacity var(--writer-settings-motion-duration) ease;
+  will-change: opacity;
+}
+
+.writer-settings-tab-panel[hidden] {
+  display: none;
+}
+
+.writer-settings-tab-panel[data-starting-style],
+.writer-settings-tab-panel[data-ending-style] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-settings-page {
+    --writer-settings-motion-duration: 0ms;
+  }
+
+  .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
+    transition: none;
+  }
+
+  .writer-settings-tab-indicator {
+    transition: none;
+  }
+
+  .writer-settings-tab-panel {
+    transition: none;
+  }
+}
+
+.writer-settings-page .writer-settings-guidelines-grid {
+  width: 100%;
+  max-width: 100%;
+}

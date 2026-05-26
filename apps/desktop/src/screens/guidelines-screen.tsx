@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { GuidelineDetailDialog } from "@/components/writer/guideline-detail-dialog";
 import { GuidelineFileRow, GuidelineRowCard } from "@/components/writer/guideline-row-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
@@ -351,7 +352,7 @@ export function GuidelinesScreen() {
         <InlineAlert kind="error" title="Guideline conflict" subtitle={tree.conflictError} />
       ) : null}
 
-      <WriterPageGrid className="w-full grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
+      <WriterPageGrid className="writer-settings-guidelines-grid min-h-0 w-full grid-cols-1 auto-rows-min gap-10 overflow-visible lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
         <WriterPageGridHalf>
             <WriterPageStack gap={9}>
               <UploadSlotSection
@@ -394,23 +395,23 @@ export function GuidelinesScreen() {
             </WriterPageStack>
           </WriterPageGridHalf>
 
-          <div
-            role="presentation"
-            aria-hidden
-            className="writer-home-divider-vertical hidden justify-self-center self-start lg:block"
-          />
+        <div
+          role="presentation"
+          aria-hidden
+          className="writer-home-divider-vertical hidden justify-self-center self-start lg:block"
+        />
 
         <WriterPageGridHalf>
           <WriterPageStack gap={3}>
               <WriterSectionHeader
                 title="Products"
-                description="Dedicated background, glossary, and guides for individual products."
+                description="Background, glossary, and guides per product."
                 actions={
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="text-[#e5f1ff]/75 hover:bg-[rgb(32_131_234/0.14)] hover:text-[#e5f1ff]"
+                    className="text-[var(--writer-accent-blue)] hover:bg-[rgb(32_131_234/0.14)] hover:text-[var(--writer-accent-blue)]"
                     disabled={busy || !connected}
                     aria-label="Add product"
                     onClick={() => setAddProductOpen(true)}
@@ -433,7 +434,7 @@ export function GuidelinesScreen() {
                 {tree?.products.map((item) => (
                   <GuidelineRowCard
                     key={item.id}
-                    title={item.name}
+                    title={formatProductDisplayName(item.name)}
                     subtitle={item.id}
                     onOpen={() => setProductDetailId(item.id)}
                   />
@@ -504,7 +505,7 @@ export function GuidelinesScreen() {
               setProductDetailId(null);
             }
           }}
-          title={activeProduct?.name ?? "Product"}
+          title={activeProduct ? formatProductDisplayName(activeProduct.name) : "Product"}
           description={activeProduct?.id}
           contentClassName="sm:max-w-2xl"
           footer={
@@ -787,7 +788,7 @@ function UploadSlotSection({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="text-[#e5f1ff]/75 hover:bg-[rgb(32_131_234/0.14)] hover:text-[#e5f1ff]"
+            className="text-[var(--writer-accent-blue)] hover:bg-[rgb(32_131_234/0.14)] hover:text-[var(--writer-accent-blue)]"
             disabled={uploadDisabled}
             aria-label={`Add ${title}`}
             onClick={() => fileInputRef.current?.click()}
