@@ -212,6 +212,7 @@ export function ChatShellView({
 
   const showWelcomeStage = phase === "welcome" || headingExiting;
   const hideThread = phase === "welcome" && !inWelcomeSend;
+  const liftFooterComposer = composerPlacement === "footer";
 
   const composerDock = (
     <div
@@ -280,6 +281,7 @@ export function ChatShellView({
         className="writer-chat-composer-host w-full min-w-0 shrink-0 px-4"
         data-placement={composerPlacement}
         data-animating={composerAnimating ? "true" : "false"}
+        data-footer-lift={liftFooterComposer ? "true" : undefined}
       >
         <div className="writer-chat-composer-host__inner mx-auto w-full max-w-[744px]">
           {composerDock}
@@ -288,7 +290,7 @@ export function ChatShellView({
 
       {phase === "welcome" && !inWelcomeSend ? (
         <p
-          className="writer-chat-composer-disclaimer writer-chat-welcome-composer-disclaimer mx-auto w-full max-w-[744px] shrink-0 px-4 text-center"
+          className="writer-chat-composer-disclaimer writer-chat-welcome-composer-disclaimer w-full shrink-0 px-4 text-center"
           role="note"
         >
           AI can make mistakes
@@ -299,13 +301,11 @@ export function ChatShellView({
         ref={composerFooterRef}
         className="writer-chat-composer-footer w-full min-w-0 shrink-0 px-4 pb-4"
       >
-        <div className="writer-chat-composer-footer__inner">
-          {phase === "active" || inWelcomeSend ? (
-            <p className="writer-chat-composer-disclaimer" role="note">
-              AI can make mistakes
-            </p>
-          ) : null}
-        </div>
+        {phase === "active" || inWelcomeSend ? (
+          <p className="writer-chat-composer-disclaimer w-full text-center" role="note">
+            AI can make mistakes
+          </p>
+        ) : null}
       </div>
     </div>
   );

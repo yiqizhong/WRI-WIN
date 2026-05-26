@@ -68,6 +68,7 @@ export function TextCopyChat({
   const {
     phase,
     welcomeSendTransition,
+    welcomeThinkingVisible,
     completeWelcomeSendTransition,
     draftText,
     setDraftText,
@@ -142,7 +143,7 @@ export function TextCopyChat({
       disabled={composerDisabled}
       sendDisabled={composerSendDisabled}
       onKeyDown={composerKeyDown}
-      playIntro={phase === "welcome"}
+      playIntro={phase === "welcome" || welcomeSendTransition}
       suppressHeightMotion={welcomeSendTransition}
       extras={
         <>
@@ -196,7 +197,7 @@ export function TextCopyChat({
           );
         }
 
-        if (isAssistant && isPending && welcomeSendTransition) {
+        if (isAssistant && isPending && welcomeSendTransition && !welcomeThinkingVisible) {
           return null;
         }
 

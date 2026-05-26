@@ -62,7 +62,6 @@ html[data-window-chrome="transparent"] [data-slot="accordion-item"] {
 
 html[data-window-chrome="transparent"] .writer-chat-active-shell,
 html[data-window-chrome="transparent"] .writer-chat-composer-footer,
-html[data-window-chrome="transparent"] .writer-chat-composer-footer__inner,
 html[data-window-chrome="transparent"] .writer-chat-composer-panel {
   background: transparent !important;
   background-color: transparent !important;

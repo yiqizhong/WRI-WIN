@@ -6,8 +6,16 @@ export const WELCOME_INPUT_MOVE_MS = 350;
 export const WELCOME_HEADING_COMPOSER_GAP_PX = 24;
 /** First user message lands at 560ms; assistant status appears after a short hold. */
 export const WELCOME_MESSAGE_RISE_MS = 680;
+/** Show thinking ribbon this many ms before WELCOME_MESSAGE_RISE_MS during first send. */
+export const WELCOME_THINKING_EARLIER_MS = 500;
+export const WELCOME_THINKING_VISIBLE_MS = Math.max(
+  0,
+  WELCOME_MESSAGE_RISE_MS - WELCOME_THINKING_EARLIER_MS
+);
 /** Gemini reference: zero-state fade-out */
 export const WELCOME_ZERO_LEAVE_MS = 150;
+/** Active chat footer: lift the input card above the dock slot (CSS + welcome-send target). */
+export const ACTIVE_FOOTER_COMPOSER_LIFT_PX = 8;
 
 type Position = Pick<DOMRect, "left" | "top">;
 

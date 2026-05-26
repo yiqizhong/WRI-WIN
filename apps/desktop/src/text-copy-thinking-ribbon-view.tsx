@@ -25,7 +25,10 @@ export function TextCopyThinkingRibbonView({
 
   return (
     <p
-      className={cn("writer-type-helper flex items-center gap-2", failed && "text-destructive")}
+      className={cn(
+        "writer-type-helper writer-chat-thinking-ribbon--enter flex items-center gap-2",
+        failed && "text-destructive"
+      )}
       role="status"
       aria-live="polite"
     >

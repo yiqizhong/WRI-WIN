@@ -11,7 +11,12 @@ export function prefersReducedWelcomeSendMotion(): boolean {
 
 function measureFooterLayout(host: HTMLElement) {
   host.style.removeProperty("top");
+  // Reflow after footer placement + inner lift (data-footer-lift) before measuring the host slot.
   void host.offsetHeight;
+  const inner = host.querySelector<HTMLElement>(".writer-chat-composer-host__inner");
+  if (inner) {
+    void inner.offsetHeight;
+  }
   return host.getBoundingClientRect();
 }
 

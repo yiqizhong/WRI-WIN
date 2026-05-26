@@ -4,6 +4,7 @@ import type { PasteTextConversation, PasteTextMessage } from "@writer/contracts"
 import type { DaemonClient } from "../daemon-client";
 import { DaemonClientError } from "../daemon-client";
 import type { PasteTextAttachmentKind } from "../text-copy-attachment-menu";
+import { WELCOME_THINKING_VISIBLE_MS } from "./composer-motion";
 import { deriveChatPhase } from "./chat-phase";
 import { mergeDisplayMessages, createOptimisticTurn, type OptimisticTurn } from "./optimistic-turn";
 import { messageVariantText } from "./message-display";
@@ -41,6 +42,7 @@ export function usePasteTextChatRuntime({
   const [optimisticTurn, setOptimisticTurn] = useState<OptimisticTurn | null>(null);
   const [forceWelcome, setForceWelcome] = useState(false);
   const [welcomeSendTransition, setWelcomeSendTransition] = useState(false);
+  const [welcomeThinkingVisible, setWelcomeThinkingVisible] = useState(true);
 
   const threadScrollRef = useRef<HTMLDivElement>(null);
   const composerFooterRef = useRef<HTMLDivElement>(null);
@@ -48,6 +50,28 @@ export function usePasteTextChatRuntime({
   const stickToBottomRef = useRef(true);
   const submittingRef = useRef(false);
   const welcomeSendTransitionRef = useRef(false);
+  const welcomeThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearWelcomeThinkingTimer = useCallback(() => {
+    if (welcomeThinkingTimerRef.current !== null) {
+      window.clearTimeout(welcomeThinkingTimerRef.current);
+      welcomeThinkingTimerRef.current = null;
+    }
+  }, []);
+
+  const revealWelcomeThinking = useCallback(() => {
+    clearWelcomeThinkingTimer();
+    setWelcomeThinkingVisible(true);
+  }, [clearWelcomeThinkingTimer]);
+
+  const scheduleWelcomeThinking = useCallback(() => {
+    clearWelcomeThinkingTimer();
+    setWelcomeThinkingVisible(false);
+    welcomeThinkingTimerRef.current = window.setTimeout(() => {
+      welcomeThinkingTimerRef.current = null;
+      setWelcomeThinkingVisible(true);
+    }, WELCOME_THINKING_VISIBLE_MS);
+  }, [clearWelcomeThinkingTimer]);
 
   const displayMessages = useMemo(
     () =>
@@ -200,11 +224,13 @@ export function usePasteTextChatRuntime({
 
       setSubmitting(true);
       setError(null);
+      setDraftText("");
       setForceWelcome(false);
       const fromWelcome = phase === "welcome";
       if (fromWelcome) {
         welcomeSendTransitionRef.current = true;
         setWelcomeSendTransition(true);
+        scheduleWelcomeThinking();
         stickToBottomRef.current = false;
       } else {
         stickToBottomRef.current = true;
@@ -226,14 +252,15 @@ export function usePasteTextChatRuntime({
         if (!fromWelcome || !welcomeSendTransitionRef.current) {
           setOptimisticTurn(null);
         }
-        setDraftText("");
         if (!fromWelcome) {
           scrollToEnd("send");
         }
       } catch (err) {
+        setDraftText(text);
         setOptimisticTurn(null);
         welcomeSendTransitionRef.current = false;
         setWelcomeSendTransition(false);
+        revealWelcomeThinking();
         setError(
           err instanceof DaemonClientError
             ? err.message
@@ -253,7 +280,9 @@ export function usePasteTextChatRuntime({
       onConversationChange,
       pendingRewrite,
       phase,
+      revealWelcomeThinking,
       rowIndex,
+      scheduleWelcomeThinking,
       scrollToEnd,
       submitting,
       workspaceReady
@@ -301,20 +330,24 @@ export function usePasteTextChatRuntime({
     setForceWelcome(true);
     welcomeSendTransitionRef.current = false;
     setWelcomeSendTransition(false);
+    revealWelcomeThinking();
     setDraftText("");
     setError(null);
     stickToBottomRef.current = true;
-  }, []);
+  }, [revealWelcomeThinking]);
 
   const completeWelcomeSendTransition = useCallback(() => {
     welcomeSendTransitionRef.current = false;
     setWelcomeSendTransition(false);
+    revealWelcomeThinking();
     if (!submittingRef.current) {
       setOptimisticTurn(null);
     }
     stickToBottomRef.current = true;
     scrollToEnd("message");
-  }, [scrollToEnd]);
+  }, [revealWelcomeThinking, scrollToEnd]);
+
+  useEffect(() => () => clearWelcomeThinkingTimer(), [clearWelcomeThinkingTimer]);
 
   const resolveMessageVariantIndex = useCallback(
     (message: PasteTextMessage) => {
@@ -397,6 +430,7 @@ export function usePasteTextChatRuntime({
   return {
     phase,
     welcomeSendTransition,
+    welcomeThinkingVisible,
     completeWelcomeSendTransition,
     draftText,
     setDraftText,

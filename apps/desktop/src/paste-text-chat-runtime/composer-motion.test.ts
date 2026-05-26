@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  ACTIVE_FOOTER_COMPOSER_LIFT_PX,
   composerFlipDelta,
   composerMotionForPhases,
   composerWelcomeToFooterDelta,
   WELCOME_HEADING_COMPOSER_GAP_PX,
   WELCOME_INPUT_MOVE_MS,
   WELCOME_MESSAGE_RISE_MS,
+  WELCOME_THINKING_EARLIER_MS,
+  WELCOME_THINKING_VISIBLE_MS,
   welcomeComposerTopBelowHeadingPx,
   welcomeComposerTopPx,
   welcomeHeroLayout
@@ -44,6 +47,12 @@ describe("composerFlipDelta", () => {
   });
 });
 
+describe("active footer composer lift", () => {
+  it("lifts the footer input card by 8px", () => {
+    expect(ACTIVE_FOOTER_COMPOSER_LIFT_PX).toBe(8);
+  });
+});
+
 describe("welcome send motion duration", () => {
   it("uses 350ms for desktop input drop (Gemini ref 250ms)", () => {
     expect(WELCOME_INPUT_MOVE_MS).toBe(350);
@@ -51,6 +60,11 @@ describe("welcome send motion duration", () => {
 
   it("lands the user message quickly, then delays the thinking indicator slightly", () => {
     expect(WELCOME_MESSAGE_RISE_MS).toBe(680);
+  });
+
+  it("shows thinking 500ms before the welcome-send motion window ends", () => {
+    expect(WELCOME_THINKING_EARLIER_MS).toBe(500);
+    expect(WELCOME_THINKING_VISIBLE_MS).toBe(180);
   });
 });
 
@@ -152,6 +166,8 @@ describe("ChatShellView composer render site", () => {
     expect(source).toContain("animateComposerWelcomeToFooter");
     expect(source).toContain("flushSync");
     expect(source).toContain("getBoundingClientRect()");
+    expect(source).toContain('data-footer-lift={liftFooterComposer ? "true" : undefined}');
+    expect(source).toContain("liftFooterComposer = composerPlacement === \"footer\"");
   });
 
   it("does not render pending assistant status during the welcome send transition", () => {
@@ -159,7 +175,10 @@ describe("ChatShellView composer render site", () => {
       new URL("../text-copy-chat.tsx", import.meta.url),
       "utf8"
     );
-    expect(source).toContain("if (isAssistant && isPending && welcomeSendTransition)");
+    expect(source).toContain(
+      "if (isAssistant && isPending && welcomeSendTransition && !welcomeThinkingVisible)"
+    );
+    expect(source).toContain("playIntro={phase === \"welcome\" || welcomeSendTransition}");
   });
 });
 
@@ -182,8 +201,25 @@ describe("writer-chat-welcome.css motion contracts", () => {
     expect(chatCss).toContain(".writer-chat-composer-host");
     expect(chatCss).toContain('data-placement="footer"]');
     expect(chatCss).toMatch(/\[data-placement="footer"\][\s\S]*margin-top:\s*auto/);
+    expect(chatCss).toContain('[data-footer-lift="true"]');
+    expect(chatCss).toContain("--writer-active-footer-composer-lift: 8px");
+    expect(chatCss).toContain("var(--writer-active-footer-composer-lift)");
+    expect(chatCss).toContain(".writer-chat-thinking-ribbon--enter");
+    expect(chatCss).toContain("@keyframes writer-chat-thinking-ribbon-enter");
+    expect(chatCss).toContain('[data-send-transition="true"]');
+    expect(chatCss).toMatch(
+      /\[data-send-transition="true"\][\s\S]*writer-chat-welcome-composer\.glass-card::before[\s\S]*opacity:\s*1/
+    );
     expect(chatCss).toContain("--writer-composer-height-expand-duration: 0.25s");
     expect(chatCss).toContain(".writer-chat-welcome-composer-field.animate-height-collapse");
     expect(chatCss).toContain("--writer-composer-height-collapse-easing: linear(");
+  });
+
+  it("reflows the lifted inner before measuring the footer slot for welcome-send motion", () => {
+    const motionSource = readFileSync(
+      new URL("./composer-welcome-send-motion.ts", import.meta.url),
+      "utf8"
+    );
+    expect(motionSource).toContain("writer-chat-composer-host__inner");
   });
 });

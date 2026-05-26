@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -35,6 +35,12 @@ export function WriterStarBorder({
     rotateSec - STROKE_FADE_START_BEFORE_END_SEC
   );
   const totalMs = Math.round((rotateSec + STROKE_FADE_SEC) * 1000);
+
+  useLayoutEffect(() => {
+    if (skipIntro) {
+      setIntroDone(true);
+    }
+  }, [skipIntro]);
 
   useEffect(() => {
     if (skipIntro) {
