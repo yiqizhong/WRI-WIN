@@ -250,13 +250,15 @@
   }
 }
 
-/* Welcome: title + composer as one hero unit, centered in the scroll region. */
+/* Welcome: title + composer as one hero unit, centered in the scroll region.
+   Vertical centering is done exclusively via JS paddingTop on the hero so that
+   align-items and paddingTop do not compound. */
 .writer-chat-welcome-stage {
   display: flex;
   width: 100%;
   min-height: 0;
   height: 100%;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   overflow: hidden;
   interpolate-size: allow-keywords;
@@ -267,12 +269,18 @@
   width: 100%;
   flex-direction: column;
   align-items: stretch;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
 
 .writer-chat-welcome-shell {
   width: 100%;
   margin-inline: auto;
-  gap: 38px;
+  gap: 0;
+}
+
+.writer-chat-welcome-composer-spacer {
+  margin-top: var(--writer-welcome-heading-composer-gap);
 }
 
 .writer-chat-welcome-composer-disclaimer {
@@ -516,11 +524,17 @@
   z-index: 5;
   left: 0;
   right: 0;
-  top: 50%;
+  top: 0;
   padding-top: 0;
   padding-bottom: 0;
-  pointer-events: auto;
+  pointer-events: none;
+  visibility: hidden;
   transform: none;
+}
+
+.writer-chat-composer-host[data-placement="welcome-centered"][data-positioned="true"] {
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .writer-chat-composer-host[data-placement="footer"] {

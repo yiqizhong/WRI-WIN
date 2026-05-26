@@ -13,7 +13,8 @@ import type { ChatPhase } from "./chat-phase";
 import {
   WELCOME_INPUT_MOVE_MS,
   WELCOME_MESSAGE_RISE_MS,
-  welcomeComposerTopPx
+  welcomeComposerTopPx,
+  welcomeHeroLayout
 } from "./composer-motion";
 import {
   animateComposerWelcomeToFooter,
@@ -46,7 +47,10 @@ export function ChatShellView({
   composerFooterRef
 }: ChatShellViewProps) {
   const shellRef = useRef<HTMLDivElement>(null);
+  const scrollRegionRef = useRef<HTMLDivElement>(null);
+  const welcomeHeroRef = useRef<HTMLDivElement>(null);
   const welcomeHeadingRef = useRef<HTMLDivElement>(null);
+  const welcomeComposerSpacerRef = useRef<HTMLDivElement>(null);
   const composerHostRef = useRef<HTMLDivElement>(null);
   const transitionRunIdRef = useRef(0);
 
@@ -61,22 +65,39 @@ export function ChatShellView({
   const syncWelcomeComposerPosition = useCallback(() => {
     const host = composerHostRef.current;
     const shell = shellRef.current;
+    const scrollRegion = scrollRegionRef.current;
+    const hero = welcomeHeroRef.current;
     const heading = welcomeHeadingRef.current;
+    const spacer = welcomeComposerSpacerRef.current;
 
     if (welcomeSendTransition || composerAnimating) {
       return;
     }
 
-    if (!host || composerPlacement !== "welcome-centered" || !shell || !heading) {
-      if (host && composerPlacement !== "welcome-centered") {
+    if (!host || composerPlacement !== "welcome-centered") {
+      if (host) {
         host.style.removeProperty("top");
         host.style.removeProperty("transform");
+        host.removeAttribute("data-positioned");
+      }
+      hero?.style.removeProperty("padding-top");
+      if (spacer) {
+        spacer.style.removeProperty("height");
+        spacer.style.removeProperty("margin-top");
       }
       return;
     }
 
-    host.style.top = `${welcomeComposerTopPx(heading, shell)}px`;
+    if (!shell || !scrollRegion || !hero || !heading || !spacer) {
+      return;
+    }
+
+    const layout = welcomeHeroLayout(heading, host, scrollRegion);
+    hero.style.paddingTop = `${layout.headingPadTopPx}px`;
+    spacer.style.height = `${host.getBoundingClientRect().height}px`;
+    host.style.top = `${welcomeComposerTopPx(spacer, shell)}px`;
     host.style.transform = "";
+    host.setAttribute("data-positioned", "true");
   }, [composerPlacement, welcomeSendTransition, composerAnimating]);
 
   useLayoutEffect(() => {
@@ -88,7 +109,10 @@ export function ChatShellView({
 
     const heading = welcomeHeadingRef.current;
     const shell = shellRef.current;
-    if (!heading || !shell) {
+    const scrollRegion = scrollRegionRef.current;
+    const host = composerHostRef.current;
+    const spacer = welcomeComposerSpacerRef.current;
+    if (!heading || !shell || !scrollRegion || !host || !spacer) {
       return;
     }
 
@@ -97,6 +121,9 @@ export function ChatShellView({
     });
     ro.observe(heading);
     ro.observe(shell);
+    ro.observe(scrollRegion);
+    ro.observe(host);
+    ro.observe(spacer);
 
     window.addEventListener("resize", syncWelcomeComposerPosition);
     return () => {
@@ -206,10 +233,13 @@ export function ChatShellView({
       data-send-transition={inWelcomeSend ? "true" : "false"}
       data-composer-placement={composerPlacement}
     >
-      <div className="writer-chat-scroll-region relative min-h-0 min-w-0 flex-1 basis-0 overflow-hidden">
+      <div
+        ref={scrollRegionRef}
+        className="writer-chat-scroll-region relative min-h-0 min-w-0 flex-1 basis-0 overflow-hidden"
+      >
         {showWelcomeStage ? (
           <div className="writer-chat-welcome-stage h-full px-4">
-            <div className="writer-chat-welcome-hero w-full max-w-[744px]">
+            <div ref={welcomeHeroRef} className="writer-chat-welcome-hero w-full max-w-[744px]">
               <div
                 className={
                   headingExiting
@@ -222,6 +252,11 @@ export function ChatShellView({
                     {welcomeGreeting}
                   </div>
                   {phase === "welcome" ? error : null}
+                  <div
+                    ref={welcomeComposerSpacerRef}
+                    className="writer-chat-welcome-composer-spacer w-full shrink-0"
+                    aria-hidden
+                  />
                 </div>
               </div>
             </div>

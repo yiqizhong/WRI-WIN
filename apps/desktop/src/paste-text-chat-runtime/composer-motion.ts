@@ -11,7 +11,39 @@ export const WELCOME_ZERO_LEAVE_MS = 150;
 
 type Position = Pick<DOMRect, "left" | "top">;
 
+export type WelcomeHeroLayout = {
+  /** Padding-top on the welcome hero column inside the scroll region */
+  headingPadTopPx: number;
+};
+
+/** Vertically center heading + gap + composer as one block in the scroll region. */
+export function welcomeHeroLayout(
+  headingEl: HTMLElement,
+  composerHostEl: HTMLElement,
+  scrollRegionEl: HTMLElement,
+  gapPx = WELCOME_HEADING_COMPOSER_GAP_PX
+): WelcomeHeroLayout {
+  const scrollRect = scrollRegionEl.getBoundingClientRect();
+  const headingHeight = headingEl.getBoundingClientRect().height;
+  const composerHeight = composerHostEl.getBoundingClientRect().height;
+  const totalHeight = headingHeight + gapPx + composerHeight;
+  const headingPadTopPx = Math.max(0, (scrollRect.height - totalHeight) / 2);
+
+  return { headingPadTopPx };
+}
+
+/** Pin the overlay composer to the in-flow spacer below the welcome heading. */
 export function welcomeComposerTopPx(
+  composerSpacerEl: HTMLElement,
+  shellEl: HTMLElement
+) {
+  const spacerRect = composerSpacerEl.getBoundingClientRect();
+  const shellRect = shellEl.getBoundingClientRect();
+  return spacerRect.top - shellRect.top;
+}
+
+/** Legacy helper: composer top when heading and shell rects are already known */
+export function welcomeComposerTopBelowHeadingPx(
   headingEl: HTMLElement,
   shellEl: HTMLElement,
   gapPx = WELCOME_HEADING_COMPOSER_GAP_PX

@@ -7,7 +7,9 @@ import {
   composerWelcomeToFooterDelta,
   WELCOME_HEADING_COMPOSER_GAP_PX,
   WELCOME_INPUT_MOVE_MS,
-  welcomeComposerTopPx
+  welcomeComposerTopBelowHeadingPx,
+  welcomeComposerTopPx,
+  welcomeHeroLayout
 } from "./composer-motion";
 
 describe("composerMotionForPhases", () => {
@@ -61,7 +63,39 @@ describe("welcome heading ↔ composer spacing", () => {
       getBoundingClientRect: () =>
         ({ top: 100, bottom: 900, left: 0, right: 0, width: 0, height: 800, x: 0, y: 100 }) as DOMRect
     } as HTMLElement;
-    expect(welcomeComposerTopPx(heading, shell)).toBe(144);
+    expect(welcomeComposerTopBelowHeadingPx(heading, shell)).toBe(144);
+  });
+
+  it("centers heading + composer as one block in the scroll region", () => {
+    const heading = {
+      getBoundingClientRect: () =>
+        ({ bottom: 240, top: 200, left: 0, right: 0, width: 0, height: 40, x: 0, y: 200 }) as DOMRect
+    } as HTMLElement;
+    const composerHost = {
+      getBoundingClientRect: () =>
+        ({ bottom: 320, top: 264, left: 0, right: 0, width: 0, height: 56, x: 0, y: 264 }) as DOMRect
+    } as HTMLElement;
+    const scrollRegion = {
+      getBoundingClientRect: () =>
+        ({ top: 120, bottom: 820, left: 0, right: 0, width: 0, height: 700, x: 0, y: 120 }) as DOMRect
+    } as HTMLElement;
+
+    expect(welcomeHeroLayout(heading, composerHost, scrollRegion)).toEqual({
+      headingPadTopPx: 290
+    });
+  });
+
+  it("pins overlay composer to the in-flow spacer below the heading", () => {
+    const spacer = {
+      getBoundingClientRect: () =>
+        ({ top: 264, bottom: 320, left: 0, right: 0, width: 0, height: 56, x: 0, y: 264 }) as DOMRect
+    } as HTMLElement;
+    const shell = {
+      getBoundingClientRect: () =>
+        ({ top: 100, bottom: 900, left: 0, right: 0, width: 0, height: 800, x: 0, y: 100 }) as DOMRect
+    } as HTMLElement;
+
+    expect(welcomeComposerTopPx(spacer, shell)).toBe(164);
   });
 });
 
@@ -102,6 +136,8 @@ describe("ChatShellView composer render site", () => {
     expect(source.match(/\{composer\}/g)).toHaveLength(1);
     expect(source).toContain("writer-chat-welcome-hero");
     expect(source).toContain("welcomeHeadingRef");
+    expect(source).toContain("welcomeHeroLayout");
+    expect(source).toContain("welcomeComposerSpacerRef");
     expect(source).toContain("welcomeComposerTopPx");
     expect(source).toMatch(/welcomeSendTransition \|\| composerAnimating/);
     expect(source).toContain('phase === "active"');
