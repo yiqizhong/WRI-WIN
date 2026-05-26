@@ -330,3 +330,17 @@ Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-co
 | WRI-120 | `a8c00bf` | Done |
 
 **Note:** WRI-103 ~ WRI-111 stay Done as the v1 implementation; WRI-112 supersedes that data model.
+
+## platform-store-eviction (OpenSpec: `openspec/changes/platform-store-eviction/`)
+
+**Epic:** [WRI-150](https://linear.app/uicb/issue/WRI-150) — Daemon memory leak — platform-store-eviction
+
+Root cause: `PlatformStore` accumulates unbounded data (agentRunEvents, auditLog, spreadsheet parseResult, agentRun prompt) with no eviction, cap, or pruning. Investigated on branch `investigate/electron-memory-leaks` (2026-05-25).
+
+| OpenSpec task | Linear | Notes |
+|---|---|---|
+| 1.1 + §3 | [WRI-151](https://linear.app/uicb/issue/WRI-151) | Move spreadsheet parseResult to disk; contracts + daemon + store migration |
+| 1.2 + §2 + §4 | [WRI-152](https://linear.app/uicb/issue/WRI-152) | Store eviction: purgeAgentRunEvents, auditLog cap, stop storing prompt |
+| §5 | [WRI-153](https://linear.app/uicb/issue/WRI-153) | Renderer: stabilise onConversationChange with useCallback |
+
+**Suggested order:** WRI-151 → WRI-152 → WRI-153 → close WRI-150
