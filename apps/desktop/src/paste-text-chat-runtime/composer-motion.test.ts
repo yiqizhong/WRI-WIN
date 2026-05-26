@@ -7,6 +7,7 @@ import {
   composerWelcomeToFooterDelta,
   WELCOME_HEADING_COMPOSER_GAP_PX,
   WELCOME_INPUT_MOVE_MS,
+  WELCOME_MESSAGE_RISE_MS,
   welcomeComposerTopBelowHeadingPx,
   welcomeComposerTopPx,
   welcomeHeroLayout
@@ -46,6 +47,10 @@ describe("composerFlipDelta", () => {
 describe("welcome send motion duration", () => {
   it("uses 350ms for desktop input drop (Gemini ref 250ms)", () => {
     expect(WELCOME_INPUT_MOVE_MS).toBe(350);
+  });
+
+  it("lands the user message quickly, then delays the thinking indicator slightly", () => {
+    expect(WELCOME_MESSAGE_RISE_MS).toBe(680);
   });
 });
 
@@ -148,6 +153,14 @@ describe("ChatShellView composer render site", () => {
     expect(source).toContain("flushSync");
     expect(source).toContain("getBoundingClientRect()");
   });
+
+  it("does not render pending assistant status during the welcome send transition", () => {
+    const source = readFileSync(
+      new URL("../text-copy-chat.tsx", import.meta.url),
+      "utf8"
+    );
+    expect(source).toContain("if (isAssistant && isPending && welcomeSendTransition)");
+  });
 });
 
 describe("writer-chat-welcome.css motion contracts", () => {
@@ -164,6 +177,8 @@ describe("writer-chat-welcome.css motion contracts", () => {
     expect(chatCss).toContain("justify-content: center");
     expect(chatCss).toContain("--writer-duration-input-move: 350ms");
     expect(chatCss).toContain("--writer-welcome-heading-composer-gap: 24px");
+    expect(chatCss).toContain("--writer-duration-message-rise: 520ms");
+    expect(chatCss).toMatch(/writer-chat-first-message-rise[\s\S]*\)\s+40ms both/);
     expect(chatCss).toContain(".writer-chat-composer-host");
     expect(chatCss).toContain('data-placement="footer"]');
     expect(chatCss).toMatch(/\[data-placement="footer"\][\s\S]*margin-top:\s*auto/);

@@ -41,7 +41,7 @@ function runWelcomeToFooterAnimation(
 
   return animation.finished.finally(() => {
     host.style.transform = "";
-  });
+  }).then(() => undefined);
 }
 
 /**

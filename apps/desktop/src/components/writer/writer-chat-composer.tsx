@@ -212,7 +212,7 @@ export function WriterChatComposer({
   return (
     <div className={cn("writer-chat-composer-panel w-full", className)}>
       {extras}
-      <WriterStarBorder loops={1} lapDuration={2.5} skipIntro={!playIntro}>
+      <WriterStarBorder loops={1} lapDuration={1.4} skipIntro={!playIntro}>
         <GlassCard className="writer-chat-welcome-composer">
           <div className="writer-chat-welcome-composer-stack">
             <div ref={composerFieldRef} className="writer-chat-welcome-composer-field">

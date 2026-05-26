@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AgentRunEvent, PasteTextConversation, PasteTextMessage } from "@writer/contracts";
 
 import type { DaemonClient } from "../daemon-client";
+import { isOptimisticMessageId } from "./optimistic-turn";
 import { isTerminalRunStatus, RUN_POLL_INTERVAL_MS, streamingTextFromEvents } from "./message-display";
 
 type UsePasteTextRunSyncInput = {
@@ -22,7 +23,7 @@ export function usePasteTextRunSync({
   const [runEvents, setRunEvents] = useState<AgentRunEvent[]>([]);
 
   useEffect(() => {
-    if (!conversation?.id || !pendingAssistant) {
+    if (!conversation?.id || !shouldPollPendingAssistant(pendingAssistant)) {
       setStreamingText(null);
       setRunStatus(undefined);
       setRunEvents([]);
@@ -93,4 +94,10 @@ export function usePasteTextRunSync({
   }, [client, conversation?.id, onConversationChange, pendingAssistant?.agentRunId, pendingAssistant?.id]);
 
   return { streamingText, runStatus, runEvents };
+}
+
+export function shouldPollPendingAssistant(
+  pendingAssistant: PasteTextMessage | undefined
+): pendingAssistant is PasteTextMessage {
+  return Boolean(pendingAssistant && !isOptimisticMessageId(pendingAssistant.id));
 }

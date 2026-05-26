@@ -78,7 +78,6 @@ export function ChatShellView({
       if (host) {
         host.style.removeProperty("top");
         host.style.removeProperty("transform");
-        host.removeAttribute("data-positioned");
       }
       hero?.style.removeProperty("padding-top");
       if (spacer) {
@@ -97,7 +96,6 @@ export function ChatShellView({
     spacer.style.height = `${host.getBoundingClientRect().height}px`;
     host.style.top = `${welcomeComposerTopPx(spacer, shell)}px`;
     host.style.transform = "";
-    host.setAttribute("data-positioned", "true");
   }, [composerPlacement, welcomeSendTransition, composerAnimating]);
 
   useLayoutEffect(() => {
@@ -314,6 +312,12 @@ export function ChatShellView({
 }
 
 function cnThreadScroll(inWelcomeSend: boolean) {
-  const base = "writer-chat-scroll h-full min-h-0 px-4";
-  return inWelcomeSend ? `${base} writer-chat-scroll--send-transition pt-2` : `${base} py-4`;
+  if (inWelcomeSend) {
+    // Absolutely overlay the welcome stage so the user-message rise animation is visible
+    // while the heading fades out and composer moves to footer.
+    // pt-4 matches the py-4 top-padding used in the normal-flow state so the
+    // message doesn't visually shift when the thread switches back to flow layout.
+    return "writer-chat-scroll absolute inset-0 overflow-hidden px-4 pt-4 writer-chat-scroll--send-transition";
+  }
+  return "writer-chat-scroll h-full min-h-0 px-4 py-4";
 }

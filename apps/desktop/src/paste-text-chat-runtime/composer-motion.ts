@@ -4,8 +4,8 @@ import type { ChatPhase } from "./chat-phase";
 export const WELCOME_INPUT_MOVE_MS = 350;
 /** Fixed gap between welcome heading line and composer on the welcome screen */
 export const WELCOME_HEADING_COMPOSER_GAP_PX = 24;
-/** Gemini reference: move-up (first user message) */
-export const WELCOME_MESSAGE_RISE_MS = 500;
+/** First user message lands at 560ms; assistant status appears after a short hold. */
+export const WELCOME_MESSAGE_RISE_MS = 680;
 /** Gemini reference: zero-state fade-out */
 export const WELCOME_ZERO_LEAVE_MS = 150;
 

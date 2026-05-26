@@ -32,14 +32,14 @@
   transform: translate3d(-50%, -50%, 0) rotate(0deg);
   opacity: 1;
   backface-visibility: hidden;
-  /* Single narrow peak at 315° (= top-left at rotate 0); arc < 20° avoids a second dot on the far side */
+  /* Single light starts at top-left corner (312°) and travels clockwise one full turn */
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    transparent 307deg,
-    rgb(157 202 251 / 0.4) 312deg,
-    var(--writer-accent-blue, #2083ea) 315deg,
-    rgb(157 202 251 / 0.4) 318deg,
+    transparent 303deg,
+    rgb(157 202 251 / 0.35) 307deg,
+    var(--writer-accent-blue, #2083ea) 312deg,
+    rgb(157 202 251 / 0.35) 317deg,
     transparent 323deg,
     transparent 360deg
   );

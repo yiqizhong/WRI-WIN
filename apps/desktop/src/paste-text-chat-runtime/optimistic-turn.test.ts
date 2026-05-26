@@ -45,4 +45,38 @@ describe("mergeDisplayMessages", () => {
     expect(merged[0]?.id).toBe("u-server");
     expect(merged[1]?.id).toBe("a-server");
   });
+
+  it("keeps the optimistic user message mounted while welcome send motion is active", () => {
+    const optimistic = createOptimisticTurn("Paste this");
+    const merged = mergeDisplayMessages(
+      {
+        id: "c1",
+        projectId: "p1",
+        inputMode: "plain_text",
+        messages: [
+          {
+            id: "u-server",
+            role: "user",
+            text: "Paste this",
+            createdAt: "2026-05-25T00:00:00.000Z"
+          },
+          {
+            id: "a-server",
+            role: "assistant",
+            text: "",
+            status: "pending",
+            createdAt: "2026-05-25T00:00:00.000Z"
+          }
+        ],
+        createdAt: "2026-05-25T00:00:00.000Z",
+        updatedAt: "2026-05-25T00:00:00.000Z"
+      },
+      optimistic,
+      { preserveOptimisticUser: true }
+    );
+
+    expect(merged).toHaveLength(2);
+    expect(merged[0]?.id).toBe(optimistic.userMessage.id);
+    expect(merged[1]?.id).toBe("a-server");
+  });
 });

@@ -15,9 +15,9 @@ type WriterStarBorderProps = {
   skipIntro?: boolean;
 };
 
-const BEAM_FADE_SEC = 0.5;
-const STROKE_FADE_SEC = 0.55;
-const STROKE_FADE_START_BEFORE_END_SEC = 0.55;
+const BEAM_FADE_SEC = 0.4;
+const STROKE_FADE_SEC = 0.35;
+const STROKE_FADE_START_BEFORE_END_SEC = 1.4;
 
 export function WriterStarBorder({
   children,

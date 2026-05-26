@@ -159,6 +159,7 @@ export function TextCopyChat({
     ) : null;
 
   const userMessageCount = displayMessages.filter((message) => message.role === "user").length;
+  const lastUserMessageId = lastMessageIdByRole(displayMessages, "user");
 
   const thread = (
     <div className="writer-chat-thread flex flex-col gap-8">
@@ -177,7 +178,8 @@ export function TextCopyChat({
 
         if (!isAssistant) {
           const isOptimistic = isOptimisticMessageId(message.id);
-          const isFirstSendRise = isOptimistic && userMessageCount === 1;
+          const isWelcomeSendMessage = welcomeSendTransition && message.id === lastUserMessageId;
+          const isFirstSendRise = isWelcomeSendMessage || (isOptimistic && userMessageCount === 1);
           return (
             <div key={message.id} className="flex justify-end">
               <div
@@ -192,6 +194,10 @@ export function TextCopyChat({
               </div>
             </div>
           );
+        }
+
+        if (isAssistant && isPending && welcomeSendTransition) {
+          return null;
         }
 
         return (
@@ -373,4 +379,14 @@ export function TextCopyChat({
       />
     </div>
   );
+}
+
+function lastMessageIdByRole(messages: PasteTextMessage[], role: PasteTextMessage["role"]): string | null {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role === role) {
+      return message.id;
+    }
+  }
+  return null;
 }

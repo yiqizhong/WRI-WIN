@@ -509,7 +509,8 @@
   /* Gemini input-move: 250ms; WAAPI path uses 350ms (see composer-motion.ts) */
   --writer-duration-input-move: 350ms;
   --writer-welcome-heading-composer-gap: 24px;
-  --writer-duration-message-rise: 500ms;
+  /* 520ms anim + 40ms delay; WELCOME_MESSAGE_RISE_MS adds a short hold before assistant status. */
+  --writer-duration-message-rise: 520ms;
   --writer-duration-welcome-leave: 150ms;
   position: relative;
 }
@@ -527,14 +528,8 @@
   top: 0;
   padding-top: 0;
   padding-bottom: 0;
-  pointer-events: none;
-  visibility: hidden;
-  transform: none;
-}
-
-.writer-chat-composer-host[data-placement="welcome-centered"][data-positioned="true"] {
   pointer-events: auto;
-  visibility: visible;
+  transform: none;
 }
 
 .writer-chat-composer-host[data-placement="footer"] {
@@ -568,14 +563,16 @@
 }
 
 .writer-chat-user-bubble--first-send-rise {
+  /* Starts after the welcome screen begins fading. The 220px travel roughly
+     matches the welcome composer-to-thread distance without overshooting. */
   animation: writer-chat-first-message-rise var(--writer-duration-message-rise)
-    var(--writer-motion-easing-emphasized) both;
+    cubic-bezier(0.16, 1, 0.3, 1) 40ms both;
 }
 
 @keyframes writer-chat-first-message-rise {
   from {
     opacity: 0;
-    transform: translateY(200px);
+    transform: translateY(220px);
   }
 
   to {

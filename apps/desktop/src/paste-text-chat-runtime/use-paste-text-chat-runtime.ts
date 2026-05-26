@@ -46,10 +46,15 @@ export function usePasteTextChatRuntime({
   const composerFooterRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const submittingRef = useRef(false);
+  const welcomeSendTransitionRef = useRef(false);
 
   const displayMessages = useMemo(
-    () => mergeDisplayMessages(conversation, optimisticTurn),
-    [conversation, optimisticTurn]
+    () =>
+      mergeDisplayMessages(conversation, optimisticTurn, {
+        preserveOptimisticUser: welcomeSendTransition
+      }),
+    [conversation, optimisticTurn, welcomeSendTransition]
   );
 
   const phase = deriveChatPhase({
@@ -159,6 +164,14 @@ export function usePasteTextChatRuntime({
   }, [phase, scrollToEnd, welcomeSendTransition]);
 
   useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
+
+  useEffect(() => {
+    welcomeSendTransitionRef.current = welcomeSendTransition;
+  }, [welcomeSendTransition]);
+
+  useEffect(() => {
     if (!conversation) {
       setOptimisticTurn(null);
       setForceWelcome(false);
@@ -190,6 +203,7 @@ export function usePasteTextChatRuntime({
       setForceWelcome(false);
       const fromWelcome = phase === "welcome";
       if (fromWelcome) {
+        welcomeSendTransitionRef.current = true;
         setWelcomeSendTransition(true);
         stickToBottomRef.current = false;
       } else {
@@ -209,11 +223,16 @@ export function usePasteTextChatRuntime({
         });
 
         onConversationChange(result.conversation);
-        setOptimisticTurn(null);
+        if (!fromWelcome || !welcomeSendTransitionRef.current) {
+          setOptimisticTurn(null);
+        }
         setDraftText("");
-        scrollToEnd("send");
+        if (!fromWelcome) {
+          scrollToEnd("send");
+        }
       } catch (err) {
         setOptimisticTurn(null);
+        welcomeSendTransitionRef.current = false;
         setWelcomeSendTransition(false);
         setError(
           err instanceof DaemonClientError
@@ -280,6 +299,7 @@ export function usePasteTextChatRuntime({
   const resetToWelcome = useCallback(() => {
     setOptimisticTurn(null);
     setForceWelcome(true);
+    welcomeSendTransitionRef.current = false;
     setWelcomeSendTransition(false);
     setDraftText("");
     setError(null);
@@ -287,7 +307,11 @@ export function usePasteTextChatRuntime({
   }, []);
 
   const completeWelcomeSendTransition = useCallback(() => {
+    welcomeSendTransitionRef.current = false;
     setWelcomeSendTransition(false);
+    if (!submittingRef.current) {
+      setOptimisticTurn(null);
+    }
     stickToBottomRef.current = true;
     scrollToEnd("message");
   }, [scrollToEnd]);

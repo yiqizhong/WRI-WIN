@@ -5,6 +5,10 @@ export type OptimisticTurn = {
   assistantMessage: PasteTextMessage;
 };
 
+type MergeDisplayMessagesOptions = {
+  preserveOptimisticUser?: boolean;
+};
+
 const OPTIMISTIC_PREFIX = "optimistic-";
 
 export function isOptimisticMessageId(id: string): boolean {
@@ -34,7 +38,8 @@ export function createOptimisticTurn(userText: string): OptimisticTurn {
 
 export function mergeDisplayMessages(
   conversation: PasteTextConversation | null,
-  optimisticTurn: OptimisticTurn | null
+  optimisticTurn: OptimisticTurn | null,
+  options: MergeDisplayMessagesOptions = {}
 ): PasteTextMessage[] {
   const server = (conversation?.messages ?? []).filter(
     (message) => !isOptimisticMessageId(message.id)
@@ -44,10 +49,32 @@ export function mergeDisplayMessages(
     return server;
   }
 
-  const lastUser = server.filter((message) => message.role === "user").at(-1);
+  const lastUserIndex = lastIndexOfUserMessage(server);
+  const lastUser = lastUserIndex >= 0 ? server[lastUserIndex] : undefined;
   if (lastUser?.text === optimisticTurn.userMessage.text) {
+    if (options.preserveOptimisticUser) {
+      const preserved = [...server];
+      preserved[lastUserIndex] = optimisticTurn.userMessage;
+      const hasAssistantAfterUser = preserved
+        .slice(lastUserIndex + 1)
+        .some((message) => message.role === "assistant");
+
+      return hasAssistantAfterUser
+        ? preserved
+        : [...preserved, optimisticTurn.assistantMessage];
+    }
+
     return server;
   }
 
   return [...server, optimisticTurn.userMessage, optimisticTurn.assistantMessage];
+}
+
+function lastIndexOfUserMessage(messages: PasteTextMessage[]): number {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "user") {
+      return index;
+    }
+  }
+  return -1;
 }
