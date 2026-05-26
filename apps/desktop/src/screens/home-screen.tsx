@@ -92,7 +92,7 @@ export function HomeScreen() {
 
   return (
     <div className="mt-[76px] flex h-full w-full items-center justify-center">
-      <div className="flex flex-col gap-16">
+      <div className="flex -translate-y-[108px] flex-col gap-16">
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
             <span>Hi, Alex</span>
