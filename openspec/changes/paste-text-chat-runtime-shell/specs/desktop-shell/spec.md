@@ -35,6 +35,12 @@ The Chat route SHALL fill the remaining viewport below the masthead so the activ
 - **AND** the composer region is `shrink-0` at the bottom edge of the chat container
 - **AND** no large empty gap appears between the composer and the window bottom under normal window sizes
 
+#### Scenario: Bottom anchor while composer grows
+
+- **WHEN** the active composer grows from one visible input line up to its five-line cap
+- **THEN** its bottom-docked region remains anchored at the bottom edge of the chat container
+- **AND** the scrollable message region yields only the necessary composer height
+
 ## REMOVED Requirements
 
 ### Requirement: Proactive greeting + product picker

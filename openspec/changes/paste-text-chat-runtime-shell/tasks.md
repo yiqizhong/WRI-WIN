@@ -1,4 +1,4 @@
-<!-- Linear: WRI-145 epic · WRI-146 [1] · WRI-147 [2] · WRI-148 [3] · WRI-149 [4] -->
+<!-- Linear: WRI-145 epic · WRI-146 [1] · WRI-147 [2] · WRI-148 [3] · WRI-149 [4, 5.5–5.6] · WRI-154 [5.1 transition, 5.2, 5.4 first-send] · WRI-155 [5.1 sizing, 5.3, 5.4 resize/scroll] -->
 
 ## 1. Runtime primitives (TDD)
 
@@ -22,3 +22,12 @@
 - [x] 4.1 Run `npm run typecheck` and `npm run test --workspace @writer/desktop`
 - [ ] 4.2 Manual script in `verify.md`: welcome center → send → bottom dock → streaming → new conversation → welcome
 - [x] 4.3 Run `openspec validate paste-text-chat-runtime-shell --type change --strict` (if CLI available)
+
+## 5. Motion polish increment (confirmed 2026-05-25, pending implementation)
+
+- [ ] 5.1 Add tests for persistent composer phase transitions, reduced-motion behavior, and multiline height clamp/overflow rules
+- [ ] 5.2 Refactor `ChatShellView` to retain one composer instance across `welcome` and `active`, then implement transform-based first-send/reverse migration
+- [ ] 5.3 Add Chat-only animated height measurement in `WriterChatComposer` with 1-line minimum, 5-line maximum, and internal overflow beyond the cap
+- [ ] 5.4 Coordinate footer resize with existing near-bottom scroll behavior and add heading/user-message entrance plus reduced-motion CSS
+- [ ] 5.5 Run `npm run typecheck`, `npm run test --workspace @writer/desktop`, and `openspec validate paste-text-chat-runtime-shell --type change --strict`
+- [ ] 5.6 Manually verify center → first-send travel → bottom dock, 1–5+ line resize/shrink, history scroll preservation, New Chat reverse path, and reduced-motion fallback

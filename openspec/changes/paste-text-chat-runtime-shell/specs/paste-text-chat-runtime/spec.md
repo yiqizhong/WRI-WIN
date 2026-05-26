@@ -20,6 +20,7 @@ The Chat renderer SHALL distinguish two layout phases: `welcome` and `active`.
 - **THEN** the renderer enters `active` phase before the send HTTP request completes
 - **AND** displays an optimistic user message bubble
 - **AND** anchors the composer to the bottom of the viewport
+- **AND** when motion is allowed, presents the existing composer as continuously moving from its welcome position to its bottom anchor rather than flashing in at a new position
 
 #### Scenario: Return to welcome on new conversation
 
@@ -70,3 +71,48 @@ The Chat desktop implementation SHALL NOT depend on assistant-ui packages, regis
 - **WHEN** the desktop package is built
 - **THEN** `package.json` does not add `@assistant-ui/*` dependencies for this feature
 - **AND** Chat UI is implemented with existing Writer components and daemon client only
+
+### Requirement: Composer visual continuity
+
+The Chat renderer SHALL retain a single live composer across welcome and active phases and use motion only to explain its layout transition.
+
+#### Scenario: First message motion
+
+- **WHEN** a user sends the first message while motion is enabled
+- **THEN** the composer transitions from the centered welcome position to the bottom-docked active position
+- **AND** the textarea preserves its focus and controlled draft lifecycle
+- **AND** the optimistic user message appears with a lightweight upward entrance after send begins
+
+#### Scenario: Reduced-motion first message
+
+- **WHEN** the operating system requests reduced motion and the user sends the first message
+- **THEN** the renderer immediately places the composer at its active bottom anchor
+- **AND** does not require positional or opacity animation to expose the optimistic message
+- **AND** all send, focus, and streaming behavior remains functional
+
+#### Scenario: Return to welcome motion
+
+- **WHEN** a user starts a new conversation from the active phase while motion is enabled
+- **THEN** the same live composer transitions from its bottom anchor back to the centered welcome position
+- **AND** pending-run cancellation and cleared-draft behavior remain correct
+
+### Requirement: Animated multiline composer sizing
+
+The Chat composer SHALL adapt its visible text area between 1 and 5 lines without abrupt size changes when motion is enabled.
+
+#### Scenario: Draft gains or loses visible lines
+
+- **WHEN** the draft wraps or changes between 1 and 5 visible lines
+- **THEN** the composer grows or shrinks toward the required height with a short, non-bouncing transition
+- **AND** its send control remains anchored within the composer surface
+
+#### Scenario: Draft exceeds five visible lines
+
+- **WHEN** draft content requires more than 5 visible lines
+- **THEN** the composer remains capped at 5 visible lines
+- **AND** the textarea scrolls internally rather than continuing to reduce message-thread space
+
+#### Scenario: Resize while reading history
+
+- **WHEN** the user has scrolled away from the newest messages and edits a multiline draft
+- **THEN** the composer may resize without forcing the thread back to its bottom position

@@ -25,6 +25,13 @@ Chat (`/text-copy`) already has async daemon sends and a thinking ribbon, but th
 - Reason: composer truly sticks to bottom; less jank during streaming.
 - Impact: `writer-app-frame.css` rules if needed; scroll helper tests.
 
+**Composer motion continuity + adaptive height**
+
+- From: welcome and active layouts swap the composer instantly; browser content sizing changes multiline input height without a visible transition.
+- To: preserve one composer instance across shell phases, animate its first-send movement from center to bottom, and animate its visible input height from 1 to 5 lines before internal scrolling.
+- Reason: eliminate the current flash/jump while preserving focus, draft state, and a fast typing experience.
+- Impact: `ChatShellView`, `WriterChatComposer`, chat motion styles, and targeted desktop tests/manual verification.
+
 **Spec alignment**
 
 - Update `desktop-shell` delta for Chat title, shell phases, viewport contract.
@@ -35,15 +42,15 @@ Chat (`/text-copy`) already has async daemon sends and a thinking ribbon, but th
 
 ### New Capabilities
 
-- `paste-text-chat-runtime` — desktop client phase machine, optimistic turns, run polling coordination, scroll policy.
+- `paste-text-chat-runtime` — desktop client phase machine, optimistic turns, run polling coordination, scroll policy, and composer motion behavior.
 
 ### Modified Capabilities
 
-- `desktop-shell` — Chat route shell layout (welcome centered composer, active bottom dock); masthead title "Chat".
+- `desktop-shell` — Chat route shell layout (welcome centered composer, active bottom dock and continuous transition); masthead title "Chat".
 
 ## Impact
 
-- **apps/desktop** — `text-copy-chat.tsx` refactor; new `chat-shell/` or `paste-text-chat-runtime/` modules; tests.
+- **apps/desktop** — `text-copy-chat.tsx`; `components/writer/writer-chat-composer.tsx`; `paste-text-chat-runtime/` shell/runtime modules; chat styles; tests.
 - **apps/desktop/src/styles/writer-app-frame.css** — optional scroll/shell utilities.
 - **openspec/specs/** — sync after archive via `/opsx-sync`.
 
@@ -57,3 +64,4 @@ No changes to `packages/contracts`, `apps/daemon`, or agent adapters in v1.
 - Multi-thread sidebar, model picker UI, or Gemini-style suggestion chips.
 - Daemon contract or `AgentRunEvent` schema changes.
 - Full visual redesign of message bubbles (keep Writer Carbon styling).
+- Decorative bounce/spring motion, prolonged choreography, or global changes to the shared `Textarea` component.

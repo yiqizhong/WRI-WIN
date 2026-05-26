@@ -289,6 +289,26 @@ Replaces the flat company+product model from WRI-103 with a 3-layer structure th
 
 Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-copy-chat-redesign/`
 
+## paste-text-chat-runtime-shell (OpenSpec: `openspec/changes/paste-text-chat-runtime-shell/`)
+
+**Epic:** [WRI-145](https://linear.app/uicb/issue/WRI-145) — Chat runtime shell (welcome center → active bottom dock)
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.3 | [WRI-146](https://linear.app/uicb/issue/WRI-146) | Runtime primitives: phase, optimistic merge, run sync tests |
+| 2.1–2.3 | [WRI-147](https://linear.app/uicb/issue/WRI-147) | Hook + `ChatShellView`: optimistic send and welcome/active layouts |
+| 3.1–3.2 | [WRI-148](https://linear.app/uicb/issue/WRI-148) | Viewport flex regression guard and composer bottom anchor |
+| 4.1–4.3, 5.5–5.6 | [WRI-149](https://linear.app/uicb/issue/WRI-149) | Automated/manual verification, OpenSpec validate, map updates |
+| 5.1 (transition), 5.2, 5.4 (first send) | [WRI-154](https://linear.app/uicb/issue/WRI-154) | Persistent Composer FLIP migration, message entrance, reduced-motion transition |
+| 5.1 (sizing), 5.3, 5.4 (resize/scroll) | [WRI-155](https://linear.app/uicb/issue/WRI-155) | Animated 1–5 line input height, internal overflow, scroll stability |
+
+**Motion decisions (confirmed 2026-05-25):**
+- First send uses continuous migration of one retained Composer (`~240ms`), rather than swapping centered and docked inputs.
+- Multiline input uses responsive non-bouncing growth/shrink (`~150ms`) between 1 and 5 visible lines, then internal scrolling.
+- Reduced-motion mode suppresses interpolation while retaining layout, focus, optimistic send, and streaming behavior.
+
+**Suggested order for remaining motion increment:** WRI-154 → WRI-155 → WRI-149 → close WRI-145.
+
 ## figma-audit-redesign (OpenSpec: `openspec/changes/figma-audit-redesign/`)
 
 **Epic:** [WRI-134](https://linear.app/uicb/issue/WRI-134) — Figma Audit Redesign (v2 UX + audit log + workflow modes + screenshots + writeback flow)
