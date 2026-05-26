@@ -40,6 +40,7 @@ export function usePasteTextChatRuntime({
   >({});
   const [optimisticTurn, setOptimisticTurn] = useState<OptimisticTurn | null>(null);
   const [forceWelcome, setForceWelcome] = useState(false);
+  const [welcomeSendTransition, setWelcomeSendTransition] = useState(false);
 
   const threadScrollRef = useRef<HTMLDivElement>(null);
   const composerFooterRef = useRef<HTMLDivElement>(null);
@@ -108,27 +109,34 @@ export function usePasteTextChatRuntime({
   }, [phase]);
 
   useLayoutEffect(() => {
-    if (phase !== "active") {
+    if (phase !== "active" || welcomeSendTransition) {
       return;
     }
     scrollToEnd("phase-active");
-  }, [phase, scrollToEnd]);
+  }, [phase, scrollToEnd, welcomeSendTransition]);
 
   useLayoutEffect(() => {
     if (phase !== "active") {
+      return;
+    }
+    const container = threadScrollRef.current;
+    if (welcomeSendTransition) {
+      if (container) {
+        container.scrollTop = 0;
+      }
       return;
     }
     if (pendingAssistant || stickToBottomRef.current) {
       scrollToEnd(pendingAssistant ? "stream" : "message");
     }
-  }, [displayMessages, phase, pendingAssistant, scrollToEnd, streamingText]);
+  }, [displayMessages, phase, pendingAssistant, scrollToEnd, streamingText, welcomeSendTransition]);
 
   useLayoutEffect(() => {
-    if (phase !== "active" || !streamingText) {
+    if (phase !== "active" || !streamingText || welcomeSendTransition) {
       return;
     }
     scrollToEnd("stream");
-  }, [phase, scrollToEnd, streamingText]);
+  }, [phase, scrollToEnd, streamingText, welcomeSendTransition]);
 
   useEffect(() => {
     if (phase !== "active") {
@@ -141,14 +149,14 @@ export function usePasteTextChatRuntime({
     }
 
     const observer = new ResizeObserver(() => {
-      if (!stickToBottomRef.current) {
+      if (welcomeSendTransition || !stickToBottomRef.current) {
         return;
       }
       scrollToEnd("message");
     });
     observer.observe(footer);
     return () => observer.disconnect();
-  }, [phase, scrollToEnd]);
+  }, [phase, scrollToEnd, welcomeSendTransition]);
 
   useEffect(() => {
     if (!conversation) {
@@ -180,8 +188,14 @@ export function usePasteTextChatRuntime({
       setSubmitting(true);
       setError(null);
       setForceWelcome(false);
+      const fromWelcome = phase === "welcome";
+      if (fromWelcome) {
+        setWelcomeSendTransition(true);
+        stickToBottomRef.current = false;
+      } else {
+        stickToBottomRef.current = true;
+      }
       setOptimisticTurn(createOptimisticTurn(text));
-      stickToBottomRef.current = true;
 
       try {
         const current = await ensureConversation();
@@ -194,12 +208,13 @@ export function usePasteTextChatRuntime({
           rowIndex: Number.isNaN(parsedRowIndex) ? undefined : parsedRowIndex
         });
 
-        setOptimisticTurn(null);
         onConversationChange(result.conversation);
+        setOptimisticTurn(null);
         setDraftText("");
         scrollToEnd("send");
       } catch (err) {
         setOptimisticTurn(null);
+        setWelcomeSendTransition(false);
         setError(
           err instanceof DaemonClientError
             ? err.message
@@ -218,6 +233,7 @@ export function usePasteTextChatRuntime({
       ensureConversation,
       onConversationChange,
       pendingRewrite,
+      phase,
       rowIndex,
       scrollToEnd,
       submitting,
@@ -264,10 +280,17 @@ export function usePasteTextChatRuntime({
   const resetToWelcome = useCallback(() => {
     setOptimisticTurn(null);
     setForceWelcome(true);
+    setWelcomeSendTransition(false);
     setDraftText("");
     setError(null);
     stickToBottomRef.current = true;
   }, []);
+
+  const completeWelcomeSendTransition = useCallback(() => {
+    setWelcomeSendTransition(false);
+    stickToBottomRef.current = true;
+    scrollToEnd("message");
+  }, [scrollToEnd]);
 
   const resolveMessageVariantIndex = useCallback(
     (message: PasteTextMessage) => {
@@ -349,6 +372,8 @@ export function usePasteTextChatRuntime({
 
   return {
     phase,
+    welcomeSendTransition,
+    completeWelcomeSendTransition,
     draftText,
     setDraftText,
     rowIndex,

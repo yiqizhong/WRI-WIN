@@ -1,5 +1,38 @@
 /* Chat welcome — Figma AI-test node 1082:24 */
 
+:root {
+  /* Gemini: expand `height 0.25s`; collapse `height 0.5s linear(...)` */
+  --writer-composer-height-expand-duration: 0.25s;
+  --writer-composer-height-collapse-duration: 0.5s;
+  --writer-composer-height-collapse-easing: linear(
+    0,
+    0.002,
+    0.01 3.6%,
+    0.034,
+    0.074 7.9%,
+    0.132 10.2%,
+    0.209 12.8%,
+    0.307 15.6%,
+    0.4 17.3%,
+    0.501 19.3%,
+    0.586 21.2%,
+    0.658 23.1%,
+    0.72 25.2%,
+    0.773 27.4%,
+    0.818 29.8%,
+    0.856 32.6%,
+    0.888 35.8%,
+    0.913 39.5%,
+    0.933 43.9%,
+    0.949 49.2%,
+    0.962 55.7%,
+    0.972 63.5%,
+    0.981 73.6%,
+    0.989 85.7%,
+    1
+  );
+}
+
 /* Active chat: no filled strip under the composer — only the glass card is painted */
 .writer-chat-active-shell,
 .writer-chat-composer-footer,
@@ -22,7 +55,7 @@
   margin-inline: auto;
 }
 
-/* Composer stays in flex flow so thread height shrinks when the textarea grows */
+/* Active chat: composer dock pinned to app bottom (above disclaimer); grows upward. */
 .writer-chat-composer-footer {
   flex-shrink: 0;
 }
@@ -217,17 +250,33 @@
   }
 }
 
-.writer-chat-welcome-shell {
+/* Welcome: title + composer as one hero unit, centered in the scroll region. */
+.writer-chat-welcome-stage {
+  display: flex;
   width: 100%;
-  max-width: 744px;
-  gap: 38px;
-  /* Slight lift so the block doesn’t read “low” in the window under the header chrome */
-  transform: translateY(-1.75rem);
+  min-height: 0;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  interpolate-size: allow-keywords;
 }
 
-/* Welcome — lift composer only (heading position unchanged) */
-.writer-chat-welcome-shell .writer-chat-composer-panel {
-  margin-top: -12px;
+.writer-chat-welcome-hero {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.writer-chat-welcome-shell {
+  width: 100%;
+  margin-inline: auto;
+  gap: 38px;
+}
+
+.writer-chat-welcome-composer-disclaimer {
+  margin-top: 0.5rem;
 }
 
 .writer-chat-welcome-heading {
@@ -327,7 +376,8 @@
   width: 100%;
   min-height: 0;
   flex-direction: column;
-  justify-content: center;
+  /* Top-anchored stack: field grows downward; toolbar stays under the input */
+  justify-content: flex-start;
   padding-block: 16px;
   padding-inline: 16px;
   background: rgb(18 25 43);
@@ -348,8 +398,29 @@
 }
 
 .writer-chat-welcome-composer-field {
+  display: flex;
   width: 100%;
   min-width: 0;
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+
+/* Gemini multiline expand: `.text-input-field_textarea-inner { transition: height 0.25s }` */
+.writer-chat-welcome-composer-textarea-inner {
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  transform-origin: top center;
+  transition: height var(--writer-composer-height-expand-duration);
+}
+
+/* Gemini collapse: `.lm-input-redesign.animate-height-collapse { transition: height 0.5s linear(...) }` */
+.writer-chat-welcome-composer-field.animate-height-collapse
+  .writer-chat-welcome-composer-textarea-inner {
+  transition:
+    height var(--writer-composer-height-collapse-duration)
+    var(--writer-composer-height-collapse-easing);
 }
 
 .writer-chat-welcome-toolbar {
@@ -384,6 +455,8 @@
   -webkit-appearance: none;
   background: transparent;
   min-height: 0;
+  /* Explicit height from JS; do not let `field-sizing: content` fight shrink */
+  field-sizing: fixed;
   font-size: 1.0625rem; /* ~17px on default root */
   /* Tighter leading + symmetric padding avoids multiline-placeholder box looking “heavy” bottom */
   line-height: 1.35;
@@ -392,8 +465,15 @@
   letter-spacing: 0.0175em;
   box-shadow: none;
   overflow-x: hidden;
-  overflow-y: auto;
   scrollbar-width: none;
+}
+
+.writer-chat-welcome-composer-textarea-inner .writer-chat-welcome-input {
+  display: block;
+  height: 100%;
+  max-height: none;
+  overflow-anchor: none;
+  vertical-align: top;
 }
 
 .writer-chat-welcome-input::-webkit-scrollbar {
@@ -413,4 +493,112 @@
 
 .writer-chat-welcome-input:focus-visible {
   outline: none;
+}
+
+/* Gemini welcome → chat motion tokens */
+.writer-chat-active-shell {
+  --writer-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  /* Gemini input-move: 250ms; WAAPI path uses 350ms (see composer-motion.ts) */
+  --writer-duration-input-move: 350ms;
+  --writer-welcome-heading-composer-gap: 24px;
+  --writer-duration-message-rise: 500ms;
+  --writer-duration-welcome-leave: 150ms;
+  position: relative;
+}
+
+.writer-chat-composer-motion-dock {
+  width: 100%;
+}
+
+/* Single mount: welcome = centered overlay; footer = in-flow above disclaimer */
+.writer-chat-composer-host[data-placement="welcome-centered"] {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 50%;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: auto;
+  transform: none;
+}
+
+.writer-chat-composer-host[data-placement="footer"] {
+  position: relative;
+  top: auto;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  transform: none;
+}
+
+.writer-chat-composer-host[data-placement="footer"][data-animating="true"] {
+  will-change: transform;
+}
+
+.writer-chat-welcome-zero-state--leaving {
+  animation: writer-chat-welcome-zero-leave var(--writer-duration-welcome-leave) linear forwards;
+}
+
+@keyframes writer-chat-welcome-zero-leave {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.writer-chat-scroll--send-transition {
+  overflow: hidden;
+}
+
+.writer-chat-user-bubble--first-send-rise {
+  animation: writer-chat-first-message-rise var(--writer-duration-message-rise)
+    var(--writer-motion-easing-emphasized) both;
+}
+
+@keyframes writer-chat-first-message-rise {
+  from {
+    opacity: 0;
+    transform: translateY(200px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.writer-chat-user-bubble--entering {
+  animation: writer-chat-user-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
+}
+
+@keyframes writer-chat-user-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-chat-composer-host[data-placement="welcome-centered"] {
+    transform: none;
+  }
+
+  .writer-chat-welcome-composer-textarea-inner,
+  .writer-chat-welcome-composer-field.animate-height-collapse
+    .writer-chat-welcome-composer-textarea-inner {
+    transition: none !important;
+  }
+
+  .writer-chat-welcome-zero-state--leaving {
+    animation: none;
+    opacity: 0;
+  }
+
+  .writer-chat-user-bubble--first-send-rise,
+  .writer-chat-user-bubble--entering {
+    animation: none;
+  }
 }

@@ -22,6 +22,7 @@ import {
   getMessageVariants,
   messagePreview
 } from "./paste-text-chat-runtime/message-display";
+import { isOptimisticMessageId } from "./paste-text-chat-runtime/optimistic-turn";
 import { usePasteTextChatRuntime } from "./paste-text-chat-runtime/use-paste-text-chat-runtime";
 import { TextCopyThinkingRibbonView } from "./text-copy-thinking-ribbon-view";
 
@@ -66,6 +67,8 @@ export function TextCopyChat({
 
   const {
     phase,
+    welcomeSendTransition,
+    completeWelcomeSendTransition,
     draftText,
     setDraftText,
     rowIndex,
@@ -140,6 +143,7 @@ export function TextCopyChat({
       sendDisabled={composerSendDisabled}
       onKeyDown={composerKeyDown}
       playIntro={phase === "welcome"}
+      suppressHeightMotion={welcomeSendTransition}
       extras={
         <>
           {attachmentMeta}
@@ -153,6 +157,8 @@ export function TextCopyChat({
     error ? (
       <InlineAlert kind="error" title="Send failed" subtitle={error} onClose={() => setError(null)} />
     ) : null;
+
+  const userMessageCount = displayMessages.filter((message) => message.role === "user").length;
 
   const thread = (
     <div className="writer-chat-thread flex flex-col gap-8">
@@ -170,9 +176,20 @@ export function TextCopyChat({
         const showCursor = showStream && Boolean(streamingText);
 
         if (!isAssistant) {
+          const isOptimistic = isOptimisticMessageId(message.id);
+          const isFirstSendRise = isOptimistic && userMessageCount === 1;
           return (
             <div key={message.id} className="flex justify-end">
-              <div className={cn(chatBubbleEnd, "writer-chat-user-bubble")}>{body}</div>
+              <div
+                className={cn(
+                  chatBubbleEnd,
+                  "writer-chat-user-bubble",
+                  isFirstSendRise && "writer-chat-user-bubble--first-send-rise",
+                  isOptimistic && !isFirstSendRise && "writer-chat-user-bubble--entering"
+                )}
+              >
+                {body}
+              </div>
             </div>
           );
         }
@@ -272,7 +289,7 @@ export function TextCopyChat({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="writer-chat-subheader">
+      <div className="writer-chat-subheader shrink-0">
         <div className="writer-chat-subheader__row">
           <div className="writer-chat-subheader__lead">
             <button
@@ -304,6 +321,8 @@ export function TextCopyChat({
 
       <ChatShellView
         phase={phase}
+        welcomeSendTransition={welcomeSendTransition}
+        onWelcomeSendTransitionComplete={completeWelcomeSendTransition}
         threadScrollRef={threadScrollRef}
         composerFooterRef={composerFooterRef}
         welcomeGreeting={
