@@ -4,6 +4,7 @@
   height: auto;
   min-height: 2.25rem;
   border: 0 !important;
+  border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;

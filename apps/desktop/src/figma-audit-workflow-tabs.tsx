@@ -4,15 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import type { ListPageFramesResponse } from "@writer/contracts";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { GlassCard } from "@/components/writer/glass-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
 import { Label } from "@/components/ui/label";
+import { WriterFormInput } from "@/components/writer/writer-form-field";
 import {
-  WriterFormField,
-  WriterFormInput
-} from "@/components/writer/writer-form-field";
+  WRITER_MINIMAL_TAB_TRIGGER_CLASS,
+  WriterMinimalTabsList
+} from "@/components/writer/writer-minimal-tabs";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
-import { cn } from "@/lib/utils";
 
 export type WorkflowSubmitPayload = {
   fileKey: string;
@@ -55,6 +56,15 @@ function useScrollContentToBottomOnListGrow(
 function parseFigmaFileKey(url: string): string | null {
   const match = url.match(/figma\.com\/design\/([^/?#]+)/);
   return match?.[1] ?? null;
+}
+
+function formatWorkflowFrameLabel(name: string): string {
+  return name
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
 
 function reorderFrames(frames: WorkflowFrame[], from: number, to: number): WorkflowFrame[] {
@@ -131,50 +141,8 @@ export async function buildManualWorkflowFromUrls({
   return { fileKey, nodeIds };
 }
 
-const WORKFLOW_METHOD_BUTTON_CLASS =
-  "rounded-full border px-[1.125rem] py-[0.4375rem] text-[0.8125rem] font-normal tracking-wide shadow-none";
-
-function WorkflowMethodChoice({
-  method,
-  disabled,
-  onChange
-}: {
-  method: WorkflowInputMethod;
-  disabled?: boolean;
-  onChange: (method: WorkflowInputMethod) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Workflow source">
-      <Button
-        type="button"
-        variant="outline"
-        disabled={disabled}
-        className={cn(
-          WORKFLOW_METHOD_BUTTON_CLASS,
-          method === "manual"
-            ? "border-white/42 bg-white/12 text-[#fafcff] hover:bg-white/16"
-            : "border-white/20 bg-transparent text-white/62 hover:border-white/24 hover:text-white/92"
-        )}
-        onClick={() => onChange("manual")}
-      >
-        Paste links
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={disabled}
-        className={cn(
-          WORKFLOW_METHOD_BUTTON_CLASS,
-          method === "page"
-            ? "border-white/42 bg-white/12 text-[#fafcff] hover:bg-white/16"
-            : "border-white/20 bg-transparent text-white/62 hover:border-white/24 hover:text-white/92"
-        )}
-        onClick={() => onChange("page")}
-      >
-        Detect from page
-      </Button>
-    </div>
-  );
+function isWorkflowInputMethod(value: string | null): value is WorkflowInputMethod {
+  return value === "manual" || value === "page";
 }
 
 export function FigmaAuditWorkflowTabs({
@@ -197,6 +165,21 @@ export function FigmaAuditWorkflowTabs({
 
   useScrollContentToBottomOnListGrow(manualRows.length, onRequestScrollToBottom);
   useScrollContentToBottomOnListGrow(detectedFrames.length, onRequestScrollToBottom);
+
+  function clearDetectedWorkflow() {
+    setDetectedFrames([]);
+    setDetectedFileKey(null);
+    setError(null);
+  }
+
+  function moveDetectedFrame(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= detectedFrames.length) {
+      return;
+    }
+
+    setDetectedFrames((current) => reorderFrames(current, index, nextIndex));
+  }
 
   function moveManualRow(index: number, direction: -1 | 1) {
     const nextIndex = index + direction;
@@ -266,18 +249,36 @@ export function FigmaAuditWorkflowTabs({
   }
 
   return (
-    <div className="flex w-full flex-col gap-4">
-      <WorkflowMethodChoice
-        method={method}
-        disabled={controlsDisabled}
-        onChange={(next) => {
-          setMethod(next);
-          setError(null);
-        }}
-      />
+    <Tabs
+      value={method}
+      onValueChange={(next) => {
+        if (!isWorkflowInputMethod(next) || next === method) {
+          return;
+        }
 
-      {method === "manual" ? (
-        <div className="flex flex-col gap-4">
+        setMethod(next);
+        setError(null);
+      }}
+      className="figma-audit-workflow-method-tabs writer-minimal-tabs flex w-full flex-col gap-4"
+    >
+      <WriterMinimalTabsList>
+        <TabsTrigger
+          value="manual"
+          disabled={controlsDisabled}
+          className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
+        >
+          Paste links
+        </TabsTrigger>
+        <TabsTrigger
+          value="page"
+          disabled={controlsDisabled}
+          className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
+        >
+          Detect from page
+        </TabsTrigger>
+      </WriterMinimalTabsList>
+
+      <TabsContent value="manual" keepMounted className="mt-0 flex flex-col gap-4 outline-none">
           {manualRows.map((value, index) => (
             <div key={`manual-step-${index}`} className="flex flex-col gap-2">
               <Label
@@ -328,7 +329,7 @@ export function FigmaAuditWorkflowTabs({
             </div>
           ))}
 
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="figma-audit-workflow-footer flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -347,106 +348,128 @@ export function FigmaAuditWorkflowTabs({
               {manualSubmitting ? "Starting…" : "Start audit"}
             </WriterPrimaryButton>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          <WriterFormField label="Page link" htmlFor="figma-workflow-page-url">
-            <WriterFormInput
-              id="figma-workflow-page-url"
-              type="url"
-              shellClassName="writer-workflow-input-shell"
-              value={pageUrl}
-              disabled={controlsDisabled}
-              placeholder="https://www.figma.com/design/..."
-              onChange={(event) => setPageUrl(event.target.value)}
-            />
-          </WriterFormField>
+      </TabsContent>
 
-          <WriterPrimaryButton
-            type="button"
-            disabled={controlsDisabled || !pageUrl.trim()}
-            onClick={() => void detectPage()}
-          >
-            {pageLoading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                Detecting...
-              </span>
-            ) : (
-              "Detect workflow"
-            )}
-          </WriterPrimaryButton>
+      <TabsContent value="page" keepMounted className="mt-0 flex flex-col gap-4 outline-none">
+          {detectedFrames.length === 0 ? (
+            <div className="flex flex-col gap-2">
+              <Label
+                htmlFor="figma-workflow-page-url"
+                className="writer-home-text text-sm text-[#e5f1ff]/80"
+              >
+                Page link
+              </Label>
+              <WriterFormInput
+                id="figma-workflow-page-url"
+                type="url"
+                shellClassName="writer-workflow-input-shell min-w-0 flex-1"
+                value={pageUrl}
+                disabled={controlsDisabled}
+                placeholder="https://www.figma.com/design/..."
+                onChange={(event) => setPageUrl(event.target.value)}
+              />
+            </div>
+          ) : null}
 
-          {detectedFrames.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {detectedFrames.map((frame, index) => (
-                <GlassCard
-                  key={`${frame.nodeId}-${index}`}
-                  variant="outline"
-                  className="flex items-center gap-3 px-3 py-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={frame.checked}
-                    disabled={controlsDisabled}
-                    className="shrink-0"
-                    onChange={(event) => {
-                      setDetectedFrames((current) =>
-                        current.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, checked: event.target.checked } : item
-                        )
-                      );
-                    }}
-                  />
-                  <span className="writer-home-text w-8 shrink-0 text-sm text-[#e5f1ff]/70">
-                    #{index + 1}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="writer-home-text m-0 truncate text-sm text-[#e5f1ff]">
-                      {frame.name}
-                    </p>
-                    {frame.parentPath ? (
-                      <p className="writer-home-text m-0 truncate text-xs text-[#e5f1ff]/60">
-                        {frame.parentPath}
+          {detectedFrames.length > 0
+            ? detectedFrames.map((frame, index) => (
+                <div key={`${frame.nodeId}-${index}`} className="flex flex-col gap-2">
+                  <Label
+                    htmlFor={`figma-workflow-frame-${index}`}
+                    className="writer-home-text text-sm text-[#e5f1ff]/80"
+                  >
+                    {`Step ${index + 1}`}
+                  </Label>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <GlassCard
+                      variant="outline"
+                      className="writer-workflow-frame-row-shell min-w-0 flex-1"
+                    >
+                      <input
+                        id={`figma-workflow-frame-${index}`}
+                        type="checkbox"
+                        checked={frame.checked}
+                        disabled={controlsDisabled}
+                        className="writer-workflow-frame-checkbox shrink-0"
+                        onChange={(event) => {
+                          setDetectedFrames((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, checked: event.target.checked } : item
+                            )
+                          );
+                        }}
+                      />
+                      <p className="writer-home-text m-0 min-w-0 flex-1 truncate text-sm leading-tight text-[#e5f1ff]">
+                        {formatWorkflowFrameLabel(frame.name)}
                       </p>
-                    ) : null}
+                    </GlassCard>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="writer-pill-ghost writer-pill-ghost--icon writer-workflow-reorder-btn shrink-0 border border-white/20"
+                        disabled={controlsDisabled || index === 0}
+                        aria-label={`Move step ${index + 1} up`}
+                        onClick={() => moveDetectedFrame(index, -1)}
+                      >
+                        <ChevronUp className="size-4" strokeWidth={1.5} aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="writer-pill-ghost writer-pill-ghost--icon writer-workflow-reorder-btn shrink-0 border border-white/20"
+                        disabled={controlsDisabled || index === detectedFrames.length - 1}
+                        aria-label={`Move step ${index + 1} down`}
+                        onClick={() => moveDetectedFrame(index, 1)}
+                      >
+                        <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={controlsDisabled || index === 0}
-                    onClick={() =>
-                      setDetectedFrames((current) => reorderFrames(current, index, index - 1))
-                    }
-                  >
-                    Up
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={controlsDisabled || index === detectedFrames.length - 1}
-                    onClick={() =>
-                      setDetectedFrames((current) => reorderFrames(current, index, index + 1))
-                    }
-                  >
-                    Down
-                  </Button>
-                </GlassCard>
-              ))}
+                </div>
+              ))
+            : null}
 
+          <div className="figma-audit-workflow-footer flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+            {detectedFrames.length > 0 ? (
+              <Button
+                type="button"
+                variant="link"
+                disabled={controlsDisabled}
+                className="writer-home-text h-auto px-0 text-sm font-normal text-[#e5f1ff]/55 no-underline hover:text-[#ff9b9b] hover:no-underline disabled:opacity-40"
+                onClick={clearDetectedWorkflow}
+              >
+                Delete workflow
+              </Button>
+            ) : null}
+            {detectedFrames.length === 0 ? (
+              <WriterPrimaryButton
+                type="button"
+                disabled={controlsDisabled || !pageUrl.trim()}
+                onClick={() => void detectPage()}
+              >
+                {pageLoading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    Detecting...
+                  </span>
+                ) : (
+                  "Detect workflow"
+                )}
+              </WriterPrimaryButton>
+            ) : (
               <WriterPrimaryButton type="button" disabled={controlsDisabled} onClick={submitDetected}>
                 Start audit
               </WriterPrimaryButton>
-            </div>
-          ) : null}
-        </div>
-      )}
+            )}
+          </div>
+      </TabsContent>
 
       {error ? (
         <InlineAlert kind="error" title="Workflow" subtitle={error} onClose={() => setError(null)} />
       ) : null}
-    </div>
+    </Tabs>
   );
 }
