@@ -29,14 +29,34 @@ type WorkflowFrame = {
 
 type WorkflowInputMethod = "manual" | "page";
 
+type ManualStepRow = {
+  url: string;
+  frameName?: string;
+  detecting?: boolean;
+};
+
+type ParsedFrameUrl = {
+  fileKey: string;
+  nodeId?: string;
+  frameName?: string;
+  suggestedScope: {
+    kind: string;
+    fileKey?: string;
+    nodeId?: string;
+    frameName?: string;
+  };
+};
+
 type FigmaAuditWorkflowTabsProps = {
   disabled?: boolean;
   onSubmit: (payload: WorkflowSubmitPayload) => void;
-  onParseUrl: (url: string) => Promise<{ fileKey: string; nodeId?: string; suggestedScope: { fileKey: string } }>;
+  onParseUrl: (url: string) => Promise<ParsedFrameUrl>;
   onListPageFrames: (pageUrl: string) => Promise<ListPageFramesResponse>;
   /** Scroll the Figma Audit page content area when the list grows past the viewport. */
   onRequestScrollToBottom?: () => void;
 };
+
+const EMPTY_MANUAL_STEP: ManualStepRow = { url: "" };
 
 function useScrollContentToBottomOnListGrow(
   listLength: number,
@@ -65,6 +85,46 @@ function formatWorkflowFrameLabel(name: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+}
+
+export function looksLikeFigmaFrameUrl(url: string): boolean {
+  const trimmed = url.trim();
+
+  if (!/figma\.com\/design\//i.test(trimmed)) {
+    return false;
+  }
+
+  try {
+    return Boolean(new URL(trimmed).searchParams.get("node-id"));
+  } catch {
+    return false;
+  }
+}
+
+export function frameNameFromParsedUrl(parsed: ParsedFrameUrl): string | undefined {
+  if (parsed.frameName) {
+    return parsed.frameName;
+  }
+
+  if (parsed.suggestedScope.kind === "frame" && parsed.suggestedScope.frameName) {
+    return parsed.suggestedScope.frameName;
+  }
+
+  return undefined;
+}
+
+export function manualStepLabel(index: number, row: ManualStepRow): string {
+  const base = `Step ${index + 1}`;
+
+  if (row.detecting) {
+    return `${base} - …`;
+  }
+
+  if (row.frameName) {
+    return `${base} - ${formatWorkflowFrameLabel(row.frameName)}`;
+  }
+
+  return base;
 }
 
 function reorderFrames(frames: WorkflowFrame[], from: number, to: number): WorkflowFrame[] {
@@ -153,7 +213,10 @@ export function FigmaAuditWorkflowTabs({
   onRequestScrollToBottom
 }: FigmaAuditWorkflowTabsProps) {
   const [method, setMethod] = useState<WorkflowInputMethod>("manual");
-  const [manualRows, setManualRows] = useState<string[]>(["", ""]);
+  const [manualRows, setManualRows] = useState<ManualStepRow[]>([
+    { ...EMPTY_MANUAL_STEP },
+    { ...EMPTY_MANUAL_STEP }
+  ]);
   const [pageUrl, setPageUrl] = useState("");
   const [detectedFrames, setDetectedFrames] = useState<WorkflowFrame[]>([]);
   const [detectedFileKey, setDetectedFileKey] = useState<string | null>(null);
@@ -165,6 +228,72 @@ export function FigmaAuditWorkflowTabs({
 
   useScrollContentToBottomOnListGrow(manualRows.length, onRequestScrollToBottom);
   useScrollContentToBottomOnListGrow(detectedFrames.length, onRequestScrollToBottom);
+
+  const manualRowUrlKey = manualRows.map((row) => row.url).join("|");
+
+  useEffect(() => {
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+
+    manualRows.forEach((row, index) => {
+      const trimmed = row.url.trim();
+
+      if (!looksLikeFigmaFrameUrl(trimmed) || row.detecting) {
+        return;
+      }
+
+      if (row.frameName) {
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        const urlAtDetect = trimmed;
+
+        setManualRows((current) => {
+          if (current[index]?.url.trim() !== urlAtDetect) {
+            return current;
+          }
+
+          const next = [...current];
+          next[index] = { url: urlAtDetect, detecting: true };
+          return next;
+        });
+
+        void onParseUrl(urlAtDetect)
+          .then((parsed) => {
+            const frameName = frameNameFromParsedUrl(parsed);
+
+            setManualRows((current) => {
+              if (current[index]?.url.trim() !== urlAtDetect) {
+                return current;
+              }
+
+              const next = [...current];
+              next[index] = { url: urlAtDetect, frameName, detecting: false };
+              return next;
+            });
+          })
+          .catch(() => {
+            setManualRows((current) => {
+              if (current[index]?.url.trim() !== urlAtDetect) {
+                return current;
+              }
+
+              const next = [...current];
+              next[index] = { url: urlAtDetect, detecting: false };
+              return next;
+            });
+          });
+      }, 400);
+
+      timeouts.push(timeout);
+    });
+
+    return () => {
+      for (const timeout of timeouts) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [manualRowUrlKey, manualRows, onParseUrl]); // manualRows: frameName/detecting skip guards
 
   function clearDetectedWorkflow() {
     setDetectedFrames([]);
@@ -190,7 +319,7 @@ export function FigmaAuditWorkflowTabs({
     setManualRows((current) => {
       const copy = [...current];
       const [row] = copy.splice(index, 1);
-      copy.splice(nextIndex, 0, row ?? "");
+      copy.splice(nextIndex, 0, row ?? { ...EMPTY_MANUAL_STEP });
       return copy;
     });
   }
@@ -220,7 +349,7 @@ export function FigmaAuditWorkflowTabs({
 
     try {
       const result = await buildManualWorkflowFromUrls({
-        urls: manualRows,
+        urls: manualRows.map((row) => row.url),
         parseFrameUrl: onParseUrl
       });
 
@@ -267,38 +396,41 @@ export function FigmaAuditWorkflowTabs({
           disabled={controlsDisabled}
           className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
         >
-          Paste links
+          Page by Page
         </TabsTrigger>
         <TabsTrigger
           value="page"
           disabled={controlsDisabled}
           className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
         >
-          Detect from page
+          All in one
         </TabsTrigger>
       </WriterMinimalTabsList>
 
       <TabsContent value="manual" keepMounted className="mt-0 flex flex-col gap-4 outline-none">
-          {manualRows.map((value, index) => (
+          {manualRows.map((row, index) => (
             <div key={`manual-step-${index}`} className="flex flex-col gap-2">
               <Label
                 htmlFor={`figma-workflow-step-${index}`}
                 className="writer-home-text text-sm text-[#e5f1ff]/80"
               >
-                {`Step ${index + 1}`}
+                {manualStepLabel(index, row)}
               </Label>
               <div className="flex min-w-0 items-center gap-3">
                 <WriterFormInput
                   id={`figma-workflow-step-${index}`}
                   type="url"
                   shellClassName="writer-workflow-input-shell min-w-0 flex-1"
-                  value={value}
+                  value={row.url}
                   disabled={controlsDisabled}
                   placeholder="https://www.figma.com/design/..."
                   onChange={(event) => {
-                    const next = [...manualRows];
-                    next[index] = event.target.value;
-                    setManualRows(next);
+                    const url = event.target.value;
+                    setManualRows((current) => {
+                      const next = [...current];
+                      next[index] = { url };
+                      return next;
+                    });
                   }}
                 />
                 <div className="flex shrink-0 gap-2">
@@ -335,7 +467,7 @@ export function FigmaAuditWorkflowTabs({
               variant="ghost"
               className="writer-pill-ghost writer-pill-add"
               disabled={controlsDisabled}
-              onClick={() => setManualRows((current) => [...current, ""])}
+              onClick={() => setManualRows((current) => [...current, { ...EMPTY_MANUAL_STEP }])}
             >
               <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
               <span>Add step</span>

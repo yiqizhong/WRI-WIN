@@ -19,7 +19,11 @@ export {
   listDirectPageFrames,
   sortFramesByDirection
 } from "./figma-page-frames";
-export { parseMetadataXml, type MetadataXmlNode } from "./figma-metadata-xml";
+export {
+  findMetadataNodeById,
+  parseMetadataXml,
+  type MetadataXmlNode
+} from "./figma-metadata-xml";
 export {
   isExtractableFigmaText,
   isMcpCodegenNoise,

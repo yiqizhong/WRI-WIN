@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildManualWorkflowFromUrls,
-  detectWorkflowFromPage
+  detectWorkflowFromPage,
+  frameNameFromParsedUrl,
+  looksLikeFigmaFrameUrl,
+  manualStepLabel
 } from "./figma-audit-workflow-tabs";
 
 describe("detectWorkflowFromPage", () => {
@@ -38,6 +41,27 @@ describe("detectWorkflowFromPage", () => {
   });
 });
 
+describe("manual step frame labels", () => {
+  it("detects frame URLs with node-id", () => {
+    expect(
+      looksLikeFigmaFrameUrl("https://www.figma.com/design/file123/Product?node-id=1-2")
+    ).toBe(true);
+    expect(looksLikeFigmaFrameUrl("https://www.figma.com/design/file123/Product")).toBe(false);
+  });
+
+  it("formats step labels with resolved frame names", () => {
+    expect(manualStepLabel(0, { url: "https://example.com", detecting: true })).toBe("Step 1 - …");
+    expect(manualStepLabel(1, { url: "https://example.com", frameName: "Checkout" })).toBe(
+      "Step 2 - Checkout"
+    );
+    expect(frameNameFromParsedUrl({
+      fileKey: "file123",
+      nodeId: "1:2",
+      suggestedScope: { kind: "frame", fileKey: "file123", nodeId: "1:2", frameName: "Login" }
+    })).toBe("Login");
+  });
+});
+
 describe("buildManualWorkflowFromUrls", () => {
   it("parses frame URLs and preserves pasted order", async () => {
     const result = await buildManualWorkflowFromUrls({
@@ -48,7 +72,7 @@ describe("buildManualWorkflowFromUrls", () => {
       parseFrameUrl: async (url) => ({
         fileKey: "file123",
         nodeId: url.includes("1-2") ? "1:2" : "1:1",
-        suggestedScope: { fileKey: "file123" }
+        suggestedScope: { kind: "frame", fileKey: "file123", nodeId: url.includes("1-2") ? "1:2" : "1:1" }
       })
     });
 

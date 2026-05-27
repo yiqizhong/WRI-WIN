@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { FigmaReviewScope } from "@writer/contracts";
 
 import { extractFigmaTextNodesViaMcp } from "./figma-extract-mcp";
-import { collectTextRefs, parseMetadataXml } from "./figma-metadata-xml";
+import { collectTextRefs, findMetadataNodeById, parseMetadataXml } from "./figma-metadata-xml";
 import type { McpCaller } from "./mcp-caller";
 
 const FRAME_METADATA = `
@@ -107,6 +107,12 @@ describe("figma metadata xml", () => {
 
   it("tolerates malformed fragments without throwing", () => {
     expect(() => parseMetadataXml("<frame><text id=\"1:1\" name=\"A\" type=\"TEXT\"")).not.toThrow();
+  });
+
+  it("finds a node by id in parsed metadata", () => {
+    const nodes = parseMetadataXml(FRAME_METADATA);
+    expect(findMetadataNodeById(nodes, "1:11")?.name).toBe("Primary CTA");
+    expect(findMetadataNodeById(nodes, "missing")).toBeUndefined();
   });
 });
 

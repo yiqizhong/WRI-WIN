@@ -5,6 +5,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { getQueryParam, readJsonBody } from "../http";
 import { FigmaUrlParseError } from "@writer/review-core";
 import { listFigmaPageFrames } from "../figma-page-frames";
+import { parseFigmaUrlWithFrameName } from "../figma-parse-url";
 import { resolveScreenshotPath } from "../figma-screenshots";
 
 import {
@@ -14,7 +15,6 @@ import {
   createPastedTextSession,
   extractFigmaNodes,
   listReviewChanges,
-  parseFigmaUrlInput,
   transitionReviewChange
 } from "../review";
 import {
@@ -53,7 +53,7 @@ export async function handleReviewRequest(
 
   if (request.method === "POST" && path === "/figma/parse-url") {
     try {
-      sendJson(response, 200, parseFigmaUrlInput(await readJsonBody(request)));
+      sendJson(response, 200, await parseFigmaUrlWithFrameName(state, await readJsonBody(request)));
     } catch (error) {
       if (error instanceof FigmaUrlParseError) {
         invalidRequest(response, error.message, "Use a figma.com/design/... URL.");

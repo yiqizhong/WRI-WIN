@@ -129,7 +129,8 @@ describe("daemon integration smoke", () => {
     });
     expect(parseRes.ok).toBe(true);
 
-    const parsed = (await parseRes.json()) as { suggestedScope: { kind: string } };
+    const parsed = (await parseRes.json()) as { suggestedScope: { kind: string }; frameName?: string };
+    expect(parsed.frameName).toBeUndefined();
     const extractRes = await fetch(`${baseUrl}/figma/extract`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -142,6 +143,41 @@ describe("daemon integration smoke", () => {
     };
     expect(extraction.diagnostic?.code).toBe("mcp_not_ready");
     expect(extraction.extraction.nodes).toHaveLength(0);
+  });
+
+  it("enriches parse-url with frame name when Figma MCP is connected", async () => {
+    testState.mcp.figma.enabled = true;
+    testState.mcp.figma.status = "connected";
+    testState.mcp.figmaClient = {
+      connect: async () => ({ ok: true }),
+      listTools: async () => [{ name: "get_metadata" }],
+      callTool: async (name: string) => {
+        if (name === "get_metadata") {
+          return {
+            ok: true,
+            result: {
+              content: [{ type: "text", text: `<frame id="1:2" name="Checkout" type="FRAME" />` }]
+            }
+          };
+        }
+
+        return { ok: false, diagnostic: { code: "unsupported", message: "unsupported" } };
+      }
+    };
+
+    const parseRes = await fetch(`${baseUrl}/figma/parse-url`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: "https://www.figma.com/design/abc123/Demo?node-id=1-2" })
+    });
+    expect(parseRes.ok).toBe(true);
+
+    const parsed = (await parseRes.json()) as {
+      frameName?: string;
+      suggestedScope: { kind: string; frameName?: string };
+    };
+    expect(parsed.frameName).toBe("Checkout");
+    expect(parsed.suggestedScope).toMatchObject({ kind: "frame", frameName: "Checkout" });
   });
 
   it("runs figma audit with injected MCP client and real extracted text", async () => {

@@ -29,6 +29,7 @@ export const parseFigmaUrlInputSchema = z.object({
 export const parsedFigmaUrlSchema = z.object({
   fileKey: z.string().min(1),
   nodeId: z.string().min(1).optional(),
+  frameName: z.string().optional(),
   suggestedScope: figmaReviewScopeSchema
 });
 

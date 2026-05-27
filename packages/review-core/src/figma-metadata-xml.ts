@@ -58,6 +58,37 @@ export function collectTextRefs(nodes: MetadataXmlNode[]): MetadataTextRef[] {
   return refs;
 }
 
+export function findMetadataNodeById(
+  nodes: MetadataXmlNode[],
+  nodeId: string
+): MetadataXmlNode | undefined {
+  function walk(node: MetadataXmlNode): MetadataXmlNode | undefined {
+    if (node.id === nodeId) {
+      return node;
+    }
+
+    for (const child of node.children) {
+      const match = walk(child);
+
+      if (match) {
+        return match;
+      }
+    }
+
+    return undefined;
+  }
+
+  for (const root of nodes) {
+    const match = walk(root);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return undefined;
+}
+
 export function flattenMetadataHierarchy(nodes: MetadataXmlNode[]): Array<{
   id: string;
   name: string;
