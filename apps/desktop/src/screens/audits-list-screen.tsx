@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 
 import type { ReviewSession } from "@writer/contracts";
 import { GlassCard } from "@/components/writer/glass-card";
+import { writerPrimaryButtonClassName } from "@/components/writer/writer-primary-button";
 import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
+import { cn } from "@/lib/utils";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
 
 import { deriveAuditRunBadge, isFigmaAuditSession } from "../audit-run-status";
@@ -71,7 +73,7 @@ export function AuditsListScreen() {
                       <td className="px-4 py-3">
                         <Link
                           to={`/audits/${session.id}`}
-                          className="writer-home-text inline-flex h-auto min-h-8 items-center rounded-full border border-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/10"
+                          className={cn(writerPrimaryButtonClassName, "min-h-8 px-4 py-2 no-underline")}
                         >
                           Open
                         </Link>

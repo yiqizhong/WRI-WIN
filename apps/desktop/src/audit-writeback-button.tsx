@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
 import { Button } from "@/components/ui/button";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
 import type { DaemonClient } from "./daemon-client";
 import {
@@ -78,13 +79,13 @@ export function AuditWritebackButton({
 
   return (
     <div className="flex flex-col gap-2">
-      <Button
+      <WriterPrimaryButton
         type="button"
         disabled={disabled || busy || rows.length === 0}
         onClick={() => void runWriteback(rows.map((row) => row.changeId))}
       >
         Approve & writeback to Figma
-      </Button>
+      </WriterPrimaryButton>
       {failedIds.length > 0 ? (
         <Button
           type="button"
