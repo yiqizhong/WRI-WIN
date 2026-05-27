@@ -169,6 +169,17 @@
   color: var(--writer-accent-blue) !important;
 }
 
+/* + Add controls — filled accent pill at rest (Guidelines upload slots, etc.) */
+.writer-pill-ghost.writer-pill-add {
+  background: rgb(32 131 234 / 0.14) !important;
+  color: var(--writer-accent-blue) !important;
+}
+
+.writer-pill-ghost.writer-pill-add:hover:not(:disabled) {
+  background: rgb(32 131 234 / 0.22) !important;
+  color: var(--writer-accent-blue) !important;
+}
+
 .writer-pill-ghost--orange {
   font-weight: 400;
   color: var(--writer-accent-orange) !important;

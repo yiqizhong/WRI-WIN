@@ -16,7 +16,6 @@ import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { InlineAlert } from "@/components/writer/inline-alert";
 import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
-import { cn } from "@/lib/utils";
 import type { CreateFigmaSessionInput, FigmaAuditMode } from "@writer/contracts";
 
 import { FigmaAuditWorkflowTabs, type WorkflowSubmitPayload } from "../figma-audit-workflow-tabs";
@@ -118,15 +117,13 @@ export function FigmaAuditScreen() {
         backTo="/"
         backLabel="Return to home"
         trailing={
-          <Link
-            to="/audits"
-            className={cn(
-              "writer-pill-ghost writer-pill-ghost--accent",
-              "inline-flex h-auto items-center no-underline hover:no-underline"
-            )}
+          <Button
+            variant="ghost"
+            className="writer-pill-ghost writer-pill-add"
+            render={<Link to="/audits" className="no-underline hover:no-underline" />}
           >
-            View audits
-          </Link>
+            View audits log
+          </Button>
         }
       />
 

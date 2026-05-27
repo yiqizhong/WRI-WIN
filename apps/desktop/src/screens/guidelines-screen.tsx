@@ -386,7 +386,7 @@ export function GuidelinesScreen() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="writer-pill-ghost writer-pill-ghost--accent"
+                    className="writer-pill-ghost writer-pill-add"
                     disabled={busy || !connected}
                     aria-label="Add product"
                     onClick={() => setAddProductOpen(true)}
@@ -799,7 +799,7 @@ function UploadSlotSection({
           <Button
             type="button"
             variant="ghost"
-            className="writer-pill-ghost writer-pill-ghost--accent"
+            className="writer-pill-ghost writer-pill-add"
             disabled={addDisabled}
             aria-label={`Add ${title}`}
             onClick={() => fileInputRef.current?.click()}
