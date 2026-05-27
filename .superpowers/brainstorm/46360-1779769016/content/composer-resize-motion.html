@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Composer resize motion study</title>
+  <style>
+    :root {
+      --bg: #071022;
+      --surface: #101a31;
+      --ink: #e5effc;
+      --muted: rgba(190, 209, 232, .68);
+      --blue: #2588ec;
+      --stroke: rgba(91, 144, 207, .52);
+      --panel: #0d172c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      padding: 28px 34px 34px;
+      color: var(--ink);
+      font: 14px/1.45 "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 50% 0, rgba(38, 79, 123, .32), transparent 39%), var(--bg);
+    }
+    header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 22px;
+      max-width: 1240px;
+      margin: 0 auto 22px;
+    }
+    h1 { margin: 0 0 6px; font-weight: 400; letter-spacing: .025em; font-size: 30px; }
+    .intro { max-width: 760px; margin: 0; color: var(--muted); }
+    .controls { display: flex; gap: 8px; }
+    .controls button {
+      border: 1px solid rgba(103, 152, 210, .38);
+      border-radius: 3px;
+      background: rgba(14, 23, 43, .85);
+      color: var(--ink);
+      padding: 9px 13px;
+      cursor: pointer;
+    }
+    .controls button:hover { border-color: var(--blue); }
+    .controls button:active { transform: scale(.97); }
+    .studies {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    article {
+      cursor: pointer;
+      border: 1px solid rgba(112, 150, 197, .2);
+      border-radius: 4px;
+      padding: 11px;
+      background: rgba(9, 17, 35, .64);
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+    article:hover { border-color: rgba(65, 136, 220, .62); }
+    article.selected, article[data-selected="true"] {
+      border-color: var(--blue);
+      background: rgba(20, 44, 79, .43);
+    }
+    .canvas {
+      height: 333px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(113, 151, 198, .18);
+      background:
+        linear-gradient(180deg, rgba(27, 47, 75, .55), transparent 18%),
+        #091225;
+    }
+    .thread {
+      position: absolute;
+      top: 20px;
+      left: 18px;
+      right: 18px;
+      color: rgba(205, 222, 242, .72);
+      font-size: 11px;
+    }
+    .assistant { width: 80%; line-height: 1.55; margin-bottom: 13px; }
+    .bubble {
+      width: 78%;
+      margin-left: auto;
+      height: 44px;
+      background: #153253;
+      border: 1px solid rgba(96, 157, 220, .26);
+    }
+    .dock {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+    }
+    .composer {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      min-height: 58px;
+      height: 58px;
+      padding: 14px 42px 13px 14px;
+      border: 1px solid var(--stroke);
+      background: var(--panel);
+      box-shadow: 0 16px 42px rgba(29, 105, 194, .14);
+      overflow: hidden;
+    }
+    .copy {
+      color: rgba(201, 219, 239, .82);
+      font-size: 12px;
+      line-height: 20px;
+      white-space: pre-line;
+    }
+    .line {
+      opacity: 0;
+      display: block;
+    }
+    .send {
+      position: absolute;
+      right: 11px;
+      bottom: 11px;
+      width: 25px;
+      height: 25px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #e3f0ff;
+      background: rgba(37, 136, 236, .75);
+    }
+    .cursor {
+      display: inline-block;
+      width: 1px;
+      height: 14px;
+      vertical-align: -2px;
+      margin-left: 2px;
+      background: rgba(197, 218, 240, .86);
+      animation: blink 1000ms step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .cycle .a .composer { animation: size-linear 3.5s linear .35s infinite alternate; }
+    .cycle .a .l2 { animation: typeLine 3.5s linear .35s infinite alternate; }
+    .cycle .a .l3 { animation: typeLine 3.5s linear .55s infinite alternate; }
+    .cycle .b .composer { animation: size-crisp 3.5s cubic-bezier(.32, .72, 0, 1) .35s infinite alternate; }
+    .cycle .b .l2 { animation: typeLine 3.5s ease-out .35s infinite alternate; }
+    .cycle .b .l3 { animation: typeLine 3.5s ease-out .48s infinite alternate; }
+    .cycle .c .composer { animation: size-soft 3.5s cubic-bezier(.22, 1, .36, 1) .35s infinite alternate; }
+    .cycle .c .l2 { animation: typeLine 3.5s ease-out .35s infinite alternate; }
+    .cycle .c .l3 { animation: typeLine 3.5s ease-out .48s infinite alternate; }
+    @keyframes size-linear {
+      0%, 15% { height: 58px; }
+      41%, 56% { height: 78px; }
+      81%, 100% { height: 98px; }
+    }
+    @keyframes size-crisp {
+      0%, 15% { height: 58px; }
+      34%, 55% { height: 78px; }
+      70%, 100% { height: 98px; }
+    }
+    @keyframes size-soft {
+      0%, 15% { height: 58px; }
+      37%, 55% { height: 78px; }
+      75%, 100% { height: 98px; }
+    }
+    @keyframes typeLine {
+      0%, 17% { opacity: 0; }
+      27%, 100% { opacity: 1; }
+    }
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 13px 4px 5px;
+    }
+    .letter {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border: 1px solid rgba(101, 152, 211, .38);
+      border-radius: 50%;
+      color: var(--blue);
+      font-weight: 600;
+    }
+    h2 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: .03em; }
+    .desc { min-height: 61px; margin: 0 4px 5px 38px; color: var(--muted); }
+    .tag {
+      margin-left: 38px;
+      display: inline-flex;
+      padding: 3px 8px;
+      color: #91c7ff;
+      background: rgba(37, 136, 236, .16);
+      font-size: 11px;
+      letter-spacing: .04em;
+    }
+    .note {
+      max-width: 1240px;
+      margin: 20px auto 0;
+      padding: 14px 17px;
+      border: 1px solid rgba(107, 146, 192, .18);
+      color: var(--muted);
+      background: rgba(13, 23, 42, .5);
+    }
+    .note strong { color: var(--ink); font-weight: 500; }
+    @media (max-width: 940px) { .studies { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: reduce) {
+      .composer { height: 98px !important; animation: none !important; }
+      .line { opacity: 1; animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>多行输入：Composer 怎样“长大”更舒服？</h1>
+      <p class="intro">每个方案会循环模拟一行到三行、再缩回的过程。请重点感受高频打字时是否跟手，而不是动画是否显眼。</p>
+    </div>
+    <div class="controls"><button type="button" onclick="replay()">重新开始循环</button></div>
+  </header>
+  <main class="studies cycle" id="studies">
+    <article class="a" data-choice="a-literal-linear" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="thread"><div class="assistant">Paste the text you want improved. I will keep the meaning and clarify the action.</div><div class="bubble"></div></div>
+        <div class="composer"><div class="copy">确认后，我们会发送收据。<span class="cursor"></span><span class="line l2">收据将发送至你的注册邮箱。</span><span class="line l3">你可以随时在设置中更新邮箱。</span></div><span class="send">&uarr;</span></div>
+      </div>
+      <div class="meta"><span class="letter">A</span><h2>严格匀速</h2></div>
+      <p class="desc">高度按 `linear` 匀速变化。满足字面“线性”，但起止时的硬切换会更容易被察觉。</p>
+      <span class="tag">机械、明确</span>
+    </article>
+    <article class="b" data-choice="b-responsive-settle" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="thread"><div class="assistant">Paste the text you want improved. I will keep the meaning and clarify the action.</div><div class="bubble"></div></div>
+        <div class="composer"><div class="copy">确认后，我们会发送收据。<span class="cursor"></span><span class="line l2">收据将发送至你的注册邮箱。</span><span class="line l3">你可以随时在设置中更新邮箱。</span></div><span class="send">&uarr;</span></div>
+      </div>
+      <div class="meta"><span class="letter">B</span><h2>跟手收尾</h2></div>
+      <p class="desc">立即响应文本换行，约 150ms 内柔和收住；增长与缩小一致，不弹跳、不拖慢输入。</p>
+      <span class="tag">推荐 · 高频操作更自然</span>
+    </article>
+    <article class="c" data-choice="c-gentle-breathe" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="thread"><div class="assistant">Paste the text you want improved. I will keep the meaning and clarify the action.</div><div class="bubble"></div></div>
+        <div class="composer"><div class="copy">确认后，我们会发送收据。<span class="cursor"></span><span class="line l2">收据将发送至你的注册邮箱。</span><span class="line l3">你可以随时在设置中更新邮箱。</span></div><span class="send">&uarr;</span></div>
+      </div>
+      <div class="meta"><span class="letter">C</span><h2>柔和呼吸</h2></div>
+      <p class="desc">约 220ms 的更柔和变化，看起来更精致，但连续输入与删除时会稍有滞后感。</p>
+      <span class="tag">优雅、偏慢</span>
+    </article>
+  </main>
+  <div class="note"><strong>建议：</strong>若希望视觉上“线性平滑”但不牺牲打字手感，选择 B；实现中仍可保持直线般稳定的形变，不加入弹簧回弹或多余发光。</div>
+  <script>
+    function replay() {
+      const studies = document.getElementById("studies");
+      studies.classList.remove("cycle");
+      void studies.offsetWidth;
+      studies.classList.add("cycle");
+    }
+  </script>
+</body>
+</html>

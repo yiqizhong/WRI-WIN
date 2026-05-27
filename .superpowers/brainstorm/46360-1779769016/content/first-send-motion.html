@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat first-send motion study</title>
+  <style>
+    :root {
+      --bg: #071022;
+      --surface: #101a31;
+      --line: rgba(108, 157, 214, .34);
+      --line-strong: rgba(97, 166, 244, .7);
+      --ink: #e3edf9;
+      --muted: rgba(191, 209, 232, .68);
+      --blue: #2588ec;
+      --blue-soft: rgba(37, 136, 236, .16);
+      --move: cubic-bezier(.22, 1, .36, 1);
+      --travel: cubic-bezier(.65, 0, .35, 1);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); }
+    body {
+      font: 14px/1.42 "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+      padding: 28px 34px 36px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(43, 92, 138, .25), transparent 36%),
+        linear-gradient(180deg, #0d192f, #070d1d 68%);
+    }
+    header {
+      max-width: 1240px;
+      margin: 0 auto 22px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 26px;
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-weight: 400;
+      font-size: clamp(25px, 2.5vw, 33px);
+      letter-spacing: .025em;
+    }
+    .intro {
+      margin: 0;
+      max-width: 690px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .replay {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: rgba(17, 26, 47, .85);
+      color: var(--ink);
+      padding: 9px 15px;
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease, transform 120ms ease-out;
+    }
+    .replay:hover { border-color: var(--line-strong); background: rgba(27, 44, 72, .85); }
+    .replay:active { transform: scale(.97); }
+    .studies {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(270px, 1fr));
+      gap: 16px;
+    }
+    .choice {
+      appearance: none;
+      color: inherit;
+      text-align: left;
+      border: 1px solid rgba(114, 150, 196, .2);
+      background: rgba(9, 17, 35, .64);
+      padding: 11px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+    .choice:hover { border-color: rgba(79, 145, 225, .55); }
+    .choice.selected, .choice[data-selected="true"] {
+      border-color: var(--blue);
+      background: rgba(20, 44, 79, .43);
+    }
+    .canvas {
+      height: 368px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(112, 146, 194, .19);
+      border-radius: 3px;
+      background:
+        linear-gradient(180deg, rgba(25, 45, 69, .5), transparent 16%),
+        #091225;
+    }
+    .topbar {
+      height: 39px;
+      display: flex;
+      align-items: center;
+      padding: 0 13px;
+      border-bottom: 1px solid rgba(116, 154, 198, .16);
+      color: var(--muted);
+      letter-spacing: .08em;
+    }
+    .heading {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 116px;
+      text-align: center;
+      color: var(--ink);
+      font-size: 15px;
+      letter-spacing: .08em;
+    }
+    .heading span { color: var(--blue); border-bottom: 1px solid var(--blue); }
+    .composer {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      height: 56px;
+      top: 164px;
+      padding: 14px 13px;
+      border: 1px solid rgba(91, 140, 201, .48);
+      color: rgba(202, 217, 237, .72);
+      background: rgba(14, 23, 43, .98);
+      box-shadow: 0 12px 40px rgba(31, 104, 190, .13);
+      font-size: 12px;
+    }
+    .composer::after {
+      content: "\2191";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      right: 10px;
+      bottom: 15px;
+      border-radius: 50%;
+      background: rgba(37, 136, 236, .7);
+      color: #dcecff;
+    }
+    .bubble {
+      position: absolute;
+      top: 68px;
+      left: 68px;
+      right: 18px;
+      min-height: 59px;
+      padding: 12px 13px;
+      background: #163457;
+      border: 1px solid rgba(87, 150, 214, .3);
+      color: #e2edf9;
+      font-size: 11px;
+      line-height: 1.55;
+      opacity: 0;
+      transform: translateY(22px) scale(.985);
+    }
+    .answer {
+      position: absolute;
+      top: 144px;
+      left: 26px;
+      color: rgba(220, 234, 250, .86);
+      opacity: 0;
+      transform: translateY(10px);
+      font-size: 11px;
+    }
+    .disclaimer {
+      position: absolute;
+      bottom: 5px;
+      left: 0;
+      right: 0;
+      opacity: 0;
+      color: rgba(186, 205, 228, .45);
+      text-align: center;
+      font-size: 10px;
+    }
+    .labelrow {
+      padding: 13px 4px 5px;
+      display: flex;
+      gap: 9px;
+      align-items: center;
+    }
+    .letter {
+      width: 25px;
+      height: 25px;
+      flex: none;
+      border: 1px solid var(--line);
+      color: var(--blue);
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      font-weight: 600;
+    }
+    h2 { margin: 0; font-weight: 500; font-size: 16px; letter-spacing: .03em; }
+    .desc { margin: 0 4px 5px 38px; min-height: 60px; color: var(--muted); }
+    .tag {
+      display: inline-flex;
+      margin-left: 38px;
+      color: #91c7ff;
+      background: var(--blue-soft);
+      padding: 3px 7px;
+      font-size: 11px;
+      letter-spacing: .05em;
+    }
+    .run .a .heading { animation: vanish 210ms var(--move) 350ms forwards; }
+    .run .a .composer { animation: dock 360ms var(--travel) 410ms forwards; }
+    .run .a .bubble { animation: rise 260ms var(--move) 610ms forwards; }
+    .run .a .answer { animation: riseText 240ms var(--move) 760ms forwards; }
+    .run .a .disclaimer { animation: fade 180ms ease-out 720ms forwards; }
+    .run .b .heading { animation: vanish 130ms ease-out 350ms forwards; }
+    .run .b .composer { animation: dock 185ms var(--move) 350ms forwards; }
+    .run .b .bubble { animation: rise 170ms var(--move) 470ms forwards; }
+    .run .b .answer { animation: riseText 170ms var(--move) 555ms forwards; }
+    .run .b .disclaimer { animation: fade 140ms ease-out 500ms forwards; }
+    .run .c .heading { animation: vanish 230ms var(--move) 640ms forwards; }
+    .run .c .composer { animation: dock 420ms var(--travel) 690ms forwards; }
+    .run .c .bubble {
+      transform-origin: 82% 100%;
+      animation: unfurl 340ms var(--move) 390ms forwards;
+    }
+    .run .c .answer { animation: riseText 260ms var(--move) 960ms forwards; }
+    .run .c .disclaimer { animation: fade 200ms ease-out 980ms forwards; }
+    @keyframes dock { to { top: 292px; height: 56px; } }
+    @keyframes vanish { to { transform: translateY(-10px); opacity: 0; } }
+    @keyframes rise { to { transform: translateY(0) scale(1); opacity: 1; } }
+    @keyframes riseText { to { transform: translateY(0); opacity: 1; } }
+    @keyframes fade { to { opacity: 1; } }
+    @keyframes unfurl {
+      from { opacity: 0; transform: translateY(62px) scale(.94, .38); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    footer {
+      max-width: 1240px;
+      margin: 20px auto 0;
+      padding: 14px 17px;
+      color: var(--muted);
+      border: 1px solid rgba(107, 146, 192, .18);
+      background: rgba(13, 23, 42, .5);
+    }
+    footer strong { color: var(--ink); font-weight: 500; }
+    @media (max-width: 940px) {
+      .studies { grid-template-columns: 1fr; }
+      .canvas { height: 350px; }
+      .composer { top: 155px; }
+      @keyframes dock { to { top: 275px; height: 56px; } }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .heading { opacity: 0; }
+      .composer { top: 292px; }
+      .bubble, .answer, .disclaimer { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>第一次发送：哪种过渡节奏更像 Writer？</h1>
+      <p class="intro">以下为发送点击后的动作草图。重点观察：输入框是否仍被感知为同一个对象、首条用户消息是否自然浮现，以及界面多久恢复可继续输入的稳定感。</p>
+    </div>
+    <button class="replay" type="button" onclick="replay()">重新播放</button>
+  </header>
+  <main class="studies run" id="studies">
+    <article class="choice a" data-choice="a-shared-travel" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="topbar">&lsaquo;&nbsp;&nbsp;Chat</div>
+        <div class="heading">Audit copy for <span>General purpose</span></div>
+        <div class="bubble">把付款成功后的提示语改得更简洁，且让用户知道邮件已发送。</div>
+        <div class="answer">Checking tone and confirmation clarity...</div>
+        <div class="composer">把付款成功后的提示语改得更简洁...</div>
+        <div class="disclaimer">AI can make mistakes</div>
+      </div>
+      <div class="labelrow"><span class="letter">A</span><h2>连续迁移</h2></div>
+      <p class="desc">Composer 作为同一个视觉对象落到底部；消息稍后从输入区域向上归位。</p>
+      <span class="tag">推荐 · 空间关系最清楚</span>
+    </article>
+    <article class="choice b" data-choice="b-fast-dock" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="topbar">&lsaquo;&nbsp;&nbsp;Chat</div>
+        <div class="heading">Audit copy for <span>General purpose</span></div>
+        <div class="bubble">把付款成功后的提示语改得更简洁，且让用户知道邮件已发送。</div>
+        <div class="answer">Checking tone and confirmation clarity...</div>
+        <div class="composer">把付款成功后的提示语改得更简洁...</div>
+        <div class="disclaimer">AI can make mistakes</div>
+      </div>
+      <div class="labelrow"><span class="letter">B</span><h2>快速落位</h2></div>
+      <p class="desc">输入框先迅速固定到工作区底部，随后立即显示消息，响应最快但转场存在感较弱。</p>
+      <span class="tag">最快 · 更工具化</span>
+    </article>
+    <article class="choice c" data-choice="c-message-unfurl" onclick="toggleSelect(this)">
+      <div class="canvas">
+        <div class="topbar">&lsaquo;&nbsp;&nbsp;Chat</div>
+        <div class="heading">Audit copy for <span>General purpose</span></div>
+        <div class="bubble">把付款成功后的提示语改得更简洁，且让用户知道邮件已发送。</div>
+        <div class="answer">Checking tone and confirmation clarity...</div>
+        <div class="composer">把付款成功后的提示语改得更简洁...</div>
+        <div class="disclaimer">AI can make mistakes</div>
+      </div>
+      <div class="labelrow"><span class="letter">C</span><h2>消息展开</h2></div>
+      <p class="desc">文字先从输入框“展开”为消息气泡，再让 Composer 下沉，表现更强但整体更慢。</p>
+      <span class="tag">更显眼 · 节奏较重</span>
+    </article>
+  </main>
+  <footer><strong>本轮只决定首次发送的动势。</strong> 多行输入框的高度增减动画会在下一轮单独比较，因为它属于高频输入反馈，速度应比页面转场更克制。</footer>
+  <script>
+    function replay() {
+      const studies = document.getElementById("studies");
+      studies.classList.remove("run");
+      void studies.offsetWidth;
+      studies.classList.add("run");
+    }
+    window.setInterval(replay, 5400);
+  </script>
+</body>
+</html>
