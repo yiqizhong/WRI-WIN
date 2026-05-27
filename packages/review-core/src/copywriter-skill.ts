@@ -25,18 +25,142 @@ export type CopywriterPrompt = {
 const CONFLICT_RESOLUTION =
   "When writing rules conflict, prefer Product over Software Writing over Company Base.";
 
+export const COPYWRITER_OFF_TOPIC_RESPONSE =
+  "I can only rewrite UX copy. Paste the text you want improved.";
+
+export const COPYWRITER_GUARD_ECHO_HINT =
+  "That line is the refusal message, not copy to rewrite. Paste the UI text you want improved (a label, error, or status line).";
+
+const OFF_TOPIC_PATTERN = /I can only rewrite UX copy/i;
+
 const SYSTEM_PROMPT = `You are a Senior Software Copywriter specializing in UX and product interface text.
 
 Your only job is to rewrite user-supplied copy according to the provided background context and writing rules.
 
 Hard constraints:
 - Output ONLY the rewritten text. No preamble, no markdown fences, no bullet lists unless the source is a list.
-- Do not answer general questions, chit-chat, or tasks unrelated to copy rewriting.
-- If the request is off-topic, respond with: "I can only rewrite UX copy. Paste the text you want improved."
+- Always rewrite everything under "Copy to rewrite". Default to rewriting — never refuse because the text looks like a question, note, instruction, JSON, or paragraph.
+- That includes labels, buttons, errors, tooltips, placeholders, status lines, JSON string arrays, incomplete sentences, motion descriptions, Design Note prose, and multi-line UI text.
+- If the source is a list or JSON array of short status strings, return the same structure with improved strings only (same count and format). Never add commentary.
+- If the source starts with "Design Note:", drop the label and rewrite the rest as concise product/UI copy.
+- Never add new "Design Note" sections, developer instructions, codebase advice, or explanations about the rewrite.
 - Preserve intent, tone constraints, and terminology from the background context.
-- Keep rewrites concise and appropriate for software UI.`;
+- Keep rewrites concise and appropriate for software UI.
+- Conversation history is tone context only; always rewrite the current Copy to rewrite block.
+- The only refusal: empty input, or a bare greeting with nothing to rewrite (for example exactly "hi", "hello", "hey", "thanks", "thank you", "thx", "ok", "okay"). Then respond with: "${COPYWRITER_OFF_TOPIC_RESPONSE}"`;
 
 const HISTORY_LIMIT = 6;
+
+function normalizeCopywriterText(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+const META_OUTPUT_LINE_PATTERNS = [
+  /^you can drop this directly into your codebase/i,
+  /^design note:/i
+];
+
+export function isCopywriterMetaOutput(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  return META_OUTPUT_LINE_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+
+export function isCopywriterOffTopicRefusal(text: string): boolean {
+  const normalized = normalizeCopywriterText(text);
+  const guard = normalizeCopywriterText(COPYWRITER_OFF_TOPIC_RESPONSE);
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized === guard) {
+    return true;
+  }
+
+  return normalized.replaceAll(guard, "").trim().length === 0;
+}
+
+export function filterCopywriterHistory(history: CopywriterMessage[]): CopywriterMessage[] {
+  return history.filter(
+    (message) => !isCopywriterOffTopicRefusal(message.text) && !isCopywriterMetaOutput(message.text)
+  );
+}
+
+function stripCopywriterMetaOutput(text: string): string {
+  const designNoteIndex = text.search(/\n\s*Design Note:/i);
+  let trimmed = designNoteIndex >= 0 ? text.slice(0, designNoteIndex).trim() : text.trim();
+
+  const paragraphs = trimmed.split(/\n\n+/).map((part) => part.trim()).filter(Boolean);
+  const withoutMeta = paragraphs.filter(
+    (paragraph) => !META_OUTPUT_LINE_PATTERNS.some((pattern) => pattern.test(paragraph))
+  );
+
+  if (withoutMeta.length > 0) {
+    trimmed = withoutMeta.join("\n\n").trim();
+  }
+
+  const lines = trimmed.split("\n").map((line) => line.trim()).filter(Boolean);
+  const withoutMetaLines = lines.filter(
+    (line) => !META_OUTPUT_LINE_PATTERNS.some((pattern) => pattern.test(line))
+  );
+
+  if (withoutMetaLines.length > 0 && withoutMetaLines.length < lines.length) {
+    return withoutMetaLines.join("\n").trim();
+  }
+
+  return trimmed;
+}
+
+const BARE_GREETING_PATTERN =
+  /^(hi|hello|hey|thanks|thank you|thx|ok|okay|yo|sup|good morning|good afternoon|good evening)[!.?…]*$/i;
+
+export function isCopywriterBareGreeting(userText: string): boolean {
+  const normalized = normalizeCopywriterText(userText);
+  if (!normalized) {
+    return false;
+  }
+
+  return BARE_GREETING_PATTERN.test(normalized);
+}
+
+export function shouldRefuseCopywriterInput(userText: string): boolean {
+  const trimmed = userText.trim();
+  if (!trimmed) {
+    return true;
+  }
+
+  return isCopywriterBareGreeting(trimmed);
+}
+
+export function normalizeCopyToRewrite(userText: string): string {
+  const trimmed = userText.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  return trimmed.replace(/^design note:\s*/i, "").trim() || trimmed;
+}
+
+export function shouldShortCircuitCopywriterInput(userText: string): string | null {
+  const trimmed = userText.trim();
+  if (!trimmed || isCopywriterBareGreeting(trimmed)) {
+    return COPYWRITER_OFF_TOPIC_RESPONSE;
+  }
+
+  if (isCopywriterOffTopicRefusal(trimmed)) {
+    return COPYWRITER_GUARD_ECHO_HINT;
+  }
+
+  return null;
+}
+
+export function isUnexpectedCopywriterRefusal(userText: string, suggestedText: string): boolean {
+  return isCopywriterOffTopicRefusal(suggestedText) && !shouldRefuseCopywriterInput(userText);
+}
 
 function hasGuidelineLayers(input: CopywriterSkillInput): boolean {
   return Boolean(
@@ -86,13 +210,13 @@ export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPr
     userSections.push(`Structured row context:\n${input.rowContext.trim()}`);
   }
 
-  const history = (input.history ?? []).slice(-HISTORY_LIMIT);
+  const history = filterCopywriterHistory(input.history ?? []).slice(-HISTORY_LIMIT);
   if (history.length > 0) {
     const historyLines = history.map((message) => `${message.role === "user" ? "User" : "Assistant"}: ${message.text}`);
     userSections.push(`Conversation history:\n${historyLines.join("\n")}`);
   }
 
-  userSections.push(`Copy to rewrite:\n${input.userText.trim()}`);
+  userSections.push(`Copy to rewrite:\n${normalizeCopyToRewrite(input.userText)}`);
   userSections.push("Respond with only the rewritten text.");
 
   const user = userSections.join("\n\n");
@@ -103,7 +227,7 @@ export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPr
 }
 
 export function parseCopywriterResponse(raw: string): { suggestedText: string; rationale?: string } {
-  const trimmed = raw.trim();
+  let trimmed = stripCopywriterMetaOutput(raw.trim());
 
   if (!trimmed) {
     return { suggestedText: "" };
@@ -111,15 +235,25 @@ export function parseCopywriterResponse(raw: string): { suggestedText: string; r
 
   const rewriteMatch = trimmed.match(/(?:Suggested rewrite|Rewrite):\s*([\s\S]+)/i);
   if (rewriteMatch?.[1]) {
-    return { suggestedText: rewriteMatch[1].trim() };
-  }
-
-  const offTopicPattern = /I can only rewrite UX copy/i;
-  if (offTopicPattern.test(trimmed)) {
-    return { suggestedText: trimmed };
+    return { suggestedText: stripCopywriterMetaOutput(rewriteMatch[1].trim()) };
   }
 
   const lines = trimmed.split("\n");
+
+  if (isCopywriterOffTopicRefusal(trimmed)) {
+    return { suggestedText: trimmed };
+  }
+
+  if (OFF_TOPIC_PATTERN.test(trimmed)) {
+    const withoutRefusal = lines
+      .filter((line) => !OFF_TOPIC_PATTERN.test(line.trim()))
+      .join("\n")
+      .trim();
+
+    if (withoutRefusal) {
+      return { suggestedText: withoutRefusal };
+    }
+  }
   const lastMeaningful = [...lines].reverse().find((line) => line.trim().length > 0) ?? trimmed;
 
   if (lines.length > 8 && lastMeaningful.length < trimmed.length * 0.6) {

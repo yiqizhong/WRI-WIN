@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCopywriterPrompt, parseCopywriterResponse } from "./copywriter-skill";
+import {
+  buildCopywriterPrompt,
+  filterCopywriterHistory,
+  isCopywriterBareGreeting,
+  isCopywriterMetaOutput,
+  isCopywriterOffTopicRefusal,
+  isUnexpectedCopywriterRefusal,
+  normalizeCopyToRewrite,
+  parseCopywriterResponse,
+  shouldRefuseCopywriterInput,
+  shouldShortCircuitCopywriterInput
+} from "./copywriter-skill";
 
 describe("copywriter-skill", () => {
   it("injects background and brand voice into prompt", () => {
@@ -30,6 +41,110 @@ describe("copywriter-skill", () => {
   it("preserves off-topic refusal", () => {
     const result = parseCopywriterResponse("I can only rewrite UX copy. Paste the text you want improved.");
     expect(result.suggestedText).toContain("I can only rewrite UX copy");
+  });
+
+  it("detects duplicated off-topic refusal", () => {
+    expect(
+      isCopywriterOffTopicRefusal(
+        "I can only rewrite UX copy. Paste the text you want improved.I can only rewrite UX copy. Paste the text you want improved."
+      )
+    ).toBe(true);
+  });
+
+  it("drops refusal-only history from the prompt", () => {
+    const history = [
+      { role: "user" as const, text: "I can only rewrite UX copy. Paste the text you want improved." },
+      { role: "assistant" as const, text: "I can only rewrite UX copy. Paste the text you want improved." }
+    ];
+    const prompt = buildCopywriterPrompt({
+      history,
+      userText: "新的 copywriter 提示会随这次 daemon 启动生效。"
+    });
+
+    expect(filterCopywriterHistory(history)).toEqual([]);
+    expect(prompt.full).not.toContain("Conversation history:");
+  });
+
+  it("strips refusal prefix when rewrite text follows", () => {
+    const result = parseCopywriterResponse(
+      "I can only rewrite UX copy. Paste the text you want improved.\nNew copywriter prompts are active after restart."
+    );
+    expect(result.suggestedText).toBe("New copywriter prompts are active after restart.");
+  });
+
+  it("strips design-note and codebase meta from model output", () => {
+    const result = parseCopywriterResponse(
+      'You can drop this directly into your codebase for your "Writer" tool or 3D project:\n\nAdd this to your Writer tool or 3D project codebase.\n\nDesign Note: English is better.'
+    );
+    expect(result.suggestedText).toBe("Add this to your Writer tool or 3D project codebase.");
+    expect(isCopywriterMetaOutput("Design Note: English is better.")).toBe(true);
+  });
+
+  it("strips Design Note prefix before rewrite", () => {
+    expect(
+      normalizeCopyToRewrite(
+        "Design Note: Since you are building this for your internal/open-source tools, using English will feel natural."
+      )
+    ).toBe("Since you are building this for your internal/open-source tools, using English will feel natural.");
+
+    const prompt = buildCopywriterPrompt({
+      userText:
+        "Design Note: Since you are building this for your internal/open-source tools, using English will feel natural."
+    });
+    expect(prompt.full).toContain("Copy to rewrite:\nSince you are building this for your internal");
+  });
+
+  it("short-circuits bare greetings and guard echo only", () => {
+    expect(shouldShortCircuitCopywriterInput("hi")).toContain("I can only rewrite UX copy");
+    expect(shouldShortCircuitCopywriterInput("thanks!")).toContain("I can only rewrite UX copy");
+    expect(
+      shouldShortCircuitCopywriterInput("I can only rewrite UX copy. Paste the text you want improved.")
+    ).toContain("refusal message");
+    expect(shouldShortCircuitCopywriterInput("Confirm your email")).toBeNull();
+    expect(shouldShortCircuitCopywriterInput("what does this feature do?")).toBeNull();
+    expect(isCopywriterBareGreeting("Hello")).toBe(true);
+    expect(shouldRefuseCopywriterInput("Design Note: Use English for labels.")).toBe(false);
+  });
+
+  it("treats model refusal as unexpected unless input is a bare greeting", () => {
+    expect(
+      isUnexpectedCopywriterRefusal(
+        "Confirm your email",
+        "I can only rewrite UX copy. Paste the text you want improved."
+      )
+    ).toBe(true);
+    expect(
+      isUnexpectedCopywriterRefusal("hi", "I can only rewrite UX copy. Paste the text you want improved.")
+    ).toBe(false);
+  });
+
+  it("prompts for status-string lists without developer commentary", () => {
+    const prompt = buildCopywriterPrompt({
+      userText: '"Waking up neural pathways...",\n  "Thinking about tacos..."'
+    });
+
+    expect(prompt.full).toContain("JSON array of short status strings");
+    expect(prompt.full).toContain('Never add new "Design Note" sections');
+  });
+
+  it("defaults to rewriting text under Copy to rewrite", () => {
+    const prompt = buildCopywriterPrompt({
+      userText: "Both travel clockwise together as a pair, both fade out via the shared"
+    });
+
+    expect(prompt.full).toContain('Always rewrite everything under "Copy to rewrite"');
+    expect(prompt.full).not.toContain("If the request is off-topic");
+  });
+
+  it("defaults to rewriting in the system prompt", () => {
+    const prompt = buildCopywriterPrompt({
+      userText: "what does this feature do?",
+      history: [{ role: "assistant", text: "I can only rewrite UX copy. Paste the text you want improved." }]
+    });
+
+    expect(prompt.full).toContain("Always rewrite everything under");
+    expect(prompt.full).toContain('bare greeting with nothing to rewrite');
+    expect(prompt.full).not.toContain("direct question such as");
   });
 
   it("emits three guideline layers in priority order with conflict resolution", () => {

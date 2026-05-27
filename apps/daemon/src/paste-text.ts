@@ -13,7 +13,12 @@ import {
   type PasteTextMessageResult,
   type SpreadsheetParseResult
 } from "@writer/contracts";
-import { buildCopywriterPrompt, extractSuggestedTextFromAgentEvents } from "@writer/review-core";
+import {
+  buildCopywriterPrompt,
+  extractSuggestedTextFromAgentEvents,
+  isUnexpectedCopywriterRefusal,
+  shouldShortCircuitCopywriterInput
+} from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 import { getPasteTextParseResultPath } from "@writer/storage";
 
@@ -190,6 +195,7 @@ type RewriteJob = {
   assistantMessageId: string;
   sessionId: string;
   prompt: string;
+  userText: string;
   adapterId?: string;
 };
 
@@ -240,10 +246,14 @@ async function finishPasteTextRewrite(
 ): Promise<void> {
   try {
     const runResult = await completion;
-    const suggestedText = extractSuggestedTextFromAgentEvents(runResult.events);
+    let suggestedText = extractSuggestedTextFromAgentEvents(runResult.events);
 
     if (!suggestedText.trim()) {
       throw new Error("Agent returned empty rewrite");
+    }
+
+    if (isUnexpectedCopywriterRefusal(job.userText, suggestedText)) {
+      throw new Error("Rewrite was refused unexpectedly. Tap refresh to try again.");
     }
 
     const conversation = getPasteTextConversation(state, job.conversationId);
@@ -340,8 +350,27 @@ export async function sendPasteTextMessage(
     assistantMessageId: assistantMessage.id,
     sessionId: saved.sessionId!,
     prompt: prompt.full,
+    userText: parsed.text,
     adapterId: parsed.adapterId
   };
+
+  const shortCircuitHint = shouldShortCircuitCopywriterInput(parsed.text);
+  if (shortCircuitHint) {
+    await updateAssistantMessage(state, job, {
+      status: "complete",
+      text: shortCircuitHint,
+      suggestedText: shortCircuitHint,
+      variants: [shortCircuitHint],
+      variantIndex: 0
+    });
+    const reloaded = getPasteTextConversation(state, conversationId);
+    const reloadedAssistant = reloaded.messages.find((message) => message.id === assistantMessage.id)!;
+    return {
+      conversation: reloaded,
+      userMessage,
+      assistantMessage: reloadedAssistant
+    };
+  }
 
   if (parsed.sync) {
     await runPasteTextRewrite(state, job);
@@ -461,8 +490,21 @@ export async function regeneratePasteTextAssistantMessage(
     assistantMessageId,
     sessionId: conversation.sessionId!,
     prompt,
+    userText: userMessage.text,
     adapterId: parsed.adapterId
   };
+
+  const shortCircuitHint = shouldShortCircuitCopywriterInput(userMessage.text);
+  if (shortCircuitHint) {
+    await updateAssistantMessage(state, job, {
+      status: "complete",
+      text: shortCircuitHint,
+      suggestedText: shortCircuitHint,
+      variants: [...existingVariants, shortCircuitHint],
+      variantIndex: existingVariants.length
+    });
+    return getPasteTextConversation(state, conversationId);
+  }
 
   if (parsed.sync) {
     await updateAssistantMessage(state, job, {

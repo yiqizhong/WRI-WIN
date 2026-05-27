@@ -66,6 +66,10 @@ export {
   extractSuggestedTextFromAgentEvents,
   accumulateAgentRunDisplayText,
   parseCopywriterResponse,
+  isCopywriterBareGreeting,
+  isUnexpectedCopywriterRefusal,
+  shouldRefuseCopywriterInput,
+  shouldShortCircuitCopywriterInput,
   type CopywriterMessage,
   type CopywriterPrompt,
   type CopywriterSkillInput
