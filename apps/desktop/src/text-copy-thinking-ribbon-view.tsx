@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 
 import {
   deriveThinkingRibbonPhase,
-  THINKING_RIBBON_FAILED_LABEL,
-  THINKING_RIBBON_LABEL
+  THINKING_RIBBON_FAILED_LABEL
 } from "./text-copy-thinking-ribbon";
 import { TextCopyThinkingRibbonIcon } from "./text-copy-thinking-ribbon-icon";
+import { useThinkingRibbonStatusMessage } from "./use-thinking-ribbon-status-message";
 
 type TextCopyThinkingRibbonViewProps = {
   runStatus?: string;
@@ -22,6 +22,7 @@ export function TextCopyThinkingRibbonView({
 }: TextCopyThinkingRibbonViewProps) {
   const phase = deriveThinkingRibbonPhase({ runStatus, events, assistantFailed });
   const failed = phase === "failed";
+  const statusMessage = useThinkingRibbonStatusMessage(!failed);
 
   return (
     <p
@@ -36,7 +37,7 @@ export function TextCopyThinkingRibbonView({
       {failed ? (
         <span>{THINKING_RIBBON_FAILED_LABEL}</span>
       ) : (
-        <span className="writer-chat-thinking-label">{THINKING_RIBBON_LABEL}</span>
+        <span className="writer-chat-thinking-label">{statusMessage}</span>
       )}
     </p>
   );

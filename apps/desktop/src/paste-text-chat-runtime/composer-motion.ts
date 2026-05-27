@@ -3,7 +3,7 @@ import type { ChatPhase } from "./chat-phase";
 /** Gemini reference: input-move-to-bottom 250ms; desktop WAAPI path uses 350ms */
 export const WELCOME_INPUT_MOVE_MS = 350;
 /** Fixed gap between welcome heading line and composer on the welcome screen */
-export const WELCOME_HEADING_COMPOSER_GAP_PX = 24;
+export const WELCOME_HEADING_COMPOSER_GAP_PX = 36;
 /** Shift the welcome hero (heading + composer) upward from vertical center. */
 export const WELCOME_HERO_SHIFT_UP_PX = 36;
 /** First user message lands at 560ms; assistant status appears after a short hold. */

@@ -8,7 +8,13 @@ import { WELCOME_THINKING_VISIBLE_MS } from "./composer-motion";
 import { deriveChatPhase } from "./chat-phase";
 import { mergeDisplayMessages, createOptimisticTurn, type OptimisticTurn } from "./optimistic-turn";
 import { messageVariantText } from "./message-display";
-import { scrollBehaviorForReason, scrollContainerToEnd, type ScrollReason } from "./scroll-intent";
+import {
+  isNearBottom,
+  scrollBehaviorForReason,
+  scrollContainerToEnd,
+  scrollReasonForThreadFollow,
+  type ScrollReason
+} from "./scroll-intent";
 import { usePasteTextRunSync } from "./use-paste-text-run-sync";
 
 type UsePasteTextChatRuntimeInput = {
@@ -45,6 +51,7 @@ export function usePasteTextChatRuntime({
   const [welcomeThinkingVisible, setWelcomeThinkingVisible] = useState(true);
 
   const threadScrollRef = useRef<HTMLDivElement>(null);
+  const composerHostRef = useRef<HTMLDivElement>(null);
   const composerFooterRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -156,7 +163,13 @@ export function usePasteTextChatRuntime({
       return;
     }
     if (pendingAssistant || stickToBottomRef.current) {
-      scrollToEnd(pendingAssistant ? "stream" : "message");
+      scrollToEnd(
+        scrollReasonForThreadFollow({
+          pendingAssistant: Boolean(pendingAssistant),
+          stickToBottom: stickToBottomRef.current,
+          streamingText: Boolean(streamingText)
+        })
+      );
     }
   }, [displayMessages, phase, pendingAssistant, scrollToEnd, streamingText, welcomeSendTransition]);
 
@@ -172,8 +185,8 @@ export function usePasteTextChatRuntime({
       return;
     }
 
-    const footer = composerFooterRef.current;
-    if (!footer) {
+    const host = composerHostRef.current;
+    if (!host) {
       return;
     }
 
@@ -181,11 +194,17 @@ export function usePasteTextChatRuntime({
       if (welcomeSendTransition || !stickToBottomRef.current) {
         return;
       }
-      scrollToEnd("message");
+      scrollToEnd(
+        scrollReasonForThreadFollow({
+          pendingAssistant: Boolean(pendingAssistant),
+          stickToBottom: stickToBottomRef.current,
+          streamingText: Boolean(streamingText)
+        })
+      );
     });
-    observer.observe(footer);
+    observer.observe(host);
     return () => observer.disconnect();
-  }, [phase, scrollToEnd, welcomeSendTransition]);
+  }, [phase, pendingAssistant, scrollToEnd, streamingText, welcomeSendTransition]);
 
   useEffect(() => {
     submittingRef.current = submitting;
@@ -233,7 +252,8 @@ export function usePasteTextChatRuntime({
         scheduleWelcomeThinking();
         stickToBottomRef.current = false;
       } else {
-        stickToBottomRef.current = true;
+        const container = threadScrollRef.current;
+        stickToBottomRef.current = container ? isNearBottom(container) : true;
       }
       setOptimisticTurn(createOptimisticTurn(text));
 
@@ -448,6 +468,7 @@ export function usePasteTextChatRuntime({
     runStatus,
     runEvents,
     threadScrollRef,
+    composerHostRef,
     composerFooterRef,
     messagesEndRef,
     conversation,

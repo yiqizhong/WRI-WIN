@@ -85,6 +85,7 @@ export function TextCopyChat({
     runEvents,
     messagesEndRef,
     threadScrollRef,
+    composerHostRef,
     composerFooterRef,
     isStructured,
     attachment,
@@ -319,6 +320,7 @@ export function TextCopyChat({
         welcomeSendTransition={welcomeSendTransition}
         onWelcomeSendTransitionComplete={completeWelcomeSendTransition}
         threadScrollRef={threadScrollRef}
+        composerHostRef={composerHostRef}
         composerFooterRef={composerFooterRef}
         welcomeGreeting={
           <h1 className="writer-chat-welcome-heading writer-home-text writer-home-heading w-full">

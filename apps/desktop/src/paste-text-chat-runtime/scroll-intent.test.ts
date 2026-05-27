@@ -4,7 +4,8 @@ import {
   createScrollThrottle,
   isNearBottom,
   scrollBehaviorForReason,
-  scrollContainerToEnd
+  scrollContainerToEnd,
+  scrollReasonForThreadFollow
 } from "./scroll-intent";
 
 describe("scrollBehaviorForReason", () => {
@@ -14,6 +15,38 @@ describe("scrollBehaviorForReason", () => {
 
   it("uses auto scroll on stream ticks", () => {
     expect(scrollBehaviorForReason("stream")).toBe("auto");
+  });
+});
+
+describe("scrollReasonForThreadFollow", () => {
+  it("smooth-pushes the thread when stuck to bottom before tokens stream", () => {
+    expect(
+      scrollReasonForThreadFollow({
+        pendingAssistant: true,
+        stickToBottom: true,
+        streamingText: false
+      })
+    ).toBe("send");
+  });
+
+  it("uses auto scroll while tokens are streaming", () => {
+    expect(
+      scrollReasonForThreadFollow({
+        pendingAssistant: true,
+        stickToBottom: true,
+        streamingText: true
+      })
+    ).toBe("stream");
+  });
+
+  it("does not smooth-scroll when the user scrolled up", () => {
+    expect(
+      scrollReasonForThreadFollow({
+        pendingAssistant: false,
+        stickToBottom: false,
+        streamingText: false
+      })
+    ).toBe("message");
   });
 });
 

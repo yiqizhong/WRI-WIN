@@ -69,8 +69,8 @@ describe("welcome send motion duration", () => {
 });
 
 describe("welcome heading ↔ composer spacing", () => {
-  it("uses a fixed 24px gap", () => {
-    expect(WELCOME_HEADING_COMPOSER_GAP_PX).toBe(24);
+  it("uses a fixed 36px gap", () => {
+    expect(WELCOME_HEADING_COMPOSER_GAP_PX).toBe(36);
   });
 
   it("positions composer top at heading bottom plus gap", () => {
@@ -82,7 +82,7 @@ describe("welcome heading ↔ composer spacing", () => {
       getBoundingClientRect: () =>
         ({ top: 100, bottom: 900, left: 0, right: 0, width: 0, height: 800, x: 0, y: 100 }) as DOMRect
     } as HTMLElement;
-    expect(welcomeComposerTopBelowHeadingPx(heading, shell)).toBe(144);
+    expect(welcomeComposerTopBelowHeadingPx(heading, shell)).toBe(156);
   });
 
   it("centers heading + composer as one block in the scroll region", () => {
@@ -100,7 +100,7 @@ describe("welcome heading ↔ composer spacing", () => {
     } as HTMLElement;
 
     expect(welcomeHeroLayout(heading, composerHost, scrollRegion)).toEqual({
-      headingPadTopPx: 290
+      headingPadTopPx: 248
     });
   });
 
@@ -168,6 +168,18 @@ describe("ChatShellView composer render site", () => {
     expect(source).toContain("getBoundingClientRect()");
     expect(source).toContain('data-footer-lift={liftFooterComposer ? "true" : undefined}');
     expect(source).toContain("liftFooterComposer = composerPlacement === \"footer\"");
+    expect(source).toContain("composerHostRef");
+  });
+
+  it("scrolls the thread when the composer host resizes", () => {
+    const source = readFileSync(
+      new URL("./use-paste-text-chat-runtime.ts", import.meta.url),
+      "utf8"
+    );
+    expect(source).toMatch(
+      /const host = composerHostRef\.current[\s\S]*ResizeObserver[\s\S]*observer\.observe\(host\)/
+    );
+    expect(source).not.toMatch(/observer\.observe\(composerFooterRef/);
   });
 
   it("does not render pending assistant status during the welcome send transition", () => {
@@ -195,7 +207,7 @@ describe("writer-chat-welcome.css motion contracts", () => {
     expect(chatCss).toContain(".writer-chat-welcome-hero");
     expect(chatCss).toContain("justify-content: center");
     expect(chatCss).toContain("--writer-duration-input-move: 350ms");
-    expect(chatCss).toContain("--writer-welcome-heading-composer-gap: 24px");
+    expect(chatCss).toContain("--writer-welcome-heading-composer-gap: 36px");
     expect(chatCss).toContain("--writer-duration-message-rise: 520ms");
     expect(chatCss).toMatch(/writer-chat-first-message-rise[\s\S]*\)\s+40ms both/);
     expect(chatCss).toContain(".writer-chat-composer-host");
@@ -203,6 +215,7 @@ describe("writer-chat-welcome.css motion contracts", () => {
     expect(chatCss).toMatch(/\[data-placement="footer"\][\s\S]*margin-top:\s*auto/);
     expect(chatCss).toContain('[data-footer-lift="true"]');
     expect(chatCss).toContain("--writer-active-footer-composer-lift: 8px");
+    expect(chatCss).toContain("--writer-duration-bottom-push: 320ms");
     expect(chatCss).toContain("var(--writer-active-footer-composer-lift)");
     expect(chatCss).toContain(".writer-chat-thinking-ribbon--enter");
     expect(chatCss).toContain("@keyframes writer-chat-thinking-ribbon-enter");

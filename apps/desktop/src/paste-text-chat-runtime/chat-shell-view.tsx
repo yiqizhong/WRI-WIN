@@ -30,6 +30,7 @@ type ChatShellViewProps = {
   composer: ReactNode;
   error?: ReactNode;
   threadScrollRef?: RefObject<HTMLDivElement | null>;
+  composerHostRef: RefObject<HTMLDivElement | null>;
   composerFooterRef?: RefObject<HTMLDivElement | null>;
 };
 
@@ -44,6 +45,7 @@ export function ChatShellView({
   composer,
   error,
   threadScrollRef,
+  composerHostRef,
   composerFooterRef
 }: ChatShellViewProps) {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -51,7 +53,6 @@ export function ChatShellView({
   const welcomeHeroRef = useRef<HTMLDivElement>(null);
   const welcomeHeadingRef = useRef<HTMLDivElement>(null);
   const welcomeComposerSpacerRef = useRef<HTMLDivElement>(null);
-  const composerHostRef = useRef<HTMLDivElement>(null);
   const transitionRunIdRef = useRef(0);
 
   const [composerPlacement, setComposerPlacement] = useState<ComposerPlacement>(() =>

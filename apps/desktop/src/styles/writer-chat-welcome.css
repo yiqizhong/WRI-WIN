@@ -594,12 +594,14 @@
   --writer-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
   /* Gemini input-move: 250ms; WAAPI path uses 350ms (see composer-motion.ts) */
   --writer-duration-input-move: 350ms;
-  --writer-welcome-heading-composer-gap: 24px;
+  --writer-welcome-heading-composer-gap: 36px;
   /* 520ms anim + 40ms delay; WELCOME_MESSAGE_RISE_MS adds a short hold before assistant status. */
   --writer-duration-message-rise: 520ms;
   --writer-duration-welcome-leave: 150ms;
   /* Keep in sync with ACTIVE_FOOTER_COMPOSER_LIFT_PX in composer-motion.ts */
   --writer-active-footer-composer-lift: 8px;
+  /* Keep in sync with CHAT_BOTTOM_PUSH_MS in scroll-intent.ts */
+  --writer-duration-bottom-push: 320ms;
   position: relative;
 }
 
@@ -693,13 +695,19 @@
 }
 
 .writer-chat-user-bubble--entering {
-  animation: writer-chat-user-enter 180ms cubic-bezier(0.23, 1, 0.32, 1) 70ms both;
+  animation: writer-chat-user-enter var(--writer-duration-bottom-push)
+    var(--writer-motion-easing-emphasized) both;
 }
 
 @keyframes writer-chat-user-enter {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: translateY(28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
