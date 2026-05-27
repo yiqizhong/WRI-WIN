@@ -4,6 +4,8 @@ import type { ChatPhase } from "./chat-phase";
 export const WELCOME_INPUT_MOVE_MS = 350;
 /** Fixed gap between welcome heading line and composer on the welcome screen */
 export const WELCOME_HEADING_COMPOSER_GAP_PX = 24;
+/** Shift the welcome hero (heading + composer) upward from vertical center. */
+export const WELCOME_HERO_SHIFT_UP_PX = 36;
 /** First user message lands at 560ms; assistant status appears after a short hold. */
 export const WELCOME_MESSAGE_RISE_MS = 680;
 /** Show thinking ribbon this many ms before WELCOME_MESSAGE_RISE_MS during first send. */
@@ -35,7 +37,10 @@ export function welcomeHeroLayout(
   const headingHeight = headingEl.getBoundingClientRect().height;
   const composerHeight = composerHostEl.getBoundingClientRect().height;
   const totalHeight = headingHeight + gapPx + composerHeight;
-  const headingPadTopPx = Math.max(0, (scrollRect.height - totalHeight) / 2);
+  const headingPadTopPx = Math.max(
+    0,
+    (scrollRect.height - totalHeight) / 2 - WELCOME_HERO_SHIFT_UP_PX
+  );
 
   return { headingPadTopPx };
 }
