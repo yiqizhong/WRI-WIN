@@ -32,10 +32,7 @@ function AlertDialogOverlay({
   return (
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
-      className={cn(
-        "writer-modal-overlay duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className
-      )}
+      className={cn("writer-modal-overlay", className)}
       {...props}
     />
   )
@@ -44,6 +41,7 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
@@ -55,11 +53,13 @@ function AlertDialogContent({
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
-          "writer-modal-surface group/alert-dialog-content flex flex-col gap-4 overflow-hidden p-6 duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
+          "writer-modal-surface group/alert-dialog-content flex flex-col gap-4 overflow-hidden p-6 outline-none",
+          className,
         )}
         {...props}
-      />
+      >
+        {children}
+      </AlertDialogPrimitive.Popup>
     </AlertDialogPortal>
   )
 }

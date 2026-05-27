@@ -24,6 +24,7 @@ import {
 } from "@/lib/guideline-upload-display";
 import { GlassCard } from "@/components/writer/glass-card";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
+import { WRITER_MODAL_MOTION_DURATION_MS } from "@/lib/writer-modal-motion";
 import { WriterModal } from "@/components/writer/writer-modal";
 import { GuidelineFileRow, GuidelineRowCard } from "@/components/writer/guideline-row-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
@@ -159,6 +160,7 @@ export function GuidelinesScreen() {
   const [overwritePending, setOverwritePending] = useState<PendingUpload | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
+  const [productDetailOpen, setProductDetailOpen] = useState(false);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [newProductId, setNewProductId] = useState("");
   const [newProductSlots, setNewProductSlots] = useState<NewProductFileSlots>(EMPTY_NEW_PRODUCT_FILE_SLOTS);
@@ -409,7 +411,10 @@ export function GuidelinesScreen() {
                   <GuidelineRowCard
                     key={item.id}
                     title={formatProductDisplayName(item.id)}
-                    onOpen={() => setProductDetailId(item.id)}
+                    onOpen={() => {
+                      setProductDetailId(item.id);
+                      setProductDetailOpen(true);
+                    }}
                   />
                 ))}
               </WriterPageStack>
@@ -472,13 +477,14 @@ export function GuidelinesScreen() {
         </AlertDialog>
 
         <WriterModal
-          open={Boolean(activeProduct)}
+          open={productDetailOpen}
           onOpenChange={(open) => {
+            setProductDetailOpen(open);
             if (!open) {
-              setProductDetailId(null);
+              window.setTimeout(() => setProductDetailId(null), WRITER_MODAL_MOTION_DURATION_MS);
             }
           }}
-          title={activeProduct ? formatProductDisplayName(activeProduct.id) : "Product"}
+          title={activeProduct ? formatProductDisplayName(activeProduct.id) : ""}
           footer={
             activeProduct ? (
               <Button
@@ -487,7 +493,8 @@ export function GuidelinesScreen() {
                 className="writer-pill-ghost writer-pill-ghost--destructive"
                 disabled={busy || !connected}
                 onClick={() => {
-                  setProductDetailId(null);
+                  setProductDetailOpen(false);
+                  window.setTimeout(() => setProductDetailId(null), WRITER_MODAL_MOTION_DURATION_MS);
                   setDeleteProductId(activeProduct.id);
                 }}
               >

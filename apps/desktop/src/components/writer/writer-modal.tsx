@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   Dialog,
@@ -34,20 +34,30 @@ export function WriterModal({
   footer,
   contentClassName,
 }: WriterModalProps) {
+  // Keep header copy stable while the exit animation runs (parents often clear data in onOpenChange).
+  const [latchedTitle, setLatchedTitle] = useState(title);
+  const [latchedDescription, setLatchedDescription] = useState(description);
+
+  useEffect(() => {
+    if (!open) return;
+    setLatchedTitle(title);
+    setLatchedDescription(description);
+  }, [open, title, description]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false} className={contentClassName}>
         <div
           className={cn(
             "writer-modal-header",
-            description ? "writer-modal-header--with-description" : null,
+            latchedDescription ? "writer-modal-header--with-description" : null,
           )}
         >
           <DialogHeader className="writer-modal-header__text">
-            <DialogTitle className="writer-modal-header__title">{title}</DialogTitle>
-            {description ? (
+            <DialogTitle className="writer-modal-header__title">{latchedTitle}</DialogTitle>
+            {latchedDescription ? (
               <DialogDescription className="writer-modal-header__description">
-                {description}
+                {latchedDescription}
               </DialogDescription>
             ) : null}
           </DialogHeader>

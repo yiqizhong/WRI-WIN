@@ -9,6 +9,53 @@
   --writer-modal-height: 80%;
   /* Opaque blue-gray panel — solid, not --writer-home-card-fill (glass gradient) */
   --writer-modal-panel-fill: rgb(15 30 52);
+  --writer-modal-motion-duration: 600ms;
+  --writer-modal-motion-duration-out: 600ms;
+  --writer-modal-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes writer-modal-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes writer-modal-overlay-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes writer-modal-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes writer-modal-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 .writer-modal-host {
@@ -33,6 +80,16 @@
   background: var(--writer-modal-scrim);
 }
 
+.writer-modal-host .writer-modal-overlay[data-open] {
+  animation: writer-modal-overlay-in var(--writer-modal-motion-duration)
+    var(--writer-modal-motion-ease) forwards;
+}
+
+.writer-modal-host .writer-modal-overlay[data-closed] {
+  animation: writer-modal-overlay-out var(--writer-modal-motion-duration-out)
+    var(--writer-modal-motion-ease) forwards;
+}
+
 .writer-modal-host [data-slot="dialog-overlay"],
 .writer-modal-host [data-slot="alert-dialog-overlay"] {
   position: fixed !important;
@@ -46,6 +103,8 @@
 
 /* Panel shell — 60% × 80% via inset (10% + 10% height, 20% + 20% width) */
 .writer-modal-surface {
+  display: flex;
+  flex-direction: column;
   position: fixed !important;
   isolation: isolate;
   grid-area: 1 / 1;
@@ -65,8 +124,17 @@
   box-shadow: var(--writer-modal-shadow);
   --tw-ring-shadow: 0 0 #0000 !important;
   --tw-ring-offset-shadow: 0 0 #0000 !important;
-  transform: none !important;
   pointer-events: auto;
+}
+
+.writer-modal-surface[data-open] {
+  animation: writer-modal-panel-in var(--writer-modal-motion-duration)
+    var(--writer-modal-motion-ease) forwards;
+}
+
+.writer-modal-surface[data-closed] {
+  animation: writer-modal-panel-out var(--writer-modal-motion-duration-out)
+    var(--writer-modal-motion-ease) forwards;
 }
 
 .writer-modal-surface::before {
@@ -94,6 +162,15 @@
 .writer-modal-surface > * {
   position: relative;
   z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-modal-host .writer-modal-overlay[data-open],
+  .writer-modal-host .writer-modal-overlay[data-closed],
+  .writer-modal-surface[data-open],
+  .writer-modal-surface[data-closed] {
+    animation: none;
+  }
 }
 
 .writer-modal-surface__scroll {

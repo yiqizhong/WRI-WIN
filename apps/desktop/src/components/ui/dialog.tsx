@@ -37,10 +37,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
-      className={cn(
-        "writer-modal-overlay duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className
-      )}
+      className={cn("writer-modal-overlay", className)}
       {...props}
     />
   )
@@ -60,8 +57,8 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "writer-modal-surface flex flex-col gap-4 overflow-hidden p-6 text-sm duration-150 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
+          "writer-modal-surface flex flex-col gap-4 overflow-hidden p-6 text-sm outline-none",
+          className,
         )}
         {...props}
       >
