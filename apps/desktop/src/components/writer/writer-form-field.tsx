@@ -84,7 +84,10 @@ export function WriterFormTextarea({ className, shellClassName, rows = 4, ...pro
     >
       <Textarea
         rows={rows}
-        className={cn("writer-form-control writer-form-control--textarea flex-1", className)}
+        className={cn(
+          "writer-form-control writer-form-control--textarea flex-1 text-base md:text-base",
+          className
+        )}
         {...props}
       />
     </GlassCard>

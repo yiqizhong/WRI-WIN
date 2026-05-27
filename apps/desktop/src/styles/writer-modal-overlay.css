@@ -179,17 +179,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(32 131 234 / 0.35) transparent;
-}
-
-.writer-modal-surface__scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.writer-modal-surface__scroll::-webkit-scrollbar-thumb {
-  border-radius: 9999px;
-  background: rgb(32 131 234 / 0.35);
 }
 
 .writer-modal-header {

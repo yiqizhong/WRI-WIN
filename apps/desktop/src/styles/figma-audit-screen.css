@@ -207,3 +207,78 @@
     }
   }
 }
+
+/* Workflow paste-links step reorder — accent blue hover (not orange close pill) */
+.writer-workflow-reorder-btn {
+  color: rgb(229 241 255 / 0.8) !important;
+}
+
+.writer-workflow-reorder-btn:hover:not(:disabled) {
+  background: rgb(32 131 234 / 0.14) !important;
+  color: var(--writer-accent-blue) !important;
+  border-color: rgb(32 131 234 / 0.35) !important;
+}
+
+/* Workflow panel URL fields — match writer-pill-ghost--icon (2.25rem) */
+.writer-workflow-input-shell {
+  box-sizing: border-box;
+  min-height: 2.25rem !important;
+  height: 2.25rem !important;
+  max-height: 2.25rem !important;
+  padding: 0 0.75rem !important;
+}
+
+.writer-workflow-input-shell .writer-form-control {
+  min-height: 0 !important;
+  height: auto;
+  line-height: 1.25;
+}
+
+/* Figma Audit — keep page content off the window bottom edge */
+.figma-audit-page .writer-page-content-inset {
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+/*
+ * Scroll edge mask (like chat). Bottom fade is disabled while scrolled to the end
+ * (data-at-bottom) so footer actions stay fully visible — see figma-audit-screen.tsx.
+ */
+.writer-chat-scroll.figma-audit-content-scroll {
+  --figma-audit-scroll-edge-fade: 28px;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.writer-chat-scroll.figma-audit-content-scroll[data-can-scroll="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--figma-audit-scroll-edge-fade),
+    #000 calc(100% - var(--figma-audit-scroll-edge-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--figma-audit-scroll-edge-fade),
+    #000 calc(100% - var(--figma-audit-scroll-edge-fade)),
+    transparent 100%
+  );
+}
+
+.writer-chat-scroll.figma-audit-content-scroll[data-can-scroll="true"][data-at-bottom="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--figma-audit-scroll-edge-fade),
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--figma-audit-scroll-edge-fade),
+    #000 100%
+  );
+}
+

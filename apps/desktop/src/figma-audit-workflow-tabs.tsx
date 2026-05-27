@@ -1,11 +1,12 @@
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ListPageFramesResponse } from "@writer/contracts";
 
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/writer/glass-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
+import { Label } from "@/components/ui/label";
 import {
   WriterFormField,
   WriterFormInput
@@ -32,7 +33,24 @@ type FigmaAuditWorkflowTabsProps = {
   onSubmit: (payload: WorkflowSubmitPayload) => void;
   onParseUrl: (url: string) => Promise<{ fileKey: string; nodeId?: string; suggestedScope: { fileKey: string } }>;
   onListPageFrames: (pageUrl: string) => Promise<ListPageFramesResponse>;
+  /** Scroll the Figma Audit page content area when the list grows past the viewport. */
+  onRequestScrollToBottom?: () => void;
 };
+
+function useScrollContentToBottomOnListGrow(
+  listLength: number,
+  onRequestScrollToBottom?: () => void
+) {
+  const previousLengthRef = useRef(listLength);
+
+  useEffect(() => {
+    if (listLength > previousLengthRef.current) {
+      onRequestScrollToBottom?.();
+    }
+
+    previousLengthRef.current = listLength;
+  }, [listLength, onRequestScrollToBottom]);
+}
 
 function parseFigmaFileKey(url: string): string | null {
   const match = url.match(/figma\.com\/design\/([^/?#]+)/);
@@ -163,7 +181,8 @@ export function FigmaAuditWorkflowTabs({
   disabled,
   onSubmit,
   onParseUrl,
-  onListPageFrames
+  onListPageFrames,
+  onRequestScrollToBottom
 }: FigmaAuditWorkflowTabsProps) {
   const [method, setMethod] = useState<WorkflowInputMethod>("manual");
   const [manualRows, setManualRows] = useState<string[]>(["", ""]);
@@ -175,6 +194,9 @@ export function FigmaAuditWorkflowTabs({
   const [manualSubmitting, setManualSubmitting] = useState(false);
 
   const controlsDisabled = disabled || pageLoading || manualSubmitting;
+
+  useScrollContentToBottomOnListGrow(manualRows.length, onRequestScrollToBottom);
+  useScrollContentToBottomOnListGrow(detectedFrames.length, onRequestScrollToBottom);
 
   function moveManualRow(index: number, direction: -1 | 1) {
     const nextIndex = index + direction;
@@ -257,18 +279,18 @@ export function FigmaAuditWorkflowTabs({
       {method === "manual" ? (
         <div className="flex flex-col gap-4">
           {manualRows.map((value, index) => (
-            <div
-              key={`manual-step-${index}`}
-              className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3"
-            >
-              <WriterFormField
-                label={`Step ${index + 1}`}
+            <div key={`manual-step-${index}`} className="flex flex-col gap-2">
+              <Label
                 htmlFor={`figma-workflow-step-${index}`}
-                className="min-w-0 flex-1"
+                className="writer-home-text text-sm text-[#e5f1ff]/80"
               >
+                {`Step ${index + 1}`}
+              </Label>
+              <div className="flex min-w-0 items-center gap-3">
                 <WriterFormInput
                   id={`figma-workflow-step-${index}`}
                   type="url"
+                  shellClassName="writer-workflow-input-shell min-w-0 flex-1"
                   value={value}
                   disabled={controlsDisabled}
                   placeholder="https://www.figma.com/design/..."
@@ -278,40 +300,44 @@ export function FigmaAuditWorkflowTabs({
                     setManualRows(next);
                   }}
                 />
-              </WriterFormField>
-              <div className="flex shrink-0 gap-2 pb-0.5 sm:pb-2.5">
+                <div className="flex shrink-0 gap-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-white/20 bg-transparent text-[#e5f1ff]/80"
+                  variant="ghost"
+                  size="icon"
+                  className="writer-pill-ghost writer-pill-ghost--icon writer-workflow-reorder-btn shrink-0 border border-white/20"
                   disabled={controlsDisabled || index === 0}
+                  aria-label={`Move step ${index + 1} up`}
                   onClick={() => moveManualRow(index, -1)}
                 >
-                  Up
+                  <ChevronUp className="size-4" strokeWidth={1.5} aria-hidden />
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="border-white/20 bg-transparent text-[#e5f1ff]/80"
+                  variant="ghost"
+                  size="icon"
+                  className="writer-pill-ghost writer-pill-ghost--icon writer-workflow-reorder-btn shrink-0 border border-white/20"
                   disabled={controlsDisabled || index === manualRows.length - 1}
+                  aria-label={`Move step ${index + 1} down`}
                   onClick={() => moveManualRow(index, 1)}
                 >
-                  Down
+                  <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
                 </Button>
+                </div>
               </div>
             </div>
           ))}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
+              className="writer-pill-ghost writer-pill-add"
               disabled={controlsDisabled}
               onClick={() => setManualRows((current) => [...current, ""])}
             >
-              Add step
+              <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+              <span>Add step</span>
             </Button>
             <WriterPrimaryButton
               type="button"
@@ -328,6 +354,7 @@ export function FigmaAuditWorkflowTabs({
             <WriterFormInput
               id="figma-workflow-page-url"
               type="url"
+              shellClassName="writer-workflow-input-shell"
               value={pageUrl}
               disabled={controlsDisabled}
               placeholder="https://www.figma.com/design/..."

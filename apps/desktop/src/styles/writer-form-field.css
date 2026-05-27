@@ -24,8 +24,9 @@
 
 .writer-form-control--textarea {
   min-height: 5.5rem;
+  font-size: 1rem;
   line-height: 1.5;
-  resize: vertical;
+  resize: none;
 }
 
 .writer-form-select-shell:has([data-popup-open]) {

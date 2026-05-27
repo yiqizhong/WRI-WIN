@@ -112,3 +112,23 @@ html,
 body {
   overscroll-behavior: none;
 }
+
+/**
+ * Hide native scrollbars app-wide; wheel/trackpad scrolling still works.
+ * Covers main tree and portaled overlays (menus, selects, modals).
+ */
+html.dark,
+html.dark * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html.dark *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html.dark [data-slot="scroll-area-scrollbar"] {
+  display: none;
+}
