@@ -1,4 +1,4 @@
-/** User-facing product label — uppercase; underlying id/name on disk unchanged. */
-export function formatProductDisplayName(name: string): string {
-  return name.toLocaleUpperCase("en-US");
+/** User-facing product title from folder id (e.g. `ddpm` → `DDPM`), not background frontmatter `name`. */
+export function formatProductDisplayName(productId: string): string {
+  return productId.toLocaleUpperCase("en-US");
 }

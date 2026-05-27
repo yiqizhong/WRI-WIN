@@ -16,7 +16,7 @@ export function DaemonStatusInfo({ tooltip, className }: DaemonStatusInfoProps) 
           <button
             type="button"
             className={cn(
-              "inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[#e5f1ff]/50 transition-colors hover:bg-[rgb(32_131_234/0.14)] hover:text-[var(--writer-accent-blue)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--writer-accent-blue)]/40",
+              "writer-pill-ghost writer-pill-ghost--icon writer-pill-ghost--accent inline-flex shrink-0 text-[#e5f1ff]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--writer-accent-blue)]/40",
               className
             )}
             aria-label="About the Writer daemon"

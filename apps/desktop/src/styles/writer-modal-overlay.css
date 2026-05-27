@@ -1,0 +1,228 @@
+/**
+ * Writer modals — scrim + glass panel, centered in the app (60% × 80%).
+ */
+
+:root {
+  --writer-modal-scrim: rgb(0 0 0 / 0.55);
+  --writer-modal-shadow: 0 24px 64px rgb(0 0 0 / 0.42);
+  --writer-modal-width: 60%;
+  --writer-modal-height: 80%;
+  /* Opaque blue-gray panel — solid, not --writer-home-card-fill (glass gradient) */
+  --writer-modal-panel-fill: rgb(15 30 52);
+}
+
+.writer-modal-host {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Portal layer: stack overlay + panel, center both in the app frame */
+.writer-modal-host [data-slot="dialog-portal"],
+.writer-modal-host [data-slot="alert-dialog-portal"] {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.writer-modal-overlay {
+  background: var(--writer-modal-scrim);
+}
+
+.writer-modal-host [data-slot="dialog-overlay"],
+.writer-modal-host [data-slot="alert-dialog-overlay"] {
+  position: fixed !important;
+  inset: 0 !important;
+  grid-area: 1 / 1;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+  pointer-events: auto;
+}
+
+/* Panel shell — 60% × 80% via inset (10% + 10% height, 20% + 20% width) */
+.writer-modal-surface {
+  position: fixed !important;
+  isolation: isolate;
+  grid-area: 1 / 1;
+  z-index: 1;
+  box-sizing: border-box;
+  inset: 10% 20% !important;
+  width: auto !important;
+  max-width: none !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0;
+  margin: 0 !important;
+  border-radius: 2px !important;
+  border: none !important;
+  background: var(--writer-modal-panel-fill) !important;
+  color: #e5f1ff;
+  box-shadow: var(--writer-modal-shadow);
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  transform: none !important;
+  pointer-events: auto;
+}
+
+.writer-modal-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 2px;
+  padding: 1px;
+  opacity: 0.5;
+  background: radial-gradient(
+    141.91% 107.01% at 19.5% 8.33%,
+    rgba(157, 202, 251, 0.7) 0%,
+    rgba(33, 54, 107, 0.7) 56.25%,
+    rgba(157, 202, 251, 0.21) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.writer-modal-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+.writer-modal-surface__scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(32 131 234 / 0.35) transparent;
+}
+
+.writer-modal-surface__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.writer-modal-surface__scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgb(32 131 234 / 0.35);
+}
+
+.writer-modal-header {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.writer-modal-header--with-description {
+  align-items: flex-start;
+}
+
+.writer-modal-header__text {
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 0.25rem;
+  padding: 0;
+  text-align: left;
+}
+
+.writer-modal-header__title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.375;
+  letter-spacing: normal;
+}
+
+.writer-modal-header__description {
+  color: rgb(229 241 255 / 60%);
+}
+
+.writer-modal-footer {
+  margin-top: 1rem !important;
+  flex-shrink: 0;
+  justify-content: flex-end !important;
+  border-top: 1px solid rgb(229 241 255 / 10%);
+  padding-top: 1rem !important;
+}
+
+.writer-modal-id-field {
+  height: 2.25rem;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  color: #e5f1ff;
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+.writer-modal-id-field::placeholder {
+  color: rgb(229 241 255 / 35%);
+  font-weight: 400;
+}
+
+.writer-modal-id-field:focus-visible {
+  outline: none;
+  box-shadow: none !important;
+}
+
+/* Add product — background / glossary / writing guide block below product name */
+.writer-modal-product-file-slots {
+  margin-top: 24px;
+}
+
+[data-slot="dialog-title"],
+[data-slot="alert-dialog-title"],
+[data-slot="sheet-title"] {
+  color: #e5f1ff;
+  letter-spacing: normal;
+}
+
+[data-slot="dialog-description"],
+[data-slot="alert-dialog-description"],
+[data-slot="sheet-description"] {
+  color: rgb(229 241 255 / 0.6);
+}
+
+[data-slot="dialog-footer"],
+[data-slot="alert-dialog-footer"],
+[data-slot="sheet-footer"] {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+[data-slot="dialog-footer"] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-slot="alert-dialog-footer"] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.writer-modal-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

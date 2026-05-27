@@ -304,7 +304,7 @@ export function TextCopyChat({
             <Button
               type="button"
               variant="ghost"
-              className="writer-chat-subheader__new-chat"
+              className="writer-pill-ghost writer-pill-ghost--accent"
               onClick={handleNewChat}
             >
               <Plus className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
@@ -355,7 +355,7 @@ export function TextCopyChat({
                       productId === product.id && "writer-product-menu-item--selected"
                     )}
                   >
-                    {formatProductDisplayName(product.name)}
+                    {formatProductDisplayName(product.id)}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>

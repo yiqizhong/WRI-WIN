@@ -113,6 +113,10 @@ export const productPackageListItemSchema = z.object({
   hasBackground: z.boolean(),
   hasGlossary: z.boolean(),
   hasWritingGuide: z.boolean(),
+  /** Basename on disk when the slot is filled (e.g. background.md, glossary.csv). */
+  backgroundFilename: z.string().min(1).optional(),
+  glossaryFilename: z.string().min(1).optional(),
+  writingGuideFilename: z.string().min(1).optional(),
   extraFileCount: z.number().int().nonnegative().default(0),
   parseStatus: z.enum(["ok", "error", "incomplete"]),
   parseError: parseErrorSchema.optional()

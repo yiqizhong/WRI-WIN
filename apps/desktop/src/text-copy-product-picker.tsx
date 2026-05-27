@@ -66,8 +66,7 @@ export function TextCopyProductPicker({
         {products.map((product) => (
           <GuidelineRowCard
             key={product.id}
-            title={formatProductDisplayName(product.name)}
-            subtitle={product.id}
+            title={formatProductDisplayName(product.id)}
             onOpen={() => onPick(product.id)}
           />
         ))}

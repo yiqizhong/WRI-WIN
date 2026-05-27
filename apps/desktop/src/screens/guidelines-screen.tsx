@@ -14,18 +14,17 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  collectNewProductFiles,
+  EMPTY_NEW_PRODUCT_FILE_SLOTS,
+  productSlotFilename,
+  type NewProductFileSlots,
+  type StagedGuidelineFile
+} from "@/lib/guideline-upload-display";
+import { GlassCard } from "@/components/writer/glass-card";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
-import { GuidelineDetailDialog } from "@/components/writer/guideline-detail-dialog";
+import { WriterModal } from "@/components/writer/writer-modal";
 import { GuidelineFileRow, GuidelineRowCard } from "@/components/writer/guideline-row-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
@@ -33,7 +32,7 @@ import { cn } from "@/lib/utils";
 
 import { DaemonClientError } from "../daemon-client";
 import { WriterPageGrid, WriterPageGridHalf, WriterPageStack } from "../layout/writer-grid";
-import { WriterSectionHeader } from "../layout/writer-headings";
+import { WriterHomeDivider, WriterSectionHeader } from "../layout/writer-headings";
 import { useWorkspace } from "../workspace-context";
 
 type PendingUpload = {
@@ -41,8 +40,6 @@ type PendingUpload = {
   exists: boolean;
   run: (overwrite: boolean) => Promise<void>;
 };
-
-type StagedFile = { filename: string; content: string };
 
 function DropZone({
   label,
@@ -165,7 +162,7 @@ export function GuidelinesScreen() {
   const [productDetailId, setProductDetailId] = useState<string | null>(null);
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [newProductId, setNewProductId] = useState("");
-  const [newProductFiles, setNewProductFiles] = useState<StagedFile[]>([]);
+  const [newProductSlots, setNewProductSlots] = useState<NewProductFileSlots>(EMPTY_NEW_PRODUCT_FILE_SLOTS);
 
   const load = useCallback(async () => {
     if (!connected) return;
@@ -249,9 +246,6 @@ export function GuidelinesScreen() {
   );
 
   const handleRemoveCompanyBase = useCallback(async () => {
-    if (!window.confirm("Remove company base guidelines?")) {
-      return;
-    }
     setBusy(true);
     try {
       await client.deleteCompanyBase();
@@ -265,9 +259,6 @@ export function GuidelinesScreen() {
   }, [client, load]);
 
   const handleRemoveSoftwareWriting = useCallback(async () => {
-    if (!window.confirm("Remove software writing guidelines?")) {
-      return;
-    }
     setBusy(true);
     try {
       await client.deleteSoftwareWriting();
@@ -280,40 +271,32 @@ export function GuidelinesScreen() {
     }
   }, [client, load]);
 
-  const stageNewProductFiles = useCallback(async (files: File[]) => {
-    const staged: StagedFile[] = [];
-    for (const file of files) {
-      staged.push({ filename: file.name, content: await readFileAsText(file) });
-    }
-    setNewProductFiles((prev) => [...prev, ...staged]);
-  }, []);
-
-  const browseMarkdown = useCallback(async (): Promise<{ filename: string; content: string } | null> => {
-    return (await window.writerDesktop?.pickGuidelineFile()) ?? null;
-  }, []);
-
-  const browseGlossary = useCallback(async (): Promise<{ filename: string; content: string; format: "csv" | "md" } | null> => {
-    return (await window.writerDesktop?.pickGlossaryFile()) ?? null;
+  const stageNewProductSlot = useCallback(async (slot: keyof NewProductFileSlots, files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    const staged: StagedGuidelineFile = { filename: file.name, content: await readFileAsText(file) };
+    setNewProductSlots((prev) => ({ ...prev, [slot]: staged }));
   }, []);
 
   const submitAddProduct = useCallback(async () => {
     const id = newProductId.trim().replace(/[^a-zA-Z0-9-_]/g, "-");
+    const files = collectNewProductFiles(newProductSlots);
     if (!id) {
-      setError("Product id is required.");
+      setError("Product name is required.");
       return;
     }
-    if (newProductFiles.length === 0) {
-      setError("Drop at least one file (background, glossary, writing guide, or notes).");
+    if (files.length === 0) {
+      setError("Add at least one file (product background, glossary, or writing guide).");
       return;
     }
 
     setBusy(true);
     setError(null);
     try {
-      await client.createProduct({ id, files: newProductFiles });
+      await client.createProduct({ id, files });
       setAddProductOpen(false);
       setNewProductId("");
-      setNewProductFiles([]);
+      setNewProductSlots(EMPTY_NEW_PRODUCT_FILE_SLOTS);
       setInfo(`Created product: ${id}`);
       await load();
     } catch (err) {
@@ -321,7 +304,7 @@ export function GuidelinesScreen() {
     } finally {
       setBusy(false);
     }
-  }, [client, load, newProductFiles, newProductId]);
+  }, [client, load, newProductSlots, newProductId]);
 
   const confirmDeleteProduct = useCallback(async () => {
     if (!deleteProductId) return;
@@ -359,12 +342,7 @@ export function GuidelinesScreen() {
                 title="Company base"
                 description="Global guidelines applied to every product review."
                 filled={Boolean(tree?.companyBase)}
-                tileTitle={tree?.companyBase?.id ?? "company-base"}
-                tileSummary={
-                  tree?.companyBase
-                    ? `${tree.companyBase.rules.length} rules · ${tree.companyBase.glossary.length} terms`
-                    : ""
-                }
+                uploadedFileName="company-base.md"
                 dropLabel="Drop company-base.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -378,12 +356,7 @@ export function GuidelinesScreen() {
                 title="Software writing"
                 description="Shared writing standards across all SW product lines."
                 filled={Boolean(tree?.softwareWriting)}
-                tileTitle={tree?.softwareWriting?.id ?? "software-writing"}
-                tileSummary={
-                  tree?.softwareWriting
-                    ? `${tree.softwareWriting.rules.length} rules · ${tree.softwareWriting.glossary.length} terms`
-                    : ""
-                }
+                uploadedFileName="software-writing.md"
                 dropLabel="Drop software-writing.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -405,18 +378,18 @@ export function GuidelinesScreen() {
           <WriterPageStack gap={3}>
               <WriterSectionHeader
                 title="Products"
-                description="Background, glossary, and guides per product."
+                description="Product background, glossary, and guides per product."
                 actions={
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon-sm"
-                    className="text-[var(--writer-accent-blue)] hover:bg-[rgb(32_131_234/0.14)] hover:text-[var(--writer-accent-blue)]"
+                    className="writer-pill-ghost writer-pill-ghost--accent"
                     disabled={busy || !connected}
                     aria-label="Add product"
                     onClick={() => setAddProductOpen(true)}
                   >
-                    <Plus className="size-4" strokeWidth={1.5} aria-hidden />
+                    <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+                    <span>Add</span>
                   </Button>
                 }
               />
@@ -434,8 +407,7 @@ export function GuidelinesScreen() {
                 {tree?.products.map((item) => (
                   <GuidelineRowCard
                     key={item.id}
-                    title={formatProductDisplayName(item.name)}
-                    subtitle={item.id}
+                    title={formatProductDisplayName(item.id)}
                     onOpen={() => setProductDetailId(item.id)}
                   />
                 ))}
@@ -461,7 +433,7 @@ export function GuidelinesScreen() {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                variant="destructive"
+                className="writer-pill-ghost--destructive"
                 disabled={busy}
                 onClick={() => overwritePending && void runUpload(overwritePending, true)}
               >
@@ -488,7 +460,7 @@ export function GuidelinesScreen() {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                variant="destructive"
+                className="writer-pill-ghost--destructive"
                 disabled={busy}
                 onClick={() => void confirmDeleteProduct()}
               >
@@ -498,21 +470,20 @@ export function GuidelinesScreen() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <GuidelineDetailDialog
+        <WriterModal
           open={Boolean(activeProduct)}
           onOpenChange={(open) => {
             if (!open) {
               setProductDetailId(null);
             }
           }}
-          title={activeProduct ? formatProductDisplayName(activeProduct.name) : "Product"}
-          description={activeProduct?.id}
-          contentClassName="sm:max-w-2xl"
+          title={activeProduct ? formatProductDisplayName(activeProduct.id) : "Product"}
           footer={
             activeProduct ? (
               <Button
-                variant="destructive"
-                size="sm"
+                type="button"
+                variant="ghost"
+                className="writer-pill-ghost writer-pill-ghost--destructive"
                 disabled={busy || !connected}
                 onClick={() => {
                   setProductDetailId(null);
@@ -537,11 +508,13 @@ export function GuidelinesScreen() {
               ) : null}
 
               <UploadSlotSection
-                title="Background"
-                description="Product context used in audits for this product."
+                title="Product background"
                 filled={activeProduct.hasBackground}
-                tileTitle={activeProduct.id}
-                tileSummary="background.md"
+                uploadedFileName={productSlotFilename(
+                  activeProduct.hasBackground,
+                  activeProduct.backgroundFilename,
+                  "background.md"
+                )}
                 dropLabel="Drop background.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -549,16 +522,15 @@ export function GuidelinesScreen() {
                   const file = files[0];
                   if (!file) return;
                   const content = await readFileAsText(file);
-                  queueUpload(`${activeProduct.id} background`, activeProduct.hasBackground, async (overwrite) => {
+                  queueUpload(`${activeProduct.id} product background`, activeProduct.hasBackground, async (overwrite) => {
                     await client.uploadProductBackground(activeProduct.id, { content, overwrite });
                   });
                 }}
                 onRemove={async () => {
-                  if (!window.confirm(`Remove background for ${activeProduct.id}?`)) return;
                   setBusy(true);
                   try {
                     await client.deleteProductBackground(activeProduct.id);
-                    setInfo(`Removed background for ${activeProduct.id}.`);
+                    setInfo(`Removed product background for ${activeProduct.id}.`);
                     await load();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : String(err));
@@ -572,10 +544,12 @@ export function GuidelinesScreen() {
 
               <UploadSlotSection
                 title="Glossary"
-                description="Terms and definitions for this product."
                 filled={activeProduct.hasGlossary}
-                tileTitle={`${activeProduct.id} · glossary`}
-                tileSummary="glossary.csv or glossary.md"
+                uploadedFileName={productSlotFilename(
+                  activeProduct.hasGlossary,
+                  activeProduct.glossaryFilename,
+                  "glossary.md"
+                )}
                 dropLabel="Drop glossary here"
                 dropHint="or click to browse · .csv or .md"
                 accept=".md,.csv,text/markdown,text/csv"
@@ -589,7 +563,6 @@ export function GuidelinesScreen() {
                   });
                 }}
                 onRemove={async () => {
-                  if (!window.confirm(`Remove glossary for ${activeProduct.id}?`)) return;
                   setBusy(true);
                   try {
                     await client.deleteProductGlossary(activeProduct.id);
@@ -607,10 +580,12 @@ export function GuidelinesScreen() {
 
               <UploadSlotSection
                 title="Writing guide"
-                description="Product-specific writing rules."
                 filled={activeProduct.hasWritingGuide}
-                tileTitle={`${activeProduct.id} · writing guide`}
-                tileSummary="writing-guide.md"
+                uploadedFileName={productSlotFilename(
+                  activeProduct.hasWritingGuide,
+                  activeProduct.writingGuideFilename,
+                  "writing-guide.md"
+                )}
                 dropLabel="Drop writing-guide.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -623,7 +598,6 @@ export function GuidelinesScreen() {
                   });
                 }}
                 onRemove={async () => {
-                  if (!window.confirm(`Remove writing guide for ${activeProduct.id}?`)) return;
                   setBusy(true);
                   try {
                     await client.deleteProductWritingGuide(activeProduct.id);
@@ -638,111 +612,124 @@ export function GuidelinesScreen() {
                 busy={busy}
                 connected={connected}
               />
-
-              {activeProduct.extraFileCount > 0 ? (
-                <p className="text-sm text-[#e5f1ff]/60">
-                  {activeProduct.extraFileCount} additional file
-                  {activeProduct.extraFileCount === 1 ? "" : "s"} in this product folder (included in audits as raw
-                  text).
-                </p>
-              ) : null}
             </WriterPageStack>
             </div>
           ) : null}
-        </GuidelineDetailDialog>
+        </WriterModal>
 
-        <Dialog
+        <WriterModal
           open={addProductOpen}
           onOpenChange={(open) => {
             setAddProductOpen(open);
-            if (!open) setNewProductFiles([]);
+            if (!open) {
+              setNewProductSlots(EMPTY_NEW_PRODUCT_FILE_SLOTS);
+              setNewProductId("");
+            }
           }}
+          title="Add product"
+          footer={
+            <WriterPrimaryButton
+              className="h-8 px-4 py-0 text-sm"
+              disabled={busy || !newProductId.trim() || collectNewProductFiles(newProductSlots).length === 0}
+              onClick={() => void submitAddProduct()}
+            >
+              {busy ? "Creating…" : "Create"}
+            </WriterPrimaryButton>
+          }
         >
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Add product</DialogTitle>
-            </DialogHeader>
+          <div className="mt-2">
             <WriterPageStack gap={4}>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="new-product-id">Product id</Label>
-                <Input
-                  id="new-product-id"
-                  value={newProductId}
-                  onChange={(e) => setNewProductId(e.target.value.replace(/[^a-zA-Z0-9-_]/g, "-"))}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Folder name under products/ (letters, numbers, - and _)
-                </p>
-              </div>
-              <DropZone
-                label="Drop product files here"
-                hint="background · glossary · writing guide · any notes (.md, .csv, .txt) — no required format"
-                accept=".md,.csv,.txt,text/*"
-                multiple
-                onFiles={(files) => void stageNewProductFiles(files)}
+              <ProductIdFieldSection
+                value={newProductId}
                 disabled={busy}
+                onChange={setNewProductId}
               />
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    const picked = await browseMarkdown();
-                    if (picked) void stageNewProductFiles([new File([picked.content], picked.filename)]);
-                  }}
-                >
-                  Add .md…
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    const picked = await browseGlossary();
-                    if (picked) void stageNewProductFiles([new File([picked.content], picked.filename)]);
-                  }}
-                >
-                  Add glossary…
-                </Button>
+
+              <div className="writer-modal-product-file-slots">
+                <WriterPageStack gap={4}>
+                  <UploadSlotSection
+                    title="Product background"
+                    filled={Boolean(newProductSlots.background)}
+                    uploadedFileName={productSlotFilename(
+                      Boolean(newProductSlots.background),
+                      newProductSlots.background?.filename,
+                      "background.md"
+                    )}
+                    accept=".md,text/markdown"
+                    showDropZone={false}
+                    onFiles={(files) => void stageNewProductSlot("background", files)}
+                    onRemove={() => setNewProductSlots((prev) => ({ ...prev, background: undefined }))}
+                    busy={busy}
+                    connected
+                  />
+
+                  <WriterHomeDivider />
+
+                  <UploadSlotSection
+                    title="Glossary"
+                    filled={Boolean(newProductSlots.glossary)}
+                    uploadedFileName={productSlotFilename(
+                      Boolean(newProductSlots.glossary),
+                      newProductSlots.glossary?.filename,
+                      "glossary.md"
+                    )}
+                    accept=".md,.csv,text/markdown,text/csv"
+                    showDropZone={false}
+                    onFiles={(files) => void stageNewProductSlot("glossary", files)}
+                    onRemove={() => setNewProductSlots((prev) => ({ ...prev, glossary: undefined }))}
+                    busy={busy}
+                    connected
+                  />
+
+                  <WriterHomeDivider />
+
+                  <UploadSlotSection
+                    title="Writing guide"
+                    filled={Boolean(newProductSlots.writingGuide)}
+                    uploadedFileName={productSlotFilename(
+                      Boolean(newProductSlots.writingGuide),
+                      newProductSlots.writingGuide?.filename,
+                      "writing-guide.md"
+                    )}
+                    accept=".md,text/markdown"
+                    showDropZone={false}
+                    onFiles={(files) => void stageNewProductSlot("writingGuide", files)}
+                    onRemove={() => setNewProductSlots((prev) => ({ ...prev, writingGuide: undefined }))}
+                    busy={busy}
+                    connected
+                  />
+                </WriterPageStack>
               </div>
-              {newProductFiles.length > 0 ? (
-                <Card>
-                  <CardContent className="pt-6">
-                    <p className="mb-2 font-semibold">{newProductFiles.length} file(s) ready</p>
-                    <ul className="list-inside list-disc text-sm">
-                      {newProductFiles.map((f) => (
-                        <li key={f.filename}>
-                          <code>{f.filename}</code>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button variant="ghost" size="sm" className="mt-3" onClick={() => setNewProductFiles([])}>
-                      Clear files
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : null}
             </WriterPageStack>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAddProductOpen(false);
-                  setNewProductFiles([]);
-                }}
-              >
-                Cancel
-              </Button>
-              <WriterPrimaryButton
-                className="h-8 px-4 py-0 text-sm"
-                disabled={busy || !newProductId.trim() || newProductFiles.length === 0}
-                onClick={() => void submitAddProduct()}
-              >
-                {busy ? "Creating…" : "Create"}
-              </WriterPrimaryButton>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </WriterModal>
     </WriterPageStack>
+  );
+}
+
+function ProductIdFieldSection({
+  value,
+  onChange,
+  disabled
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <WriterSectionHeader title="Product name" />
+      <GlassCard variant="outline" className="flex min-h-[61px] items-center px-4 py-2.5">
+        <Input
+          id="new-product-id"
+          value={value}
+          disabled={disabled}
+          placeholder="What's the product name?"
+          className="writer-modal-id-field flex-1"
+          onChange={(e) => onChange(e.target.value.replace(/[^a-zA-Z0-9-_]/g, "-"))}
+        />
+      </GlassCard>
+    </section>
   );
 }
 
@@ -750,26 +737,28 @@ function UploadSlotSection({
   title,
   description,
   filled,
-  tileTitle,
-  tileSummary,
+  uploadedFileName,
   dropLabel,
   dropHint,
   accept,
   multiple,
+  showDropZone = true,
   onFiles,
   onRemove,
   busy,
   connected
 }: {
   title: string;
-  description: string;
+  description?: string;
   filled: boolean;
-  tileTitle: string;
-  tileSummary: string;
-  dropLabel: string;
-  dropHint: string;
+  /** Basename shown when filled (e.g. ddpm.md, glossary.csv). */
+  uploadedFileName?: string;
+  dropLabel?: string;
+  dropHint?: string;
   accept: string;
   multiple?: boolean;
+  /** When false, only + Add opens the file picker (no dashed drop area). */
+  showDropZone?: boolean;
   onFiles: (files: File[]) => void;
   onRemove: () => void | Promise<void>;
   busy: boolean;
@@ -777,6 +766,8 @@ function UploadSlotSection({
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadDisabled = busy || !connected;
+  const addDisabled = uploadDisabled || filled;
+  const fileLabel = uploadedFileName?.trim();
 
   return (
     <section className="flex flex-col gap-3">
@@ -787,13 +778,13 @@ function UploadSlotSection({
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
-            className="text-[var(--writer-accent-blue)] hover:bg-[rgb(32_131_234/0.14)] hover:text-[var(--writer-accent-blue)]"
-            disabled={uploadDisabled}
+            className="writer-pill-ghost writer-pill-ghost--accent"
+            disabled={addDisabled}
             aria-label={`Add ${title}`}
             onClick={() => fileInputRef.current?.click()}
           >
-            <Plus className="size-4" strokeWidth={1.5} aria-hidden />
+            <Plus className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span>Add</span>
           </Button>
         }
       />
@@ -812,15 +803,14 @@ function UploadSlotSection({
             event.target.value = "";
           }}
         />
-        {filled ? (
+        {filled && fileLabel ? (
           <GuidelineFileRow
-            title={tileTitle}
-            subtitle={tileSummary}
+            title={fileLabel}
             removeDisabled={uploadDisabled}
             removeLabel={`Remove ${title}`}
             onRemove={() => void onRemove()}
           />
-        ) : (
+        ) : filled ? null : showDropZone && dropLabel && dropHint ? (
           <DropZone
             label={dropLabel}
             hint={dropHint}
@@ -830,7 +820,7 @@ function UploadSlotSection({
             disabled={uploadDisabled}
             fileInputRef={fileInputRef}
           />
-        )}
+        ) : null}
       </WriterPageStack>
     </section>
   );

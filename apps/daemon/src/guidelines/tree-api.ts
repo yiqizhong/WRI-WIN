@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import type {
   GuidelinesTree,
   GuidelineList,
@@ -8,6 +10,12 @@ import type {
 
 import type { GuidelineTreeResult, ProductPackageResult } from "./discovery";
 import { buildResolvedTree, collectFlatGuidelines } from "./inheritance";
+
+function filenameFromPath(filePath?: string): string | undefined {
+  if (!filePath) return undefined;
+  const name = basename(filePath);
+  return name.length > 0 ? name : undefined;
+}
 
 function productListItemFromPackage(pkg: ProductPackage) {
   const hasAnyFile =
@@ -32,7 +40,19 @@ export function toGuidelinesTreeApi(tree: GuidelineTreeResult): GuidelinesTree {
     softwareWriting: tree.softwareWriting?.status === "ok" ? tree.softwareWriting.value : null,
     products: tree.products.map((p) => {
       if (p.status === "ok") {
-        return productListItemFromPackage(p.package);
+        const item = productListItemFromPackage(p.package);
+        return {
+          ...item,
+          ...(item.hasBackground
+            ? { backgroundFilename: filenameFromPath(p.filePaths.background) ?? "background.md" }
+            : {}),
+          ...(item.hasGlossary
+            ? { glossaryFilename: filenameFromPath(p.filePaths.glossary) ?? "glossary.md" }
+            : {}),
+          ...(item.hasWritingGuide
+            ? { writingGuideFilename: filenameFromPath(p.filePaths.writingGuide) ?? "writing-guide.md" }
+            : {})
+        };
       }
       return {
         id: p.productId,

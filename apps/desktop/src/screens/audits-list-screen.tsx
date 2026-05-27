@@ -84,7 +84,7 @@ export function AuditsListScreen() {
                     <td className="px-4 py-3">
                       <Link
                         to={`/audits/${session.id}`}
-                        className="writer-home-text inline-flex h-8 items-center rounded-md border border-white/20 px-3 text-sm transition-colors hover:bg-white/10"
+                        className="writer-home-text inline-flex h-auto min-h-8 items-center rounded-full border border-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/10"
                       >
                         Open
                       </Link>

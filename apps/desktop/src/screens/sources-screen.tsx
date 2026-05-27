@@ -68,7 +68,7 @@ export function SourcesScreen() {
                     <SelectContent>
                       {workspace.products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {formatProductDisplayName(product.name)}
+                          {formatProductDisplayName(product.id)}
                         </SelectItem>
                       ))}
                     </SelectContent>

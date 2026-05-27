@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
+import { WriterModal } from "@/components/writer/writer-modal";
 
 type AuditDetailRuleModalProps = {
   open: boolean;
@@ -15,14 +9,13 @@ type AuditDetailRuleModalProps = {
 
 export function AuditDetailRuleModal({ open, onOpenChange, layerLabel, content }: AuditDetailRuleModalProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-auto">
-        <DialogHeader>
-          <DialogTitle>{layerLabel}</DialogTitle>
-          <DialogDescription>Guideline excerpt captured at audit time.</DialogDescription>
-        </DialogHeader>
-        <pre className="whitespace-pre-wrap text-sm text-[#e5f1ff]/90">{content}</pre>
-      </DialogContent>
-    </Dialog>
+    <WriterModal
+      open={open}
+      onOpenChange={onOpenChange}
+      title={layerLabel}
+      description="Guideline excerpt captured at audit time."
+    >
+      <pre className="whitespace-pre-wrap text-sm text-[#e5f1ff]/90">{content}</pre>
+    </WriterModal>
   );
 }

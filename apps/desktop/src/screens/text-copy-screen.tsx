@@ -10,6 +10,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
 import { formatProductDisplayName } from "@/lib/writer-product-display";
 
@@ -32,7 +33,7 @@ export function TextCopyScreen() {
   const pendingActionRef = useRef<(() => void) | null>(null);
 
   const productName = pickedProductId
-    ? formatProductDisplayName(products.find((p) => p.id === pickedProductId)?.name ?? pickedProductId)
+    ? formatProductDisplayName(pickedProductId)
     : "General purpose";
 
   const pendingRewrite = conversation?.messages.some(
@@ -91,11 +92,17 @@ export function TextCopyScreen() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={() => setConfirmNewOpen(false)}>
-              Keep waiting
-            </Button>
             <Button
               type="button"
+              variant="ghost"
+              className="writer-pill-ghost writer-pill-ghost--accent"
+              onClick={() => setConfirmNewOpen(false)}
+            >
+              Keep waiting
+            </Button>
+            <WriterPrimaryButton
+              type="button"
+              className="h-auto px-4 py-2 text-sm"
               onClick={() => {
                 setConfirmNewOpen(false);
                 pendingActionRef.current?.();
@@ -103,7 +110,7 @@ export function TextCopyScreen() {
               }}
             >
               Start over
-            </Button>
+            </WriterPrimaryButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

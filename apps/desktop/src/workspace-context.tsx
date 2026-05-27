@@ -111,8 +111,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (!selectedProductId) {
       return null;
     }
-    const name = products.find((product) => product.id === selectedProductId)?.name ?? selectedProductId;
-    return formatProductDisplayName(name);
+    return formatProductDisplayName(selectedProductId);
   }, [products, selectedProductId]);
 
   const setSelectedProductId = useCallback(

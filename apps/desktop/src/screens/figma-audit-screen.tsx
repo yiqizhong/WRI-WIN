@@ -121,7 +121,7 @@ export function FigmaAuditScreen() {
           <Link
             to="/audits"
             className={cn(
-              "writer-chat-subheader__new-chat",
+              "writer-pill-ghost writer-pill-ghost--accent",
               "inline-flex h-auto items-center no-underline hover:no-underline"
             )}
           >
@@ -167,7 +167,7 @@ export function FigmaAuditScreen() {
                     <SelectItem value={NONE_PRODUCT}>(none)</SelectItem>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {formatProductDisplayName(product.name)}
+                        {formatProductDisplayName(product.id)}
                       </SelectItem>
                     ))}
                   </SelectContent>

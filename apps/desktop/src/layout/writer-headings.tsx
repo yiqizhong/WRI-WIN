@@ -26,6 +26,10 @@ export function WriterSectionHeader({
   );
 }
 
+export function WriterHomeDivider({ className }: { className?: string }) {
+  return <div className={cn("writer-home-divider shrink-0", className)} aria-hidden />;
+}
+
 export function WriterSectionDescription({
   children,
   className

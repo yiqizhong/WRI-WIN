@@ -6,7 +6,8 @@
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  padding-inline: 12px;
+  /* Baseline 12px + 16px inset per side for tab panels (Guidelines, LLM & MCP) */
+  padding-inline: 28px;
 }
 
 /* No visible scrollbars on Settings (content clips inside fixed window). */

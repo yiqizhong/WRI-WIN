@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/writer/glass-card";
@@ -6,12 +6,11 @@ import { cn } from "@/lib/utils";
 
 type GuidelineRowCardProps = {
   title: string;
-  subtitle?: string;
   className?: string;
   onOpen: () => void;
 };
 
-export function GuidelineRowCard({ title, subtitle, className, onOpen }: GuidelineRowCardProps) {
+export function GuidelineRowCard({ title, className, onOpen }: GuidelineRowCardProps) {
   return (
     <GlassCard
       variant="outline"
@@ -21,11 +20,8 @@ export function GuidelineRowCard({ title, subtitle, className, onOpen }: Guideli
       )}
       onClick={onOpen}
     >
-      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <strong className="writer-home-text truncate font-semibold tracking-normal">{title}</strong>
-        {subtitle ? <span className="text-xs text-[#e5f1ff]/60">{subtitle}</span> : null}
-      </span>
-      <ChevronDown className="size-4 shrink-0 text-[#e5f1ff]/60" aria-hidden />
+      <span className="writer-home-text min-w-0 flex-1 truncate font-semibold tracking-normal">{title}</span>
+      <ChevronRight className="size-4 shrink-0 text-[#e5f1ff]/60" aria-hidden />
     </GlassCard>
   );
 }
@@ -33,14 +29,12 @@ export function GuidelineRowCard({ title, subtitle, className, onOpen }: Guideli
 /** Uploaded guideline file — same row chrome, inline remove (no modal / chevron). */
 export function GuidelineFileRow({
   title,
-  subtitle,
   onRemove,
   removeDisabled,
   removeLabel,
   className
 }: {
   title: string;
-  subtitle?: string;
   onRemove: () => void;
   removeDisabled?: boolean;
   removeLabel: string;
@@ -54,15 +48,11 @@ export function GuidelineFileRow({
         className
       )}
     >
-      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-        <strong className="writer-home-text truncate font-semibold tracking-normal">{title}</strong>
-        {subtitle ? <span className="text-xs text-[#e5f1ff]/60">{subtitle}</span> : null}
-      </span>
+      <span className="writer-home-text min-w-0 flex-1 truncate font-semibold tracking-normal">{title}</span>
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className="h-auto shrink-0 px-2 py-1 text-sm font-normal text-[var(--writer-accent-orange)] hover:bg-[rgb(230_127_1/0.14)] hover:text-[var(--writer-accent-orange)]"
+        className="writer-pill-ghost writer-pill-ghost--orange shrink-0 text-sm"
         disabled={removeDisabled}
         aria-label={removeLabel}
         onClick={onRemove}
