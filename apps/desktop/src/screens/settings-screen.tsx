@@ -16,7 +16,7 @@ export function SettingsScreen() {
   return (
     <div className="writer-settings-page flex h-full min-h-0 flex-col overflow-hidden">
       <WriterPageSubheader title="Settings" backTo="/" backLabel="Return to home" />
-      <div className="writer-settings-page__body flex min-h-0 flex-1 flex-col">
+      <div className="writer-settings-page__body writer-page-content-inset flex min-h-0 flex-1 flex-col">
         <WriterSettingsTabs defaultTab={defaultTab} />
       </div>
     </div>

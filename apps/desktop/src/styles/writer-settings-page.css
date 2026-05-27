@@ -2,12 +2,23 @@
  * Settings route — tabs and panels align with the chat-style page subheader inset.
  */
 
+/* Below page subheader: 12px subheader row inset + 16px content inset (28px total). */
+.writer-page-content-inset {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding-inline: 28px;
+}
+
+/* First content row below WriterPageSubheader (Settings tab strip, Figma panels). */
+.writer-page-subheader-content-gap {
+  padding-top: 20px;
+}
+
 .writer-settings-page__body {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  /* Baseline 12px + 16px inset per side for tab panels (Guidelines, LLM & MCP) */
-  padding-inline: 28px;
 }
 
 /* No visible scrollbars on Settings (content clips inside fixed window). */
@@ -27,7 +38,14 @@
   overflow: hidden;
 }
 
-.writer-settings-page {
+/* Figma audit frame panel — content sizes naturally; avoid flex-1 collapse */
+.writer-minimal-tabs [data-slot="tabs-content"] {
+  flex: none;
+  overflow: visible;
+}
+
+.writer-settings-page,
+.writer-minimal-tabs {
   --writer-settings-tab-indicator: linear-gradient(
     90deg,
     rgb(59 77 242 / 0) 0%,
@@ -42,10 +60,11 @@
   --writer-settings-motion-duration-indicator: 160ms;
 }
 
-.writer-settings-page [data-slot="tabs-list"] {
+.writer-settings-page [data-slot="tabs-list"],
+.writer-minimal-tabs [data-slot="tabs-list"] {
   width: auto;
   max-width: 100%;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .writer-settings-tabs-list {
@@ -56,13 +75,15 @@
 }
 
 /* No full-width rule under the tab row (minimal variant uses writer-home-divider-bottom). */
-.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"].writer-home-divider-bottom::after {
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"].writer-home-divider-bottom::after,
+.writer-minimal-tabs [data-slot="tabs-list"][data-variant="minimal"].writer-home-divider-bottom::after {
   content: none;
   display: none;
 }
 
-/* Settings tabs — same family/weight as section title, 26px per design. */
-.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
+/* Minimal tabs — same family/weight as section title, 26px per design. */
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"],
+.writer-minimal-tabs [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
   flex: none;
   height: auto;
   min-height: calc(26px * 1.375 + 8px);
@@ -81,21 +102,29 @@
 
 .writer-settings-page
   [data-slot="tabs-list"][data-variant="minimal"]
+  [data-slot="tabs-trigger"]:hover:not([data-active]),
+.writer-minimal-tabs
+  [data-slot="tabs-list"][data-variant="minimal"]
   [data-slot="tabs-trigger"]:hover:not([data-active]) {
   color: rgb(229 241 255 / 82%) !important;
 }
 
-.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"]::after {
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"]::after,
+.writer-minimal-tabs [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"]::after {
   display: none !important;
   opacity: 0 !important;
 }
 
-.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"][data-active] {
+.writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"][data-active],
+.writer-minimal-tabs [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"][data-active] {
   color: var(--writer-accent-blue) !important;
   -webkit-text-fill-color: var(--writer-accent-blue) !important;
 }
 
 .writer-settings-page
+  [data-slot="tabs-list"][data-variant="minimal"]
+  [data-slot="tabs-trigger"][data-active]:hover,
+.writer-minimal-tabs
   [data-slot="tabs-list"][data-variant="minimal"]
   [data-slot="tabs-trigger"][data-active]:hover {
   color: var(--writer-accent-blue) !important;
@@ -151,7 +180,8 @@
     --writer-settings-motion-duration-indicator: 0ms;
   }
 
-  .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
+  .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"],
+  .writer-minimal-tabs [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
     transition: none;
   }
 

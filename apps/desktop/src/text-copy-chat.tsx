@@ -287,7 +287,7 @@ export function TextCopyChat({
   );
 
   const showNewChat = Boolean(conversation) || phase === "active";
-  const subheaderTitle = phase === "active" ? `Audit copy for ${productName}` : "Chat";
+  const subheaderTitle = phase === "active" ? `Rewrite copy for ${productName}` : "Chat";
 
   const handleNewChat = () => {
     resetToWelcome();
@@ -324,7 +324,7 @@ export function TextCopyChat({
         composerFooterRef={composerFooterRef}
         welcomeGreeting={
           <h1 className="writer-chat-welcome-heading writer-home-text writer-home-heading w-full">
-            <span className="writer-chat-welcome-heading-lead">Audit copy for </span>
+            <span className="writer-chat-welcome-heading-lead">Rewrite copy for </span>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

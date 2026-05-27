@@ -1,0 +1,83 @@
+/* Glass-shell form controls — match Guidelines product name field and modal inputs */
+
+.writer-form-control {
+  height: auto;
+  min-height: 2.25rem;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #e5f1ff;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.writer-form-control::placeholder {
+  color: rgb(229 241 255 / 35%);
+}
+
+.writer-form-control:focus-visible {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.writer-form-control--textarea {
+  min-height: 5.5rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.writer-form-select-shell:has([data-popup-open]) {
+  border-color: var(--writer-accent-blue);
+  box-shadow: 0 0 0 1px rgb(32 131 234 / 0.35);
+}
+
+.writer-form-select-trigger {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+
+.writer-form-select-trigger-btn {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #e5f1ff;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: normal;
+  cursor: pointer;
+  outline: none;
+}
+
+.writer-form-select-trigger-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.writer-form-select-trigger-btn:focus-visible {
+  outline: none;
+}
+
+.writer-form-select-trigger-label--placeholder {
+  color: rgb(229 241 255 / 35%);
+}
+
+.writer-form-select-trigger-chevron {
+  color: rgb(229 241 255 / 55%);
+  transition: color 200ms ease;
+}
+
+.writer-form-select-trigger:hover .writer-form-select-trigger-chevron,
+.writer-form-select-trigger[data-popup-open] .writer-form-select-trigger-chevron {
+  color: var(--writer-accent-blue);
+}

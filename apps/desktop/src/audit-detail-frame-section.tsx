@@ -3,11 +3,9 @@ import { useMemo, useState } from "react";
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { GlassCard } from "@/components/writer/glass-card";
-
 import { AuditDetailRuleModal } from "./audit-detail-rule-modal";
 import type { DaemonClient } from "./daemon-client";
-import { WriterSectionHeader } from "./layout/writer-headings";
+import { WorkflowGlassPanel } from "./layout/workflow-screen-shell";
 
 type AuditDetailFrameSectionProps = {
   client: DaemonClient;
@@ -43,8 +41,10 @@ export function AuditDetailFrameSection({
   }
 
   return (
-    <GlassCard variant="outline" className="flex flex-col gap-4 p-4">
-      <WriterSectionHeader title={frameLabel} description="Screenshot and copy suggestions for this frame." />
+    <WorkflowGlassPanel
+      title={frameLabel}
+      description="Screenshot and copy suggestions for this frame."
+    >
       <img
         src={screenshotUrl}
         alt={`Screenshot for ${frameLabel}`}
@@ -112,6 +112,6 @@ export function AuditDetailFrameSection({
         layerLabel="Writing rule"
         content={ruleContent ?? ""}
       />
-    </GlassCard>
+    </WorkflowGlassPanel>
   );
 }
