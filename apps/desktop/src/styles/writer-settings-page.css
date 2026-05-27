@@ -36,9 +36,10 @@
     #0672cb 67.79%,
     rgb(59 77 242 / 0) 100%
   );
-  --writer-settings-motion-ease: cubic-bezier(0.2, 0, 0, 1);
-  --writer-settings-motion-duration: 180ms;
-  --writer-settings-motion-distance: 10px;
+  --writer-settings-motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --writer-settings-motion-duration-enter: 220ms;
+  --writer-settings-motion-duration-exit: 150ms;
+  --writer-settings-motion-duration-indicator: 160ms;
 }
 
 .writer-settings-page [data-slot="tabs-list"] {
@@ -49,6 +50,9 @@
 
 .writer-settings-tabs-list {
   position: relative;
+  isolation: isolate;
+  contain: layout style;
+  transform: translateZ(0);
 }
 
 /* No full-width rule under the tab row (minimal variant uses writer-home-divider-bottom). */
@@ -60,16 +64,25 @@
 /* Settings tabs — same family/weight as section title, 26px per design. */
 .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
   flex: none;
+  height: auto;
+  min-height: calc(26px * 1.375 + 8px);
   padding-inline: 0;
   padding-bottom: 8px;
   font-size: 26px;
   font-weight: 400;
   line-height: 1.375;
   letter-spacing: normal;
-  color: rgb(229 241 255 / 58%);
-  transition:
-    color 150ms ease,
-    -webkit-text-fill-color 150ms ease;
+  color: rgb(229 241 255 / 58%) !important;
+  -webkit-text-fill-color: currentColor !important;
+  backface-visibility: hidden;
+  /* TabsTrigger defaults to transition-[color,...] — causes white flash on deselect */
+  transition: none !important;
+}
+
+.writer-settings-page
+  [data-slot="tabs-list"][data-variant="minimal"]
+  [data-slot="tabs-trigger"]:hover:not([data-active]) {
+  color: rgb(229 241 255 / 82%) !important;
 }
 
 .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"]::after {
@@ -78,16 +91,15 @@
 }
 
 .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"][data-active] {
-  /* Wins over TabsTrigger minimal variant `data-active:!text-foreground`. */
   color: var(--writer-accent-blue) !important;
-  -webkit-text-fill-color: var(--writer-accent-blue);
+  -webkit-text-fill-color: var(--writer-accent-blue) !important;
 }
 
 .writer-settings-page
   [data-slot="tabs-list"][data-variant="minimal"]
   [data-slot="tabs-trigger"][data-active]:hover {
   color: var(--writer-accent-blue) !important;
-  -webkit-text-fill-color: var(--writer-accent-blue);
+  -webkit-text-fill-color: var(--writer-accent-blue) !important;
 }
 
 .writer-settings-tab-indicator {
@@ -101,14 +113,14 @@
   background: var(--writer-settings-tab-indicator);
   pointer-events: none;
   transform: translateX(var(--active-tab-left));
-  transition:
-    transform var(--writer-settings-motion-duration) var(--writer-settings-motion-ease),
-    width var(--writer-settings-motion-duration) var(--writer-settings-motion-ease);
-  will-change: transform, width;
+  /* Snap with text — sliding underline lags `data-active` and looks misaligned */
+  transition: none;
+  will-change: transform;
 }
 
 .writer-settings-panels {
-  contain: layout paint;
+  contain: layout paint style;
+  isolation: isolate;
 }
 
 .writer-settings-tab-panel {
@@ -116,23 +128,27 @@
   inset: 0;
   min-width: 0;
   opacity: 1;
-  transform: translate3d(0, 0, 0);
-  transition: opacity var(--writer-settings-motion-duration) ease;
-  will-change: opacity;
+  transition: opacity var(--writer-settings-motion-duration-enter) var(--writer-settings-motion-ease-out);
 }
 
 .writer-settings-tab-panel[hidden] {
   display: none;
 }
 
-.writer-settings-tab-panel[data-starting-style],
+.writer-settings-tab-panel[data-starting-style] {
+  opacity: 0;
+}
+
 .writer-settings-tab-panel[data-ending-style] {
   opacity: 0;
+  transition-duration: var(--writer-settings-motion-duration-exit);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .writer-settings-page {
-    --writer-settings-motion-duration: 0ms;
+    --writer-settings-motion-duration-enter: 120ms;
+    --writer-settings-motion-duration-exit: 120ms;
+    --writer-settings-motion-duration-indicator: 0ms;
   }
 
   .writer-settings-page [data-slot="tabs-list"][data-variant="minimal"] [data-slot="tabs-trigger"] {
@@ -144,8 +160,9 @@
   }
 
   .writer-settings-tab-panel {
-    transition: none;
+    transition: opacity var(--writer-settings-motion-duration-enter) ease;
   }
+
 }
 
 .writer-settings-page .writer-settings-guidelines-grid {

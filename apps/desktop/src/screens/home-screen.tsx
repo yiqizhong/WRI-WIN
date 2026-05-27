@@ -3,7 +3,11 @@ import type { KeyboardEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { GlassCard } from "@/components/writer/glass-card";
-import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
+import { cn } from "@/lib/utils";
+import {
+  WriterPrimaryButton,
+  writerPrimaryButtonMotionEndClassName
+} from "@/components/writer/writer-primary-button";
 
 const FIGMA_LOGO = "/mcp-server-logos/figma.png";
 const WORKFLOW_CARD_ICON_CLASS = "size-10";
@@ -73,7 +77,7 @@ function WorkflowCard({
       <div className="flex w-full items-end justify-between gap-auto">
         {icon}
         <WriterPrimaryButton
-          className="w-[100px] px-1.5 py-3"
+          className={cn("w-[100px] px-1.5 py-3", writerPrimaryButtonMotionEndClassName)}
           aria-label="Go"
           onClick={(event) => {
             event.stopPropagation();

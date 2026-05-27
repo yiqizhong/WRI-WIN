@@ -1,16 +1,15 @@
 export type MastheadRouteConfig = {
-  title?: string;
   backTo?: string;
 };
 
 const ROUTE_MASTHEAD: Array<{ match: (path: string) => boolean; config: MastheadRouteConfig }> = [
   { match: (path) => path === "/settings", config: {} },
-  { match: (path) => path === "/figma-audit", config: { title: "Figma Audit" } },
+  { match: (path) => path === "/figma-audit", config: {} },
   { match: (path) => path === "/text-copy", config: {} },
-  { match: (path) => path === "/audits", config: { title: "Audits" } },
+  { match: (path) => path === "/audits", config: {} },
   {
     match: (path) => /^\/audits\/[^/]+$/.test(path),
-    config: { title: "Audit" }
+    config: {}
   }
 ];
 

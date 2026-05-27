@@ -51,17 +51,6 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.writer-masthead__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: normal;
-  color: rgba(255, 255, 255, 0.55);
-  pointer-events: none;
-}
-
 /* Caption buttons container — pushed to right, no-drag so clicks pass through */
 .writer-masthead__buttons {
   display: flex;

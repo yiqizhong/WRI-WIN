@@ -207,12 +207,13 @@
   font-size: 0.8125rem;
   font-weight: 500;
   letter-spacing: normal;
+  background: rgb(32 131 234 / 0.14) !important;
   color: var(--writer-accent-blue) !important;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .writer-chat-subheader__new-chat:hover:not(:disabled) {
-  background: rgb(32 131 234 / 0.14) !important;
+  background: rgb(32 131 234 / 0.22) !important;
   color: var(--writer-accent-blue) !important;
 }
 
@@ -379,6 +380,23 @@
   gap: 0.35rem 0.5rem;
   text-align: center;
   letter-spacing: normal;
+}
+
+.writer-chat-welcome-zero-state:not(.writer-chat-welcome-zero-state--leaving) .writer-chat-welcome-heading {
+  animation: writer-chat-welcome-heading-enter var(--writer-duration-welcome-heading-enter)
+    var(--writer-motion-easing-enter) var(--writer-delay-welcome-heading-enter) both;
+}
+
+@keyframes writer-chat-welcome-heading-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .writer-chat-welcome-heading-lead {
@@ -592,9 +610,12 @@
 /* Gemini welcome → chat motion tokens */
 .writer-chat-active-shell {
   --writer-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --writer-motion-easing-enter: cubic-bezier(0.23, 1, 0.32, 1);
   /* Gemini input-move: 250ms; WAAPI path uses 350ms (see composer-motion.ts) */
   --writer-duration-input-move: 350ms;
   --writer-welcome-heading-composer-gap: 36px;
+  --writer-duration-welcome-heading-enter: 460ms;
+  --writer-delay-welcome-heading-enter: 0.1s;
   /* 520ms anim + 40ms delay; WELCOME_MESSAGE_RISE_MS adds a short hold before assistant status. */
   --writer-duration-message-rise: 520ms;
   --writer-duration-welcome-leave: 150ms;
@@ -725,6 +746,10 @@
   .writer-chat-welcome-zero-state--leaving {
     animation: none;
     opacity: 0;
+  }
+
+  .writer-chat-welcome-zero-state:not(.writer-chat-welcome-zero-state--leaving) .writer-chat-welcome-heading {
+    animation: none;
   }
 
   .writer-chat-user-bubble--first-send-rise,

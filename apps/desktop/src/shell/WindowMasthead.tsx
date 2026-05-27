@@ -3,12 +3,11 @@ import { ArrowLeft, Settings } from "lucide-react";
 import "../styles/writer-masthead.css";
 
 type WindowMastheadProps = {
-  title?: string;
   onBack?: () => void;
   onSettings?: () => void;
 };
 
-export function WindowMasthead({ title, onBack, onSettings }: WindowMastheadProps) {
+export function WindowMasthead({ onBack, onSettings }: WindowMastheadProps) {
   const win = window.writerDesktop;
 
   return (
@@ -25,7 +24,6 @@ export function WindowMasthead({ title, onBack, onSettings }: WindowMastheadProp
             <ArrowLeft size={14} strokeWidth={1.5} aria-hidden />
           </button>
         ) : null}
-        {title ? <span className="writer-masthead__title">{title}</span> : null}
       </div>
 
       <div className="writer-masthead__buttons">

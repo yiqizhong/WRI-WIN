@@ -305,7 +305,7 @@ export function TextCopyChat({
             <Button
               type="button"
               variant="ghost"
-              className="writer-pill-ghost writer-pill-ghost--accent"
+              className="writer-chat-subheader__new-chat"
               onClick={handleNewChat}
             >
               <Plus className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />

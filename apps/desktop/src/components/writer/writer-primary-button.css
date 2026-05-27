@@ -1,0 +1,67 @@
+/* Primary CTA motion — button press + optional icon nudge; gated for reduced motion */
+
+.writer-primary-button {
+  --writer-primary-button-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 160ms var(--writer-primary-button-ease);
+}
+
+.writer-primary-button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 100ms;
+}
+
+.writer-primary-button svg {
+  transition: transform 160ms var(--writer-primary-button-ease);
+}
+
+/* Default: upward nudge (send ↑, etc.) */
+@media (hover: hover) and (pointer: fine) {
+  .writer-primary-button:hover:not(:disabled) svg {
+    transform: translateY(-3px);
+  }
+}
+
+.writer-primary-button:active:not(:disabled) svg {
+  transform: translateY(-5px);
+  transition-duration: 100ms;
+}
+
+/* Chevron / forward icons on workflow cards */
+@media (hover: hover) and (pointer: fine) {
+  .writer-primary-button--motion-end:hover:not(:disabled) svg {
+    transform: translateX(3px);
+  }
+}
+
+.writer-primary-button--motion-end:active:not(:disabled) svg {
+  transform: translateX(5px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-primary-button {
+    transition: opacity 160ms ease;
+  }
+
+  .writer-primary-button:active:not(:disabled) {
+    transform: none;
+  }
+
+  .writer-primary-button svg {
+    transition: none;
+  }
+
+  .writer-primary-button:hover:not(:disabled) svg,
+  .writer-primary-button:active:not(:disabled) svg {
+    transform: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .writer-primary-button:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+  }
+
+  .writer-primary-button:active:not(:disabled) {
+    opacity: 0.75;
+  }
+}
