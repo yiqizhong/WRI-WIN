@@ -10,6 +10,7 @@ import type {
 
 import type { GuidelineTreeResult, ProductPackageResult } from "./discovery";
 import { buildResolvedTree, collectFlatGuidelines } from "./inheritance";
+import type { SlotDisplayNames } from "./slot-display-names";
 
 function filenameFromPath(filePath?: string): string | undefined {
   if (!filePath) return undefined;
@@ -34,23 +35,71 @@ function productListItemFromPackage(pkg: ProductPackage) {
   };
 }
 
-export function toGuidelinesTreeApi(tree: GuidelineTreeResult): GuidelinesTree {
+function productSlotDisplayName(
+  display: SlotDisplayNames | undefined,
+  productId: string,
+  slot: "background" | "glossary" | "writingGuide",
+  filePath: string | undefined,
+  fallback: string
+): string {
+  const fromMeta =
+    display?.products?.[productId]?.[slot] ??
+    display?.products?.[productId.toLowerCase()]?.[slot];
+  if (fromMeta) return fromMeta;
+  return filenameFromPath(filePath) ?? fallback;
+}
+
+export function toGuidelinesTreeApi(
+  tree: GuidelineTreeResult,
+  display?: SlotDisplayNames
+): GuidelinesTree {
+  const companyBaseOk = tree.companyBase?.status === "ok";
+  const softwareWritingOk = tree.softwareWriting?.status === "ok";
+
   return {
-    companyBase: tree.companyBase?.status === "ok" ? tree.companyBase.value : null,
-    softwareWriting: tree.softwareWriting?.status === "ok" ? tree.softwareWriting.value : null,
+    companyBase: companyBaseOk ? tree.companyBase.value : null,
+    softwareWriting: softwareWritingOk ? tree.softwareWriting.value : null,
+    ...(companyBaseOk && display?.companyBase ? { companyBaseFilename: display.companyBase } : {}),
+    ...(softwareWritingOk && display?.softwareWriting
+      ? { softwareWritingFilename: display.softwareWriting }
+      : {}),
     products: tree.products.map((p) => {
       if (p.status === "ok") {
         const item = productListItemFromPackage(p.package);
         return {
           ...item,
           ...(item.hasBackground
-            ? { backgroundFilename: filenameFromPath(p.filePaths.background) ?? "background.md" }
+            ? {
+                backgroundFilename: productSlotDisplayName(
+                  display,
+                  item.id,
+                  "background",
+                  p.filePaths.background,
+                  "background.md"
+                )
+              }
             : {}),
           ...(item.hasGlossary
-            ? { glossaryFilename: filenameFromPath(p.filePaths.glossary) ?? "glossary.md" }
+            ? {
+                glossaryFilename: productSlotDisplayName(
+                  display,
+                  item.id,
+                  "glossary",
+                  p.filePaths.glossary,
+                  "glossary.md"
+                )
+              }
             : {}),
           ...(item.hasWritingGuide
-            ? { writingGuideFilename: filenameFromPath(p.filePaths.writingGuide) ?? "writing-guide.md" }
+            ? {
+                writingGuideFilename: productSlotDisplayName(
+                  display,
+                  item.id,
+                  "writingGuide",
+                  p.filePaths.writingGuide,
+                  "writing-guide.md"
+                )
+              }
             : {})
         };
       }

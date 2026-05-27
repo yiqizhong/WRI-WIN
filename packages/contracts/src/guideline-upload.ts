@@ -4,7 +4,9 @@ import { productBackgroundSchema, termSchema } from "./guideline";
 
 const uploadContentSchema = z.object({
   content: z.string().min(1),
-  overwrite: z.boolean().optional()
+  overwrite: z.boolean().optional(),
+  /** Original basename from the user's file picker (display only; disk paths stay canonical). */
+  sourceFilename: z.string().min(1).optional()
 });
 
 export const uploadCompanyBaseInputSchema = uploadContentSchema;
@@ -17,23 +19,17 @@ export const uploadCompanyGlossaryInputSchema = z.object({
   overwrite: z.boolean().optional()
 });
 
-export const uploadProductBackgroundInputSchema = z.object({
-  productId: z.string().min(1),
-  content: z.string().min(1),
-  overwrite: z.boolean().optional()
+export const uploadProductBackgroundInputSchema = uploadContentSchema.extend({
+  productId: z.string().min(1)
 });
 
-export const uploadProductGlossaryInputSchema = z.object({
+export const uploadProductGlossaryInputSchema = uploadContentSchema.extend({
   productId: z.string().min(1),
-  content: z.string().min(1),
-  format: z.enum(["csv", "md"]),
-  overwrite: z.boolean().optional()
+  format: z.enum(["csv", "md"])
 });
 
-export const uploadProductWritingGuideInputSchema = z.object({
-  productId: z.string().min(1),
-  content: z.string().min(1),
-  overwrite: z.boolean().optional()
+export const uploadProductWritingGuideInputSchema = uploadContentSchema.extend({
+  productId: z.string().min(1)
 });
 
 export const productUploadFileSchema = z.object({

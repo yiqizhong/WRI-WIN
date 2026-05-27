@@ -5,6 +5,7 @@ import type { WorkspaceInfo } from "@writer/contracts";
 
 import { getCachedTree } from "./guidelines/cache";
 import { discoverGuidelines } from "./guidelines/discovery";
+import { loadSlotDisplayNames } from "./guidelines/slot-display-names";
 import { toGuidelinesTreeApi } from "./guidelines/tree-api";
 import type { DaemonState } from "./state";
 
@@ -46,7 +47,8 @@ export async function ensureDefaultWorkspace(state: DaemonState) {
 export async function getWorkspaceInfo(state: DaemonState): Promise<WorkspaceInfo> {
   const project = await ensureDefaultWorkspace(state);
   const tree = getCachedTree() ?? (await discoverGuidelines());
-  const apiTree = toGuidelinesTreeApi(tree);
+  const display = await loadSlotDisplayNames();
+  const apiTree = toGuidelinesTreeApi(tree, display);
 
   return {
     projectId: project.id,

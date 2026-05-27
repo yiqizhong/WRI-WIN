@@ -523,7 +523,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     getCompanyBase: () =>
       request(baseUrl, "/company-base", undefined, (p) => (p === null ? null : parseGuideline(p))),
 
-    uploadCompanyBase: (input: { content: string; overwrite?: boolean }) =>
+    uploadCompanyBase: (input: { content: string; overwrite?: boolean; sourceFilename?: string }) =>
       request<{ ok: boolean; filePath: string }>(baseUrl, "/company-base/upload", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -535,7 +535,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     getSoftwareWriting: () =>
       request(baseUrl, "/software-writing", undefined, (p) => (p === null ? null : parseGuideline(p))),
 
-    uploadSoftwareWriting: (input: { content: string; overwrite?: boolean }) =>
+    uploadSoftwareWriting: (input: { content: string; overwrite?: boolean; sourceFilename?: string }) =>
       request<{ ok: boolean; filePath: string }>(baseUrl, "/software-writing/upload", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -575,7 +575,10 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     deleteProduct: (id: string) => deleteRequest(baseUrl, `/products/${encodeURIComponent(id)}`),
 
-    uploadProductBackground: (productId: string, input: { content: string; overwrite?: boolean }) =>
+    uploadProductBackground: (
+      productId: string,
+      input: { content: string; overwrite?: boolean; sourceFilename?: string }
+    ) =>
       request<{ ok: boolean; filePath: string }>(
         baseUrl,
         `/products/${encodeURIComponent(productId)}/background/upload`,
@@ -591,7 +594,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     uploadProductGlossary: (
       productId: string,
-      input: { content: string; format: "csv" | "md"; overwrite?: boolean }
+      input: { content: string; format: "csv" | "md"; overwrite?: boolean; sourceFilename?: string }
     ) =>
       request<{ ok: boolean; filePath: string }>(
         baseUrl,
@@ -606,7 +609,10 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     deleteProductGlossary: (productId: string) =>
       deleteRequest(baseUrl, `/products/${encodeURIComponent(productId)}/glossary`),
 
-    uploadProductWritingGuide: (productId: string, input: { content: string; overwrite?: boolean }) =>
+    uploadProductWritingGuide: (
+      productId: string,
+      input: { content: string; overwrite?: boolean; sourceFilename?: string }
+    ) =>
       request<{ ok: boolean; filePath: string }>(
         baseUrl,
         `/products/${encodeURIComponent(productId)}/writing-guide/upload`,

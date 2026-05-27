@@ -113,7 +113,7 @@ export const productPackageListItemSchema = z.object({
   hasBackground: z.boolean(),
   hasGlossary: z.boolean(),
   hasWritingGuide: z.boolean(),
-  /** Basename on disk when the slot is filled (e.g. background.md, glossary.csv). */
+  /** Label shown in UI — original upload name when known, else canonical on-disk basename. */
   backgroundFilename: z.string().min(1).optional(),
   glossaryFilename: z.string().min(1).optional(),
   writingGuideFilename: z.string().min(1).optional(),
@@ -125,6 +125,9 @@ export const productPackageListItemSchema = z.object({
 export const guidelinesTreeSchema = z.object({
   companyBase: guidelineSchema.nullable(),
   softwareWriting: guidelineSchema.nullable(),
+  /** User-facing label from last upload (not necessarily the on-disk canonical name). */
+  companyBaseFilename: z.string().min(1).optional(),
+  softwareWritingFilename: z.string().min(1).optional(),
   products: z.array(productPackageListItemSchema),
   companyBaseMissing: z.boolean(),
   softwareWritingMissing: z.boolean(),

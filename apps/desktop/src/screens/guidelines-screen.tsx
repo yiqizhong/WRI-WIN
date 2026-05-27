@@ -155,7 +155,6 @@ export function GuidelinesScreen() {
   const [tree, setTree] = useState<GuidelinesTree | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
 
   const [overwritePending, setOverwritePending] = useState<PendingUpload | null>(null);
   const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
@@ -190,11 +189,9 @@ export function GuidelinesScreen() {
     async (pending: PendingUpload, overwrite: boolean) => {
       setBusy(true);
       setError(null);
-      setInfo(null);
       try {
         await pending.run(overwrite);
         setOverwritePending(null);
-        setInfo(`Updated: ${pending.label}`);
         await load();
       } catch (err) {
         if (!overwrite && isConflictError(err)) {
@@ -227,7 +224,7 @@ export function GuidelinesScreen() {
       if (!file) return;
       const content = await readFileAsText(file);
       queueUpload("Company base", Boolean(tree?.companyBase), async (overwrite) => {
-        await client.uploadCompanyBase({ content, overwrite });
+        await client.uploadCompanyBase({ content, overwrite, sourceFilename: file.name });
       });
     },
     [client, queueUpload, tree?.companyBase]
@@ -239,7 +236,7 @@ export function GuidelinesScreen() {
       if (!file) return;
       const content = await readFileAsText(file);
       queueUpload("Software writing", Boolean(tree?.softwareWriting), async (overwrite) => {
-        await client.uploadSoftwareWriting({ content, overwrite });
+        await client.uploadSoftwareWriting({ content, overwrite, sourceFilename: file.name });
       });
     },
     [client, queueUpload, tree?.softwareWriting]
@@ -247,9 +244,9 @@ export function GuidelinesScreen() {
 
   const handleRemoveCompanyBase = useCallback(async () => {
     setBusy(true);
+    setError(null);
     try {
       await client.deleteCompanyBase();
-      setInfo("Removed company base.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -260,9 +257,9 @@ export function GuidelinesScreen() {
 
   const handleRemoveSoftwareWriting = useCallback(async () => {
     setBusy(true);
+    setError(null);
     try {
       await client.deleteSoftwareWriting();
-      setInfo("Removed software writing.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -297,7 +294,6 @@ export function GuidelinesScreen() {
       setAddProductOpen(false);
       setNewProductId("");
       setNewProductSlots(EMPTY_NEW_PRODUCT_FILE_SLOTS);
-      setInfo(`Created product: ${id}`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -309,10 +305,10 @@ export function GuidelinesScreen() {
   const confirmDeleteProduct = useCallback(async () => {
     if (!deleteProductId) return;
     setBusy(true);
+    setError(null);
     try {
       await client.deleteProduct(deleteProductId);
       setDeleteProductId(null);
-      setInfo(`Deleted product: ${deleteProductId}`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -328,9 +324,6 @@ export function GuidelinesScreen() {
       {error ? (
         <InlineAlert kind="error" title="Error" subtitle={error} onClose={() => setError(null)} />
       ) : null}
-      {info ? (
-        <InlineAlert kind="success" title="Success" subtitle={info} onClose={() => setInfo(null)} />
-      ) : null}
       {tree?.conflictError ? (
         <InlineAlert kind="error" title="Guideline conflict" subtitle={tree.conflictError} />
       ) : null}
@@ -342,7 +335,11 @@ export function GuidelinesScreen() {
                 title="Company base"
                 description="Global guidelines applied to every product review."
                 filled={Boolean(tree?.companyBase)}
-                uploadedFileName="company-base.md"
+                uploadedFileName={productSlotFilename(
+                  Boolean(tree?.companyBase),
+                  tree?.companyBaseFilename,
+                  "company-base.md"
+                )}
                 dropLabel="Drop company-base.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -356,7 +353,11 @@ export function GuidelinesScreen() {
                 title="Software writing"
                 description="Shared writing standards across all SW product lines."
                 filled={Boolean(tree?.softwareWriting)}
-                uploadedFileName="software-writing.md"
+                uploadedFileName={productSlotFilename(
+                  Boolean(tree?.softwareWriting),
+                  tree?.softwareWritingFilename,
+                  "software-writing.md"
+                )}
                 dropLabel="Drop software-writing.md here"
                 dropHint="or click to browse · paste markdown"
                 accept=".md,text/markdown"
@@ -523,14 +524,18 @@ export function GuidelinesScreen() {
                   if (!file) return;
                   const content = await readFileAsText(file);
                   queueUpload(`${activeProduct.id} product background`, activeProduct.hasBackground, async (overwrite) => {
-                    await client.uploadProductBackground(activeProduct.id, { content, overwrite });
+                    await client.uploadProductBackground(activeProduct.id, {
+                      content,
+                      overwrite,
+                      sourceFilename: file.name
+                    });
                   });
                 }}
                 onRemove={async () => {
                   setBusy(true);
+                  setError(null);
                   try {
                     await client.deleteProductBackground(activeProduct.id);
-                    setInfo(`Removed product background for ${activeProduct.id}.`);
                     await load();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : String(err));
@@ -559,14 +564,19 @@ export function GuidelinesScreen() {
                   const content = await readFileAsText(file);
                   const format = glossaryFormatFromFilename(file.name) ?? "md";
                   queueUpload(`${activeProduct.id} glossary`, activeProduct.hasGlossary, async (overwrite) => {
-                    await client.uploadProductGlossary(activeProduct.id, { content, format, overwrite });
+                    await client.uploadProductGlossary(activeProduct.id, {
+                      content,
+                      format,
+                      overwrite,
+                      sourceFilename: file.name
+                    });
                   });
                 }}
                 onRemove={async () => {
                   setBusy(true);
+                  setError(null);
                   try {
                     await client.deleteProductGlossary(activeProduct.id);
-                    setInfo(`Removed glossary for ${activeProduct.id}.`);
                     await load();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : String(err));
@@ -594,14 +604,18 @@ export function GuidelinesScreen() {
                   if (!file) return;
                   const content = await readFileAsText(file);
                   queueUpload(`${activeProduct.id} writing guide`, activeProduct.hasWritingGuide, async (overwrite) => {
-                    await client.uploadProductWritingGuide(activeProduct.id, { content, overwrite });
+                    await client.uploadProductWritingGuide(activeProduct.id, {
+                      content,
+                      overwrite,
+                      sourceFilename: file.name
+                    });
                   });
                 }}
                 onRemove={async () => {
                   setBusy(true);
+                  setError(null);
                   try {
                     await client.deleteProductWritingGuide(activeProduct.id);
-                    setInfo(`Removed writing guide for ${activeProduct.id}.`);
                     await load();
                   } catch (err) {
                     setError(err instanceof Error ? err.message : String(err));

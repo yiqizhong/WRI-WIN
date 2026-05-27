@@ -31,4 +31,25 @@ describe("toGuidelinesTreeApi", () => {
     expect(item?.glossaryFilename).toBe("glossary.md");
     expect(item?.writingGuideFilename).toBe("writing-guide.md");
   });
+
+  it("prefers stored upload display names over on-disk basenames", async () => {
+    const productDir = join(testDir, "products", "ddpm");
+    await mkdir(productDir, { recursive: true });
+    await writeFile(join(productDir, "background.md"), "---\nname: DDPM\n---\n");
+
+    const tree = await discoverGuidelines(testDir);
+    const api = toGuidelinesTreeApi(tree, {
+      companyBase: "Acme Brand Voice v2.md",
+      products: {
+        ddpm: {
+          background: "DDPM Product Context.md",
+          glossary: "ddpm-terms.csv"
+        }
+      }
+    });
+    expect(api.companyBaseFilename).toBeUndefined();
+    expect(api.products[0]?.backgroundFilename).toBe("DDPM Product Context.md");
+    expect(api.products[0]?.hasGlossary).toBe(false);
+    expect(api.products[0]?.glossaryFilename).toBeUndefined();
+  });
 });

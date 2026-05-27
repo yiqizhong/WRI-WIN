@@ -8,7 +8,8 @@ import {
 import {
   createProductInputSchema,
   uploadCompanyBaseInputSchema,
-  uploadCompanyGlossaryInputSchema
+  uploadCompanyGlossaryInputSchema,
+  uploadProductBackgroundInputSchema
 } from "./guideline-upload";
 
 describe("guideline 3-layer contracts", () => {
@@ -67,5 +68,12 @@ describe("guideline 3-layer contracts", () => {
         files: [{ filename: "background.md", content: "# Checkout\n\nNotes." }]
       }).id
     ).toBe("checkout");
+    expect(
+      uploadProductBackgroundInputSchema.parse({
+        productId: "ddpm",
+        content: "# Notes",
+        sourceFilename: "DDPM Product Context.md"
+      }).sourceFilename
+    ).toBe("DDPM Product Context.md");
   });
 });

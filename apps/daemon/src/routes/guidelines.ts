@@ -26,6 +26,7 @@ import {
   PRODUCT_WRITING_GUIDE_MD_TEMPLATE,
   SOFTWARE_WRITING_MD_TEMPLATE
 } from "../guidelines/templates";
+import { loadSlotDisplayNames } from "../guidelines/slot-display-names";
 import {
   findGuidelineFilePath,
   findProductPackage,
@@ -82,6 +83,12 @@ function parseUrl(url: string): URL {
 
 async function loadTree() {
   return getCachedTree() ?? (await discoverGuidelines());
+}
+
+async function loadGuidelinesTreeApi() {
+  const cached = await loadTree();
+  const display = await loadSlotDisplayNames();
+  return toGuidelinesTreeApi(cached, display);
 }
 
 export async function handleGuidelinesRequest(
@@ -148,7 +155,7 @@ export async function handleGuidelinesRequest(
   if (request.method === "GET" && url === "/guidelines") {
     const cached = await loadTree();
     const legacy = toLegacyGuidelineList(cached);
-    const tree = toGuidelinesTreeApi(cached);
+    const tree = await loadGuidelinesTreeApi();
     response.writeHead(200, { "content-type": "application/json" });
     response.end(
       JSON.stringify({
@@ -341,7 +348,8 @@ export async function handleGuidelinesRequest(
         await writeProductBackground({
           productId: body.productId,
           content: body.content,
-          overwrite: body.overwrite
+          overwrite: body.overwrite,
+          sourceFilename: body.sourceFilename
         })
       );
     } catch {
@@ -362,7 +370,8 @@ export async function handleGuidelinesRequest(
           productId: body.productId,
           content: body.content,
           format: body.format,
-          overwrite: body.overwrite
+          overwrite: body.overwrite,
+          sourceFilename: body.sourceFilename
         })
       );
     } catch {
@@ -432,7 +441,8 @@ export async function handleGuidelinesRequest(
         await writeProductWritingGuide({
           productId: body.productId,
           content: body.content,
-          overwrite: body.overwrite
+          overwrite: body.overwrite,
+          sourceFilename: body.sourceFilename
         })
       );
     } catch {

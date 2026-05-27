@@ -5,6 +5,17 @@ import type { GuidelineLayer } from "@writer/contracts";
 
 import { guidelinesDir } from "./discovery";
 import { classifyProductFilename } from "./product-files";
+import {
+  clearCompanyBaseDisplayName,
+  clearProductDisplayNames,
+  clearProductSlotDisplayName,
+  clearSoftwareWritingDisplayName,
+  displayLabelFromSource,
+  setCompanyBaseDisplayName,
+  setProductSlotDisplayName,
+  setSoftwareWritingDisplayName,
+  type ProductSlotKind
+} from "./slot-display-names";
 
 export type WriteOutcome = { ok: true; filePath: string } | { ok: false; code: "conflict" | "invalid_filename" | "io_error"; message: string };
 
@@ -75,18 +86,36 @@ async function writeFileAt(
   }
 }
 
-export async function writeCompanyBase(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
+export async function writeCompanyBase(input: {
+  content: string;
+  overwrite?: boolean;
+  sourceFilename?: string;
+}): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   await mkdir(dir, { recursive: true });
   const target = join(dir, "company-base.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok) {
+    const label = displayLabelFromSource(input.sourceFilename);
+    if (label) await setCompanyBaseDisplayName(label);
+  }
+  return result;
 }
 
-export async function writeSoftwareWriting(input: { content: string; overwrite?: boolean }): Promise<WriteOutcome> {
+export async function writeSoftwareWriting(input: {
+  content: string;
+  overwrite?: boolean;
+  sourceFilename?: string;
+}): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   await mkdir(dir, { recursive: true });
   const target = join(dir, "software-writing.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok) {
+    const label = displayLabelFromSource(input.sourceFilename);
+    if (label) await setSoftwareWritingDisplayName(label);
+  }
+  return result;
 }
 
 export async function writeCompanyGlossary(input: {
@@ -129,6 +158,15 @@ export async function writeProductExtraFile(input: {
   return writeFileAt(target, dir, input.content, input.overwrite ?? true);
 }
 
+async function persistProductSlotLabel(
+  productId: string,
+  slot: ProductSlotKind,
+  sourceFilename: string | undefined
+): Promise<void> {
+  const label = displayLabelFromSource(sourceFilename);
+  if (label) await setProductSlotDisplayName(productId, slot, label);
+}
+
 async function writeClassifiedProductFile(
   productId: string,
   filename: string,
@@ -136,18 +174,24 @@ async function writeClassifiedProductFile(
 ): Promise<WriteOutcome> {
   const slot = classifyProductFilename(filename);
   if (slot.kind === "background") {
-    return writeProductBackground({ productId, content, overwrite: true });
+    const result = await writeProductBackground({ productId, content, overwrite: true });
+    if (result.ok) await persistProductSlotLabel(productId, "background", filename);
+    return result;
   }
   if (slot.kind === "glossary") {
-    return writeProductGlossary({
+    const result = await writeProductGlossary({
       productId,
       content,
       format: slot.format ?? (filename.endsWith(".csv") ? "csv" : "md"),
       overwrite: true
     });
+    if (result.ok) await persistProductSlotLabel(productId, "glossary", filename);
+    return result;
   }
   if (slot.kind === "writing-guide") {
-    return writeProductWritingGuide({ productId, content, overwrite: true });
+    const result = await writeProductWritingGuide({ productId, content, overwrite: true });
+    if (result.ok) await persistProductSlotLabel(productId, "writing-guide", filename);
+    return result;
   }
   return writeProductExtraFile({ productId, filename: slot.targetName ?? filename, content, overwrite: true });
 }
@@ -188,6 +232,7 @@ export async function writeProductBackground(input: {
   productId: string;
   content: string;
   overwrite?: boolean;
+  sourceFilename?: string;
 }): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const dirPath = productDir(dir, input.productId);
@@ -196,7 +241,9 @@ export async function writeProductBackground(input: {
   }
   await mkdir(dirPath, { recursive: true });
   const target = join(dirPath, "background.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok) await persistProductSlotLabel(input.productId, "background", input.sourceFilename);
+  return result;
 }
 
 export async function writeProductGlossary(input: {
@@ -204,6 +251,7 @@ export async function writeProductGlossary(input: {
   content: string;
   format: "csv" | "md";
   overwrite?: boolean;
+  sourceFilename?: string;
 }): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const dirPath = productDir(dir, input.productId);
@@ -221,6 +269,7 @@ export async function writeProductGlossary(input: {
       // ignore
     }
   }
+  if (result.ok) await persistProductSlotLabel(input.productId, "glossary", input.sourceFilename);
   return result;
 }
 
@@ -228,6 +277,7 @@ export async function writeProductWritingGuide(input: {
   productId: string;
   content: string;
   overwrite?: boolean;
+  sourceFilename?: string;
 }): Promise<WriteOutcome> {
   const dir = guidelinesDir();
   const dirPath = productDir(dir, input.productId);
@@ -236,7 +286,9 @@ export async function writeProductWritingGuide(input: {
   }
   await mkdir(dirPath, { recursive: true });
   const target = join(dirPath, "writing-guide.md");
-  return writeFileAt(target, dir, input.content, input.overwrite);
+  const result = await writeFileAt(target, dir, input.content, input.overwrite);
+  if (result.ok) await persistProductSlotLabel(input.productId, "writing-guide", input.sourceFilename);
+  return result;
 }
 
 export async function deleteProduct(productId: string): Promise<WriteOutcome> {
@@ -250,6 +302,7 @@ export async function deleteProduct(productId: string): Promise<WriteOutcome> {
   }
   try {
     await rm(dirPath, { recursive: true, force: true });
+    await clearProductDisplayNames(productId);
     return { ok: true, filePath: dirPath };
   } catch (err) {
     return { ok: false, code: "io_error", message: String(err) };
@@ -290,6 +343,7 @@ export async function deleteProductFile(
   if (!removed) {
     return { ok: false, code: "invalid_filename", message: `No ${kind} file found for product.` };
   }
+  await clearProductSlotDisplayName(productId, kind);
   return { ok: true, filePath: removed };
 }
 
@@ -366,6 +420,7 @@ export async function deleteCompanyBase(): Promise<WriteOutcome> {
   }
   try {
     await unlink(target);
+    await clearCompanyBaseDisplayName();
     return { ok: true, filePath: target };
   } catch (err) {
     return { ok: false, code: "io_error", message: String(err) };
@@ -383,6 +438,7 @@ export async function deleteSoftwareWriting(): Promise<WriteOutcome> {
   }
   try {
     await unlink(target);
+    await clearSoftwareWritingDisplayName();
     return { ok: true, filePath: target };
   } catch (err) {
     return { ok: false, code: "io_error", message: String(err) };
