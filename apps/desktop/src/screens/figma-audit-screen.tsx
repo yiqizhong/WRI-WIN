@@ -1,7 +1,8 @@
 import { Frame, ListOrdered } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
@@ -20,10 +21,14 @@ import type { CreateFigmaSessionInput, FigmaAuditMode } from "@writer/contracts"
 import { FigmaAuditWorkflowTabs, type WorkflowSubmitPayload } from "../figma-audit-workflow-tabs";
 import { DaemonClientError } from "../daemon-client";
 import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
-import { WriterPageGrid, WriterPageGridHalf } from "../layout/writer-grid";
 import { useWorkspace } from "../workspace-context";
 
 const NONE_PRODUCT = "__none__";
+
+type FigmaAuditLayoutPhase = "default" | "split";
+
+/** Workflow / Frame panel visibility lag after session resize begins */
+const FIGMA_AUDIT_FRAME_VISIBLE_DELAY_MS = 100;
 
 const AUDIT_MODE_OPTIONS = [
   { value: "single_frame" as const, label: "Single frame", icon: Frame },
@@ -35,7 +40,7 @@ function AuditModeChoice({
   disabled,
   onChange
 }: {
-  mode: FigmaAuditMode;
+  mode: FigmaAuditMode | null;
   disabled?: boolean;
   onChange: (mode: FigmaAuditMode) => void;
 }) {
@@ -108,12 +113,62 @@ export function FigmaAuditScreen() {
   const [productId, setProductId] = useState<string>(NONE_PRODUCT);
   const [featureName, setFeatureName] = useState("");
   const [description, setDescription] = useState("");
-  const [mode, setMode] = useState<FigmaAuditMode>("single_frame");
+  const [mode, setMode] = useState<FigmaAuditMode | null>(null);
+  const [frameLayoutOpen, setFrameLayoutOpen] = useState(false);
+  const [layoutPhase, setLayoutPhase] = useState<FigmaAuditLayoutPhase>("default");
+  const layoutSplit = layoutPhase === "split";
+  const framePanelVisible = frameLayoutOpen && layoutSplit;
+  const frameVisibleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [frameUrl, setFrameUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const disabled = !workspaceReady || !daemonConnected || submitting;
+
+  useEffect(() => {
+    return () => {
+      if (frameVisibleTimeoutRef.current) {
+        clearTimeout(frameVisibleTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function clearFrameVisibleTimeout() {
+    if (frameVisibleTimeoutRef.current) {
+      clearTimeout(frameVisibleTimeoutRef.current);
+      frameVisibleTimeoutRef.current = null;
+    }
+  }
+
+  function handleAuditModeChange(nextMode: FigmaAuditMode) {
+    clearFrameVisibleTimeout();
+    setMode(nextMode);
+
+    if (layoutPhase === "split" && frameLayoutOpen) {
+      return;
+    }
+
+    setFrameLayoutOpen(false);
+    setLayoutPhase("default");
+
+    // Session resize starts on split; workflow panel becomes visible after a short delay.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setLayoutPhase("split");
+        frameVisibleTimeoutRef.current = setTimeout(() => {
+          setFrameLayoutOpen(true);
+          frameVisibleTimeoutRef.current = null;
+        }, FIGMA_AUDIT_FRAME_VISIBLE_DELAY_MS);
+      });
+    });
+  }
+
+  function resetToDefaultLayout() {
+    clearFrameVisibleTimeout();
+    setFrameLayoutOpen(false);
+    setMode(null);
+    setLayoutPhase("default");
+  }
   const auditProductLabel = formatAuditProductLabel(productId, products);
   const auditProductOptions = [
     { value: NONE_PRODUCT, label: "General purpose" },
@@ -223,8 +278,10 @@ export function FigmaAuditScreen() {
             <InlineAlert kind="error" title="Audit error" subtitle={error} onClose={() => setError(null)} />
           ) : null}
 
-          <WriterPageGrid className="w-full grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-start lg:gap-x-14 lg:gap-y-8">
-            <WriterPageGridHalf>
+          <div
+            className={cn("figma-audit-stage", layoutSplit && "figma-audit-stage--split")}
+          >
+            <div className="figma-audit-session-slot">
               <WorkflowGlassPanel title="Session">
                 <div className="flex flex-col gap-4">
                   <WriterFormField label="Audit product (optional)" htmlFor="figma-product">
@@ -262,53 +319,70 @@ export function FigmaAuditScreen() {
                   </WriterFormField>
 
                   <WriterFormField label="Audit type">
-                    <AuditModeChoice mode={mode} disabled={disabled} onChange={setMode} />
+                    <AuditModeChoice mode={mode} disabled={disabled} onChange={handleAuditModeChange} />
                   </WriterFormField>
                 </div>
               </WorkflowGlassPanel>
-            </WriterPageGridHalf>
+            </div>
 
-            <div
-              role="presentation"
-              aria-hidden
-              className="writer-home-divider-vertical hidden justify-self-center self-start lg:block"
-            />
+            {framePanelVisible ? (
+              <Fragment>
+                <div
+                  role="presentation"
+                  aria-hidden
+                  className="figma-audit-stage-divider writer-home-divider-vertical"
+                />
 
-            <WriterPageGridHalf>
-              <WorkflowGlassPanel title={mode === "single_frame" ? "Frame" : "Workflow"}>
-                {mode === "single_frame" ? (
-                  <div className="flex flex-col gap-4">
-                    <WriterFormField label="Frame URL" htmlFor="figma-frame-url">
-                      <WriterFormInput
-                        id="figma-frame-url"
-                        type="url"
-                        value={frameUrl}
-                        disabled={disabled}
-                        placeholder="https://www.figma.com/design/..."
-                        onChange={(event) => setFrameUrl(event.target.value)}
-                      />
-                    </WriterFormField>
-                    <WriterPrimaryButton
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => void submitSingleFrame()}
+                <div className="figma-audit-frame-rail figma-audit-frame-rail--visible">
+                  <div className="figma-audit-frame-slot">
+                    <WorkflowGlassPanel
+                      title={mode === "workflow" ? "Workflow" : "Frame"}
                     >
-                      {submitting ? "Starting…" : "Start audit"}
-                    </WriterPrimaryButton>
+                      {mode !== "workflow" ? (
+                        <div className="flex flex-col gap-4">
+                          <WriterFormField label="Frame URL" htmlFor="figma-frame-url">
+                            <WriterFormInput
+                              id="figma-frame-url"
+                              type="url"
+                              value={frameUrl}
+                              disabled={disabled}
+                              placeholder="https://www.figma.com/design/..."
+                              onChange={(event) => setFrameUrl(event.target.value)}
+                            />
+                          </WriterFormField>
+                          <WriterPrimaryButton
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => void submitSingleFrame()}
+                          >
+                            {submitting ? "Starting…" : "Start audit"}
+                          </WriterPrimaryButton>
+                        </div>
+                      ) : (
+                        <FigmaAuditWorkflowTabs
+                          disabled={disabled}
+                          onParseUrl={(url) => daemonClient.parseFigmaUrl(url)}
+                          onListPageFrames={(pageUrl) => daemonClient.listPageFrames(pageUrl)}
+                          onSubmit={(payload) => void submitWorkflow(payload)}
+                        />
+                      )}
+                    </WorkflowGlassPanel>
                   </div>
-                ) : (
-                  <FigmaAuditWorkflowTabs
-                    disabled={disabled}
-                    onParseUrl={(url) => daemonClient.parseFigmaUrl(url)}
-                    onListPageFrames={(pageUrl) => daemonClient.listPageFrames(pageUrl)}
-                    onSubmit={(payload) => void submitWorkflow(payload)}
-                  />
-                )}
-              </WorkflowGlassPanel>
-            </WriterPageGridHalf>
-          </WriterPageGrid>
+                </div>
+              </Fragment>
+            ) : null}
+          </div>
         </WorkflowScreenShell>
       </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        className="writer-pill-ghost fixed bottom-6 right-6 z-50 border-dashed border-[#e5f1ff]/35 text-[#e5f1ff]/70"
+        onClick={() => resetToDefaultLayout()}
+      >
+        Debug: Default view
+      </Button>
     </div>
   );
 }

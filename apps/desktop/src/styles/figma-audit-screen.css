@@ -1,0 +1,209 @@
+/* Frame rail: transform/opacity. Session: transform + width morph (centered → left column). */
+@property --figma-audit-session-panel-width {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 40rem;
+}
+
+@property --figma-audit-session-shift {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.figma-audit-stage {
+  --figma-audit-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --figma-audit-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --figma-audit-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --figma-audit-enter-duration: 320ms;
+  --figma-audit-layout-duration: 420ms;
+  --figma-audit-frame-visible-delay: 100ms;
+  /* When both Session layout + Workflow enter finish (from split start) */
+  --figma-audit-panels-settled-at: max(
+    var(--figma-audit-layout-duration),
+    calc(var(--figma-audit-frame-visible-delay) + var(--figma-audit-enter-duration))
+  );
+  /* Divider mounts with Workflow; opacity fades in just before panels fully settle */
+  --figma-audit-divider-opacity-lead: 100ms;
+  --figma-audit-divider-opacity-delay: calc(
+    var(--figma-audit-panels-settled-at) - var(--figma-audit-frame-visible-delay) -
+      var(--figma-audit-divider-opacity-lead)
+  );
+  --figma-audit-divider-opacity: 0.25;
+  --figma-audit-session-centered-max: 40rem;
+  --figma-audit-session-column-gap: clamp(1.5rem, 3vw, 3.5rem);
+  container-type: inline-size;
+  container-name: figma-audit-stage;
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-items: start;
+  overflow: clip;
+  gap: 0;
+}
+
+.figma-audit-stage--split {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: var(--figma-audit-session-column-gap);
+  row-gap: 2rem;
+  justify-items: stretch;
+}
+
+.figma-audit-session-slot {
+  --figma-audit-session-panel-width: min(100cqi, var(--figma-audit-session-centered-max));
+  --figma-audit-session-shift: calc((100cqi - var(--figma-audit-session-panel-width)) / 2);
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  width: var(--figma-audit-session-panel-width);
+  max-width: var(--figma-audit-session-panel-width);
+  justify-self: start;
+  position: relative;
+  z-index: 2;
+  transform: translateX(var(--figma-audit-session-shift));
+  transition:
+    transform var(--figma-audit-layout-duration) var(--figma-audit-ease-in-out),
+    width var(--figma-audit-layout-duration) var(--figma-audit-ease-in-out),
+    max-width var(--figma-audit-layout-duration) var(--figma-audit-ease-in-out),
+    --figma-audit-session-panel-width var(--figma-audit-layout-duration) var(--figma-audit-ease-in-out),
+    --figma-audit-session-shift var(--figma-audit-layout-duration) var(--figma-audit-ease-in-out);
+}
+
+/* Match Workflow column: both panels fill their equal 1fr grid tracks */
+.figma-audit-stage--split .figma-audit-session-slot {
+  --figma-audit-session-shift: 0px;
+  width: 100%;
+  max-width: 100%;
+  justify-self: stretch;
+}
+
+.figma-audit-stage-divider {
+  grid-column: 2;
+  display: none;
+  width: 0;
+  opacity: 0;
+  visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Divider mounts with Workflow; opacity only after Session + Workflow reach final position */
+@container figma-audit-stage (min-width: 52rem) {
+  .figma-audit-stage-divider {
+    display: block;
+    align-self: stretch;
+    min-height: 12rem;
+    width: 1px;
+    opacity: 0;
+    visibility: visible;
+    overflow: visible;
+    animation: figma-audit-divider-opacity-in 200ms var(--figma-audit-ease-out)
+      var(--figma-audit-divider-opacity-delay) forwards;
+  }
+
+  .figma-audit-stage-divider.writer-home-divider-vertical {
+    height: auto;
+  }
+}
+
+@keyframes figma-audit-divider-opacity-in {
+  to {
+    opacity: var(--figma-audit-divider-opacity);
+  }
+}
+
+/* Frame column: enters from the right edge of the stage (app content area) */
+.figma-audit-frame-rail {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  justify-self: stretch;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform var(--figma-audit-enter-duration) var(--figma-audit-ease-drawer),
+    opacity calc(var(--figma-audit-enter-duration) * 0.85) var(--figma-audit-ease-out);
+}
+
+.figma-audit-stage--split .figma-audit-frame-rail {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.figma-audit-frame-rail--visible {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+
+  @starting-style {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.figma-audit-frame-slot {
+  width: 100%;
+  min-width: 0;
+}
+
+@container figma-audit-stage (max-width: 51.99rem) {
+  .figma-audit-stage--split {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 2rem;
+  }
+
+  .figma-audit-stage--split .figma-audit-session-slot {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .figma-audit-stage--split .figma-audit-frame-rail {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .figma-audit-frame-rail--visible {
+    transform: translateY(0);
+
+    @starting-style {
+      transform: translateY(1.5rem);
+      opacity: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figma-audit-stage {
+    --figma-audit-layout-duration: 120ms;
+    --figma-audit-enter-duration: 120ms;
+    --figma-audit-divider-opacity-delay: calc(
+      var(--figma-audit-panels-settled-at) - var(--figma-audit-frame-visible-delay) -
+        var(--figma-audit-divider-opacity-lead)
+    );
+  }
+
+  .figma-audit-session-slot,
+  .figma-audit-frame-rail {
+    transition-duration: 120ms;
+  }
+
+  .figma-audit-session-slot {
+    transition-property: transform, width, max-width;
+  }
+
+  @container figma-audit-stage (min-width: 52rem) {
+    .figma-audit-stage-divider {
+      animation-duration: 120ms;
+    }
+  }
+}
