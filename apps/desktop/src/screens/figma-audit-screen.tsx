@@ -1,14 +1,12 @@
+import { Frame, ListOrdered } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
 import { InlineAlert } from "@/components/writer/inline-alert";
-import {
-  WRITER_MINIMAL_TAB_TRIGGER_CLASS,
-  WriterMinimalTabsList
-} from "@/components/writer/writer-minimal-tabs";
+import { GlassCard } from "@/components/writer/glass-card";
 import {
   WriterFormField,
   WriterFormInput,
@@ -27,8 +25,61 @@ import { useWorkspace } from "../workspace-context";
 
 const NONE_PRODUCT = "__none__";
 
-function isFigmaAuditMode(value: string): value is FigmaAuditMode {
-  return value === "single_frame" || value === "workflow";
+const AUDIT_MODE_OPTIONS = [
+  { value: "single_frame" as const, label: "Single frame", icon: Frame },
+  { value: "workflow" as const, label: "Workflow", icon: ListOrdered }
+];
+
+function AuditModeChoice({
+  mode,
+  disabled,
+  onChange
+}: {
+  mode: FigmaAuditMode;
+  disabled?: boolean;
+  onChange: (mode: FigmaAuditMode) => void;
+}) {
+  return (
+    <fieldset className="m-0 flex w-full min-w-0 flex-row gap-2 border-0 p-0">
+      <legend className="sr-only">Audit type</legend>
+      {AUDIT_MODE_OPTIONS.map((option) => {
+        const isSelected = mode === option.value;
+        const inputId = `figma-audit-mode-${option.value}`;
+        const Icon = option.icon;
+
+        return (
+          <GlassCard
+            key={option.value}
+            variant="outline"
+            selected={isSelected}
+            className="writer-agent-tile flex min-h-[44px] min-w-0 flex-1 basis-0 flex-col justify-center p-3"
+            onClick={disabled ? undefined : () => onChange(option.value)}
+          >
+            <div className="flex w-full min-w-0 items-center gap-2">
+              <input
+                type="radio"
+                id={inputId}
+                name="figma-audit-mode"
+                value={option.value}
+                checked={isSelected}
+                disabled={disabled}
+                className="writer-accent-radio shrink-0"
+                onChange={() => onChange(option.value)}
+                onClick={(event) => event.stopPropagation()}
+              />
+              <Icon className="size-4 shrink-0 text-[#e5f1ff]/70" strokeWidth={1.25} aria-hidden />
+              <Label
+                htmlFor={inputId}
+                className="min-w-0 flex-1 truncate text-[0.8125rem] font-normal leading-tight tracking-normal text-[#e5f1ff]/88"
+              >
+                {option.label}
+              </Label>
+            </div>
+          </GlassCard>
+        );
+      })}
+    </fieldset>
+  );
 }
 
 function formatAuditProductLabel(
@@ -209,6 +260,10 @@ export function FigmaAuditScreen() {
                       onChange={(event) => setDescription(event.target.value)}
                     />
                   </WriterFormField>
+
+                  <WriterFormField label="Audit type">
+                    <AuditModeChoice mode={mode} disabled={disabled} onChange={setMode} />
+                  </WriterFormField>
                 </div>
               </WorkflowGlassPanel>
             </WriterPageGridHalf>
@@ -220,29 +275,9 @@ export function FigmaAuditScreen() {
             />
 
             <WriterPageGridHalf>
-              <WorkflowGlassPanel className="writer-minimal-tabs w-full">
-                <Tabs
-                  value={mode}
-                  onValueChange={(next) => {
-                    if (next && isFigmaAuditMode(next)) {
-                      setMode(next);
-                    }
-                  }}
-                  className="flex w-full flex-col gap-6"
-                >
-                  <WriterMinimalTabsList>
-                    <TabsTrigger value="single_frame" className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}>
-                      Single frame
-                    </TabsTrigger>
-                    <TabsTrigger value="workflow" className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}>
-                      Workflow
-                    </TabsTrigger>
-                  </WriterMinimalTabsList>
-
-                  <TabsContent
-                    value="single_frame"
-                    className="flex w-full flex-col gap-4 data-[hidden]:hidden"
-                  >
+              <WorkflowGlassPanel title={mode === "single_frame" ? "Frame" : "Workflow"}>
+                {mode === "single_frame" ? (
+                  <div className="flex flex-col gap-4">
                     <WriterFormField label="Frame URL" htmlFor="figma-frame-url">
                       <WriterFormInput
                         id="figma-frame-url"
@@ -260,20 +295,15 @@ export function FigmaAuditScreen() {
                     >
                       {submitting ? "Starting…" : "Start audit"}
                     </WriterPrimaryButton>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="workflow"
-                    className="flex w-full flex-col data-[hidden]:hidden"
-                  >
-                    <FigmaAuditWorkflowTabs
-                      disabled={disabled}
-                      onParseUrl={(url) => daemonClient.parseFigmaUrl(url)}
-                      onListPageFrames={(pageUrl) => daemonClient.listPageFrames(pageUrl)}
-                      onSubmit={(payload) => void submitWorkflow(payload)}
-                    />
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                ) : (
+                  <FigmaAuditWorkflowTabs
+                    disabled={disabled}
+                    onParseUrl={(url) => daemonClient.parseFigmaUrl(url)}
+                    onListPageFrames={(pageUrl) => daemonClient.listPageFrames(pageUrl)}
+                    onSubmit={(payload) => void submitWorkflow(payload)}
+                  />
+                )}
               </WorkflowGlassPanel>
             </WriterPageGridHalf>
           </WriterPageGrid>
