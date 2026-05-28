@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WriterDialogClose } from "@/components/writer/writer-dialog-close";
+import { useModalLatch } from "@/lib/use-modal-latch";
 import { cn } from "@/lib/utils";
 
 export type WriterModalProps = {
@@ -23,7 +24,39 @@ export type WriterModalProps = {
 };
 
 /**
- * Writer shell modal — fixed chrome: title + close (X) header, scrollable body, right-aligned footer.
+ * **The standard modal shell for the entire Writer app.**
+ *
+ * Every dialog in the app must use this component. It provides:
+ * - Fixed chrome: title + close (×) header, scrollable body, right-aligned footer.
+ * - 600ms Apple-style enter/exit animation (opacity + 8 px translateY) via CSS,
+ *   driven by Base UI's `data-open` / `data-closed` attributes.
+ * - Content stability: `title`, `description`, and `footer` are latched via
+ *   `useModalLatch` so they stay frozen during the exit animation even when the
+ *   parent clears state immediately in `onOpenChange`.
+ *
+ * ### Content stability contract
+ * Parent state may be cleared synchronously inside `onOpenChange`:
+ * ```tsx
+ * onOpenChange={(open) => { if (!open) setMyData(null); }}
+ * ```
+ * `WriterModal` guarantees its own header and footer remain visible throughout
+ * the closing animation. For **dynamic body content** derived from parent state,
+ * each modal component should call `useModalLatch` on those props:
+ * ```tsx
+ * const latchedName = useModalLatch(open, name);
+ * ```
+ *
+ * ### Example
+ * ```tsx
+ * <WriterModal
+ *   open={open}
+ *   onOpenChange={(open) => { if (!open) setData(null); }}
+ *   title="My dialog"
+ *   footer={<WriterPrimaryButton onClick={handleSave}>Save</WriterPrimaryButton>}
+ * >
+ *   <p>Body content here</p>
+ * </WriterModal>
+ * ```
  */
 export function WriterModal({
   open,
@@ -34,15 +67,9 @@ export function WriterModal({
   footer,
   contentClassName,
 }: WriterModalProps) {
-  // Keep header copy stable while the exit animation runs (parents often clear data in onOpenChange).
-  const [latchedTitle, setLatchedTitle] = useState(title);
-  const [latchedDescription, setLatchedDescription] = useState(description);
-
-  useEffect(() => {
-    if (!open) return;
-    setLatchedTitle(title);
-    setLatchedDescription(description);
-  }, [open, title, description]);
+  const latchedTitle = useModalLatch(open, title);
+  const latchedDescription = useModalLatch(open, description);
+  const latchedFooter = useModalLatch(open, footer);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -68,8 +95,8 @@ export function WriterModal({
           <div className="writer-modal-surface__scroll">{children}</div>
         ) : null}
 
-        {footer ? (
-          <DialogFooter className="writer-modal-footer">{footer}</DialogFooter>
+        {latchedFooter ? (
+          <DialogFooter className="writer-modal-footer">{latchedFooter}</DialogFooter>
         ) : null}
       </DialogContent>
     </Dialog>

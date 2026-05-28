@@ -12,6 +12,7 @@
   --writer-modal-motion-duration: 600ms;
   --writer-modal-motion-duration-out: 600ms;
   --writer-modal-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --writer-modal-footer-button-height: 2rem;
 }
 
 @keyframes writer-modal-overlay-in {
@@ -219,6 +220,24 @@
   justify-content: flex-end !important;
   border-top: 1px solid rgb(229 241 255 / 10%);
   padding-top: 1rem !important;
+}
+
+/* Footer actions — one compact height for primary + ghost pills (Save, Create, Delete, …) */
+.writer-modal-footer .writer-primary-button,
+.writer-modal-footer .writer-pill-ghost {
+  box-sizing: border-box;
+  min-height: var(--writer-modal-footer-button-height);
+  height: var(--writer-modal-footer-button-height);
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.writer-modal-footer .writer-pill-ghost {
+  gap: 0.375rem;
 }
 
 .writer-modal-id-field {

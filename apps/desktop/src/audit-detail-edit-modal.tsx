@@ -5,6 +5,7 @@ import { WriterFormTextarea } from "@/components/writer/writer-form-field";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { WriterPageStack } from "@/layout/writer-grid";
 import { WriterHomeDivider } from "@/layout/writer-headings";
+import { useModalLatch } from "@/lib/use-modal-latch";
 
 type AuditDetailEditModalProps = {
   open: boolean;
@@ -24,11 +25,13 @@ export function AuditDetailEditModal({
   onSave
 }: AuditDetailEditModalProps) {
   const [draft, setDraft] = useState(value);
+  const latchedOriginal = useModalLatch(open, original);
+  const latchedAiSuggestion = useModalLatch(open, aiSuggestion);
 
+  // Reset the editable draft each time the modal opens with new source data.
   useEffect(() => {
-    if (open) {
-      setDraft(value);
-    }
+    if (!open) return;
+    setDraft(value);
   }, [open, value]);
 
   return (
@@ -52,7 +55,7 @@ export function AuditDetailEditModal({
         <section className="flex flex-col gap-1">
           <h3 className="writer-home-text writer-home-section-title m-0">Original</h3>
           <p className="writer-home-text m-0 text-[18px] leading-[1.45]" style={{ color: "#c7d4e6" }}>
-            {original}
+            {latchedOriginal}
           </p>
         </section>
 
@@ -61,7 +64,7 @@ export function AuditDetailEditModal({
         <section className="flex flex-col gap-1">
           <h3 className="writer-home-text writer-home-section-title m-0">AI suggestion</h3>
           <p className="writer-home-text m-0 text-[18px] leading-[1.45]" style={{ color: "#c7d4e6" }}>
-            {aiSuggestion}
+            {latchedAiSuggestion}
           </p>
         </section>
 

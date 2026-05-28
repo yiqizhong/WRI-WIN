@@ -650,7 +650,6 @@ export function GuidelinesScreen() {
           title="Add product"
           footer={
             <WriterPrimaryButton
-              className="h-8 px-4 py-0 text-sm"
               disabled={busy || !newProductId.trim() || collectNewProductFiles(newProductSlots).length === 0}
               onClick={() => void submitAddProduct()}
             >

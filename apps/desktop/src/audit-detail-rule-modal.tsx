@@ -1,5 +1,6 @@
 import { WriterModal } from "@/components/writer/writer-modal";
 import { WriterPageStack } from "@/layout/writer-grid";
+import { useModalLatch } from "@/lib/use-modal-latch";
 
 type AuditDetailRuleModalProps = {
   open: boolean;
@@ -66,7 +67,17 @@ export function AuditDetailRuleModal({
   aiSuggestion,
   rationale
 }: AuditDetailRuleModalProps) {
-  const bullets = buildTraceBullets({ original, aiSuggestion, rationale });
+  // Latch each prop individually so bullet text stays frozen during the exit animation
+  // even if the parent clears state immediately in onOpenChange.
+  const latchedOriginal = useModalLatch(open, original);
+  const latchedAiSuggestion = useModalLatch(open, aiSuggestion);
+  const latchedRationale = useModalLatch(open, rationale);
+
+  const bullets = buildTraceBullets({
+    original: latchedOriginal,
+    aiSuggestion: latchedAiSuggestion,
+    rationale: latchedRationale
+  });
 
   return (
     <WriterModal open={open} onOpenChange={onOpenChange} title={layerLabel}>
