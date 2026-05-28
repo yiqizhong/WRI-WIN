@@ -33,6 +33,31 @@ export function parseMetadataXml(xml: string): MetadataXmlNode[] {
   return roots.map((element) => elementToNode(element, [])).filter((node): node is MetadataXmlNode => node !== null);
 }
 
+export type MetadataInstanceRef = {
+  id: string;
+  name: string;
+  path: string[];
+};
+
+export function collectInstanceRefs(nodes: MetadataXmlNode[]): MetadataInstanceRef[] {
+  const refs: MetadataInstanceRef[] = [];
+
+  function walk(node: MetadataXmlNode): void {
+    if (node.type.toUpperCase() === "INSTANCE") {
+      refs.push({ id: node.id, name: node.name, path: node.path });
+    }
+    for (const child of node.children) {
+      walk(child);
+    }
+  }
+
+  for (const root of nodes) {
+    walk(root);
+  }
+
+  return refs;
+}
+
 export function collectTextRefs(nodes: MetadataXmlNode[]): MetadataTextRef[] {
   const refs: MetadataTextRef[] = [];
 
@@ -217,13 +242,13 @@ function parseElement(source: string, start: number): { element: XmlElement; ind
   let index = close + 1;
 
   if (!selfClosing) {
-    const endTag = `</${tag}>`;
-    const endIndex = source.indexOf(endTag, index);
+    const endIndex = findMatchingCloseTag(source, tag, index);
 
     if (endIndex === -1) {
       return { element: { tag, attrs, children }, index };
     }
 
+    const endTag = `</${tag}>`;
     const inner = source.slice(index, endIndex);
     let childStart = 0;
 
@@ -268,4 +293,50 @@ function parseAttributes(fragment: string): Record<string, string> {
 
 function findNextTagStart(source: string, from: number): number {
   return source.indexOf("<", from);
+}
+
+/**
+ * Find the position of the closing tag that matches the opening tag at the
+ * current nesting depth. `source.indexOf` alone finds the FIRST occurrence,
+ * which is wrong when the tag name is reused by nested children (e.g. every
+ * Figma MCP node rendered as `<node ...>`). This function counts depth so it
+ * returns the truly matching close.
+ */
+function findMatchingCloseTag(source: string, tag: string, fromIndex: number): number {
+  const openTag = `<${tag}`;
+  const closeTag = `</${tag}>`;
+  let depth = 1;
+  let pos = fromIndex;
+
+  while (depth > 0) {
+    const nextClose = source.indexOf(closeTag, pos);
+    if (nextClose === -1) return -1;
+
+    // Count every *non-self-closing* opening of the same tag that appears
+    // before this candidate close.
+    let scan = pos;
+    while (scan < nextClose) {
+      const nextOpen = source.indexOf(openTag, scan);
+      if (nextOpen === -1 || nextOpen >= nextClose) break;
+
+      // Ensure the char after the tag name is whitespace or '>' (not '/' and
+      // not a longer tag name like <nodeGroup>).
+      const charAfter = source[nextOpen + openTag.length];
+      if (charAfter === ">" || charAfter === " " || charAfter === "\t" || charAfter === "\n" || charAfter === "\r") {
+        // Only count it as an opening if it is NOT self-closing.
+        const closingAngle = source.indexOf(">", nextOpen + openTag.length);
+        const isSelfClosing = closingAngle !== -1 && source[closingAngle - 1] === "/";
+        if (!isSelfClosing) {
+          depth++;
+        }
+      }
+      scan = nextOpen + 1;
+    }
+
+    depth--;
+    if (depth === 0) return nextClose;
+    pos = nextClose + closeTag.length;
+  }
+
+  return -1;
 }

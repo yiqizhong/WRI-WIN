@@ -151,7 +151,7 @@ describe("daemon integration smoke", () => {
     testState.mcp.figmaClient = {
       connect: async () => ({ ok: true }),
       listTools: async () => [{ name: "get_metadata" }],
-      callTool: async (name: string) => {
+      callTool: async (name: string, _args: Record<string, unknown>) => {
         if (name === "get_metadata") {
           return {
             ok: true,
@@ -237,6 +237,13 @@ describe("daemon integration smoke", () => {
       })
     });
     const session = (await sessionRes.json()) as { id: string };
+
+    // beforeAll's refreshAgentDetection may have selected a real, locally
+    // installed agent CLI as the active adapter. The Figma audit now launches
+    // an LLM run, so leaving a live adapter active would invoke that CLI and
+    // hang this test. Clear it so the audit exercises its deterministic
+    // stub/seed fallback path (which is what this smoke test asserts on).
+    testState.store.setActiveAdapterId(null);
 
     const auditRes = await fetch(`${baseUrl}/review/audit/run`, {
       method: "POST",

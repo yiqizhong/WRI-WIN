@@ -19,13 +19,17 @@ const FLOW_METADATA = `
 </frame>
 `;
 
-function createFakeCaller(options: {
+type FakeCallerOptions = {
   status?: McpCaller["status"];
   metadata?: string;
   designContextByNode?: Record<string, string>;
   failDesignContextFor?: string;
   failReadFor?: string;
-}): McpCaller {
+  /** Nodes returned by the frame scan (use_figma with `return { texts }`). */
+  scannedTextNodes?: Array<{ id: string; name: string; characters: string; path: string[]; visible: boolean }>;
+};
+
+function createFakeCaller(options: FakeCallerOptions): McpCaller {
   const metadata = options.metadata ?? FRAME_METADATA;
   const designContextByNode = options.designContextByNode ?? {
     "1:11": "Continue to checkout",
@@ -40,6 +44,14 @@ function createFakeCaller(options: {
         return {
           ok: true,
           result: { content: [{ type: "text", text: metadata }] }
+        };
+      }
+
+      if (name === "use_figma" && String(args.code).includes("return { texts }")) {
+        const texts = options.scannedTextNodes ?? [];
+        return {
+          ok: true,
+          result: { content: [{ type: "text", text: JSON.stringify({ texts }) }] }
         };
       }
 
@@ -95,6 +107,20 @@ function createFakeCaller(options: {
   };
 }
 
+// Real Figma MCP returns all elements with the same <node> tag, differentiated
+// only by the `type` attribute. Naive indexOf("</node>") finds the FIRST closing
+// tag rather than the matching one, so TEXT siblings after any non-self-closing
+// sibling are silently dropped.
+const UNIFORM_TAG_METADATA = `
+<node id="88:1" name="88" type="FRAME">
+  <node id="88:2" name="Background" type="RECTANGLE"></node>
+  <node id="88:3" name="Title" type="TEXT"></node>
+  <node id="88:4" name="Group" type="GROUP">
+    <node id="88:5" name="Subtitle" type="TEXT"></node>
+  </node>
+</node>
+`;
+
 describe("figma metadata xml", () => {
   it("collects TEXT nodes with ancestor paths", () => {
     const refs = collectTextRefs(parseMetadataXml(FRAME_METADATA));
@@ -113,6 +139,45 @@ describe("figma metadata xml", () => {
     const nodes = parseMetadataXml(FRAME_METADATA);
     expect(findMetadataNodeById(nodes, "1:11")?.name).toBe("Primary CTA");
     expect(findMetadataNodeById(nodes, "missing")).toBeUndefined();
+  });
+
+  it("collects TEXT nodes when all elements share the same tag name (real Figma MCP format)", () => {
+    const refs = collectTextRefs(parseMetadataXml(UNIFORM_TAG_METADATA));
+    const ids = refs.map((r) => r.id);
+    expect(ids).toContain("88:3");
+    expect(ids).toContain("88:5");
+    expect(refs).toHaveLength(2);
+  });
+
+  it("preserves sibling TEXT nodes after a non-self-closing sibling", () => {
+    const xml = `
+<node id="1:1" name="Frame" type="FRAME">
+  <node id="1:2" name="Rect" type="RECTANGLE"></node>
+  <node id="1:3" name="Label" type="TEXT"></node>
+</node>
+`;
+    const refs = collectTextRefs(parseMetadataXml(xml));
+    expect(refs.map((r) => r.id)).toContain("1:3");
+  });
+
+  it("places TEXT nodes as children of the correct parent (hierarchy correctness)", () => {
+    // 88:3 should be a direct child of 88:1, and 88:5 a child of 88:4.
+    // Without depth-aware closing tag matching the parser promotes them
+    // to root level, breaking path resolution and findMetadataNodeById subtree search.
+    const nodes = parseMetadataXml(UNIFORM_TAG_METADATA);
+    const frame = findMetadataNodeById(nodes, "88:1");
+    expect(frame).toBeDefined();
+    const childIds = frame!.children.map((c) => c.id);
+    expect(childIds).toContain("88:3");
+    expect(childIds).toContain("88:4");
+    const group = frame!.children.find((c) => c.id === "88:4");
+    expect(group?.children.map((c) => c.id)).toContain("88:5");
+  });
+
+  it("records correct ancestor path for nested TEXT nodes", () => {
+    const refs = collectTextRefs(parseMetadataXml(UNIFORM_TAG_METADATA));
+    const subtitle = refs.find((r) => r.id === "88:5");
+    expect(subtitle?.path).toEqual(["88", "Group", "Subtitle"]);
   });
 });
 
@@ -241,5 +306,34 @@ describe("extractFigmaTextNodesViaMcp", () => {
         expect.objectContaining({ id: "1:12" })
       ])
     );
+  });
+
+  it("extracts TEXT nodes inside component instances (not exposed by get_metadata XML)", async () => {
+    // Simulates a Figma frame where get_metadata only returns the INSTANCE node
+    // as a leaf — the text nodes inside it are absent from the XML.
+    const metadata = `
+<node id="1:10" name="Login" type="FRAME">
+  <node id="1:20" name="Card" type="INSTANCE"></node>
+</node>
+`;
+    const scannedTextNodes = [
+      { id: "I1:20;5:1", name: "Heading", characters: "Sign in", path: ["Login", "Card", "Heading"], visible: true },
+      { id: "I1:20;5:2", name: "Subtext", characters: "Enter your details", path: ["Login", "Card", "Subtext"], visible: true }
+    ];
+
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata, scannedTextNodes })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const ids = result.extraction.nodes.map((n) => n.id);
+    expect(ids).toContain("I1:20;5:1");
+    expect(ids).toContain("I1:20;5:2");
+
+    const heading = result.extraction.nodes.find((n) => n.id === "I1:20;5:1");
+    expect(heading?.characters).toBe("Sign in");
   });
 });

@@ -36,18 +36,18 @@ function buildTraceBullets({
   const bullets: string[] = [];
 
   if (unchanged) {
-    bullets.push("Assessment: AI keeps this copy unchanged.");
+    bullets.push("Assessment: No changes suggested for this copy.");
     bullets.push(
       rationaleLines[0]
-        ? `Why it works: ${rationaleLines[0]}`
-        : "Why it works: The copy already matches the active writing rules and glossary."
+        ? rationaleLines[0]
+        : "Automated rule checks found no issues with this copy."
     );
   } else {
-    bullets.push("Assessment: AI suggests revising this copy.");
+    bullets.push("Assessment: A revision is suggested for this copy.");
     bullets.push(
       rationaleLines[0]
-        ? `Why change is needed: ${rationaleLines[0]}`
-        : "Why change is needed: The current copy can better align with the active writing rules."
+        ? `Why: ${rationaleLines[0]}`
+        : "The current copy can better align with the active writing rules."
     );
   }
 

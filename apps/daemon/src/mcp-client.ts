@@ -168,6 +168,22 @@ export function createMcpClient(
           result
         };
       } catch (error) {
+        if (isAuthRequiredError(error)) {
+          // Token expired mid-session — tear down the client so the next call
+          // reports "not connected" rather than silently failing again.
+          protocolClient = null;
+          return {
+            ok: false,
+            diagnostic: {
+              code: "needs_auth",
+              severity: "warning",
+              message: `Figma MCP authentication expired during ${name}.`,
+              recoveryAction: "Click Connect Figma to sign in again.",
+              command: normalizedConfig.url ?? normalizedConfig.command
+            }
+          };
+        }
+
         const message = error instanceof Error ? error.message : "MCP tool call failed.";
         return {
           ok: false,

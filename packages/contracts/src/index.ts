@@ -265,11 +265,12 @@ export type {
 } from "./guideline-upload";
 
 export {
+  guidelineSourceSchema,
   parseRewriteCandidate,
   rewriteCandidateListSchema,
   rewriteCandidateSchema
 } from "./rewrite-candidate";
-export type { RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
+export type { GuidelineSource, RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
 
 export {
   figmaReviewScopeSchema,

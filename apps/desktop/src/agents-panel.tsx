@@ -420,12 +420,19 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                   >
                     <div className="flex min-w-0 flex-1 basis-0 flex-row items-center gap-3">
                       <McpServerLogo server={server} />
-                      <Label
-                        htmlFor={`mcp-${server.id}`}
-                        className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-normal"
-                      >
-                        {server.name}
-                      </Label>
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <Label
+                          htmlFor={`mcp-${server.id}`}
+                          className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-normal"
+                        >
+                          {server.name}
+                        </Label>
+                        {server.status === "connected" && (server.tools?.length ?? 0) > 0 ? (
+                          <span className="text-xs text-[#e5f1ff]/40">
+                            {server.tools!.length} tools
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className={classNames(hugHeight, "flex shrink-0 flex-row items-center justify-end gap-3")}>
                       {problemBadge ? (

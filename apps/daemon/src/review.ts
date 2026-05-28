@@ -23,10 +23,6 @@ import {
   toSurfaceCopy
 } from "@writer/review-core";
 
-import { getCachedTree } from "./guidelines/cache";
-import { discoverGuidelines } from "./guidelines/discovery";
-import { buildResolvedTree } from "./guidelines/inheritance";
-import { buildPasteTextGuidelineSnapshot } from "./guidelines/paste-text-snapshot";
 import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import type { DaemonState } from "./state";
 import { createSession } from "./state";
@@ -95,12 +91,6 @@ export async function createPastedTextSession(state: DaemonState, input: unknown
 
 export async function createFigmaReviewSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
   const parsed = parseCreateFigmaSessionInput(input);
-  const guidelineTree = getCachedTree() ?? (await discoverGuidelines());
-  const resolvedTree = buildResolvedTree(guidelineTree);
-
-  if (parsed.productId) {
-    buildPasteTextGuidelineSnapshot(resolvedTree, parsed.productId);
-  }
 
   if (parsed.mode === "single_frame") {
     const figma = parseFigmaUrl(parsed.url);
@@ -179,7 +169,8 @@ export function assembleSessionContext(state: DaemonState, input: unknown) {
     description: session.description,
     pastedText,
     textNodes,
-    designContext
+    designContext,
+    guidelineSnapshot: session.guidelineSnapshot
   });
 }
 

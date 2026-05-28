@@ -13,6 +13,7 @@ import {
 } from "@writer/contracts";
 import {
   type ConnectionDiagnostic,
+  type ThreeLayerGuidelineSnapshot,
   parseFigmaReviewScope
 } from "@writer/contracts";
 import {
@@ -22,7 +23,10 @@ import {
   runStubAudit,
   toExtractedCopy,
   toSurfaceCopy,
-  writeFigmaTextNodeViaMcp
+  writeFigmaTextNodeViaMcp,
+  buildFigmaAuditPrompt,
+  parseFigmaAuditResults,
+  accumulateAgentRunDisplayText
 } from "@writer/review-core";
 import { parseSpreadsheetFile } from "@writer/spreadsheet";
 
@@ -40,6 +44,7 @@ import {
 } from "./figma-extraction-cache";
 import type { DaemonState } from "./state";
 import { buildReportArtifact, repairStoredReviewChanges, transitionReviewChange } from "./review";
+import { launchAgentRun } from "./agents";
 
 const bulkTransitionSchema = z.object({
   changeIds: z.array(z.string().min(1)).min(1),
@@ -137,7 +142,10 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
   const items = buildAuditItems(session.sourceType, updatedScope);
 
   const project = state.store.listProjects().projects.find((item) => item.id === session.projectId);
-  const productId = session.productId ?? project?.activeProductId ?? null;
+  // Use the product the user explicitly selected for this session.
+  // Do NOT fall back to the project's active product — the user may have
+  // intentionally chosen "General purpose" (no product) for this audit.
+  const productId = session.productId ?? null;
   const guidelineTree = getCachedTree() ?? (await discoverGuidelines());
   const resolvedTree = buildResolvedTree(guidelineTree);
   const guidelineSnapshot = buildThreeLayerSnapshot(resolvedTree, productId);
@@ -145,7 +153,8 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
   const audit = runStubAudit({
     sessionId: session.id,
     sourceType: session.sourceType,
-    items
+    items,
+    guidelineSnapshot
   });
 
   for (const finding of audit.findings) {
@@ -173,6 +182,16 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     seedReviewChangesFromExtraction(state, session.id, updatedScope);
   }
 
+  // LLM audit — runs after the stub pass so we always have a baseline set of
+  // review changes even if the LLM call fails or no adapter is configured.
+  let llmAuditNodeCount = 0;
+  let llmAuditResultCount = 0;
+  if (session.sourceType === "figma" && !diagnostic) {
+    const llmResult = await runLlmAuditForFigma(state, session.id, updatedScope, guidelineSnapshot);
+    llmAuditNodeCount = llmResult.nodeCount;
+    llmAuditResultCount = llmResult.resultCount;
+  }
+
   const timestamp = new Date().toISOString();
   let frameScreenshots = session.frameScreenshots;
 
@@ -196,12 +215,17 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     type: "agent_run_lifecycle",
     timestamp: new Date().toISOString(),
     actor: "system",
-    summary: `Stub audit generated ${audit.findings.length} findings`,
+    summary:
+      llmAuditResultCount > 0
+        ? `LLM audit reviewed ${llmAuditNodeCount} nodes, applied ${llmAuditResultCount} suggestions`
+        : `Stub audit generated ${audit.findings.length} findings`,
     details: {
       sessionId: session.id,
       productId,
       brandVoice: project?.brandVoice ?? null,
-      findingCount: audit.findings.length
+      findingCount: audit.findings.length,
+      llmAuditNodeCount,
+      llmAuditResultCount
     }
   });
   await state.store.save();
@@ -212,6 +236,108 @@ export async function runSessionAudit(state: DaemonState, input: unknown) {
     changes: state.store.listReviewChanges(session.id),
     diagnostic
   };
+}
+
+/**
+ * Run an LLM-based audit for a Figma session.
+ *
+ * Sends all extracted text nodes together with the active writing guidelines
+ * to the configured LLM provider. The LLM returns a JSON list of
+ * suggestions — one per node — which are applied back to the existing
+ * ReviewChange records created by the stub pass and
+ * seedReviewChangesFromExtraction.
+ *
+ * Falls back gracefully (returns zero counts) if no LLM adapter is
+ * configured or if the LLM call fails for any reason.
+ */
+async function runLlmAuditForFigma(
+  state: DaemonState,
+  sessionId: string,
+  scope: Record<string, unknown>,
+  snapshot: ThreeLayerGuidelineSnapshot
+): Promise<{ nodeCount: number; resultCount: number }> {
+  const extraction = scope.extraction as
+    | { nodes?: Array<{ id: string; name?: string; characters: string }> }
+    | undefined;
+  const rawNodes = extraction?.nodes ?? [];
+
+  // Only audit nodes that contain actual text worth reviewing
+  const auditNodes = rawNodes
+    .filter((n) => {
+      const copy = toExtractedCopy(n.characters);
+      return copy.length > 0 && isExtractableFigmaText(copy);
+    })
+    .map((n) => ({
+      id: n.id,
+      name: n.name ?? n.id,
+      characters: toExtractedCopy(n.characters)
+    }));
+
+  if (auditNodes.length === 0) {
+    return { nodeCount: 0, resultCount: 0 };
+  }
+
+  const prompt = buildFigmaAuditPrompt(auditNodes, snapshot);
+
+  let rawText: string;
+  try {
+    const launch = await launchAgentRun(state, { sessionId, prompt });
+    const runResult = await launch.completion;
+    rawText = accumulateAgentRunDisplayText(runResult.events);
+  } catch (error) {
+    // No LLM adapter configured, adapter unavailable, or run failed —
+    // stub + seed results already in place serve as the fallback. Log the
+    // cause so this is debuggable instead of silently degrading.
+    console.warn("[writer-daemon] LLM Figma audit run failed; using stub/seed fallback", {
+      sessionId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return { nodeCount: auditNodes.length, resultCount: 0 };
+  }
+
+  const auditResults = parseFigmaAuditResults(rawText);
+
+  if (auditResults.length === 0) {
+    console.warn("[writer-daemon] LLM Figma audit returned no parseable results; using fallback", {
+      sessionId,
+      nodeCount: auditNodes.length
+    });
+    return { nodeCount: auditNodes.length, resultCount: 0 };
+  }
+
+  // Trust boundary: Figma text content is attacker-influenceable (untrusted
+  // files), so the LLM output is treated as untrusted too. We never execute it
+  // or apply it blindly — a suggestion can only update the `after` field of an
+  // *already-existing* ReviewChange matched by sourceId, and every change is
+  // human-reviewed before Figma write-back. Unmatched/hallucinated ids are
+  // dropped below.
+  const existingChanges = state.store.listReviewChanges(sessionId);
+  const changeBySourceId = new Map(existingChanges.map((c) => [c.sourceId, c]));
+  const timestamp = new Date().toISOString();
+  let applied = 0;
+
+  for (const result of auditResults) {
+    const change = changeBySourceId.get(result.id);
+    if (!change) continue;
+
+    const suggestion = toSurfaceCopy(result.suggestion);
+    const rationale = result.rationale || change.rationale;
+
+    state.store.upsertReviewChange({
+      ...change,
+      // When the LLM recommends a change, update "after" to its suggestion.
+      // When it says no change needed, keep before === after to make it clear
+      // the copy already conforms (rationale still gets updated).
+      after: result.changed && suggestion && suggestion !== change.before ? suggestion : change.before,
+      rationale,
+      updatedAt: timestamp,
+      updatedBy: "system"
+    });
+    applied++;
+  }
+
+  await state.store.save();
+  return { nodeCount: auditNodes.length, resultCount: applied };
 }
 
 function resolveFigmaScope(scope: Record<string, unknown>) {
@@ -279,7 +405,10 @@ function seedReviewChangesFromExtraction(
       status: "proposed",
       before,
       after: before,
-      rationale: "Extracted from Figma TEXT layer. No automated rewrite suggested.",
+      // Neutral baseline wording. A real assessment ("no issues" / a rewrite)
+      // is only written once an audit pass (LLM, or stub glossary match)
+      // actually covers this node — never claim "checked and clean" up front.
+      rationale: "Extracted from Figma. Awaiting AI review.",
       updatedAt: timestamp,
       updatedBy: "system"
     });

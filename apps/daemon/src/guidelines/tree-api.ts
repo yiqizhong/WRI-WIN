@@ -53,12 +53,14 @@ export function toGuidelinesTreeApi(
   tree: GuidelineTreeResult,
   display?: SlotDisplayNames
 ): GuidelinesTree {
-  const companyBaseOk = tree.companyBase?.status === "ok";
-  const softwareWritingOk = tree.softwareWriting?.status === "ok";
+  const companyBase = tree.companyBase;
+  const softwareWriting = tree.softwareWriting;
+  const companyBaseOk = companyBase != null && companyBase.status === "ok";
+  const softwareWritingOk = softwareWriting != null && softwareWriting.status === "ok";
 
   return {
-    companyBase: companyBaseOk ? tree.companyBase.value : null,
-    softwareWriting: softwareWritingOk ? tree.softwareWriting.value : null,
+    companyBase: companyBaseOk ? companyBase.value : null,
+    softwareWriting: softwareWritingOk ? softwareWriting.value : null,
     ...(companyBaseOk && display?.companyBase ? { companyBaseFilename: display.companyBase } : {}),
     ...(softwareWritingOk && display?.softwareWriting
       ? { softwareWritingFilename: display.softwareWriting }
