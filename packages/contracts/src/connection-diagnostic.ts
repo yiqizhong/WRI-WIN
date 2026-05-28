@@ -16,6 +16,10 @@ export const connectionDiagnosticCodeSchema = z.enum([
   "partial_read_failure",
   "write_conflict",
   "write_failed",
+  "not_installed",
+  "downloading",
+  "verifying",
+  "install_failed",
   "ready"
 ]);
 

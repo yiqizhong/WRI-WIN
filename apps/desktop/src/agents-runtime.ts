@@ -1,4 +1,5 @@
 import {
+  LOCAL_MODEL_ADAPTER_IDS,
   LLM_PROVIDER_ADAPTER_IDS,
   type AgentAdapter,
   type AgentAdapterList,
@@ -58,6 +59,34 @@ export function mergeLlmAdapters(
   });
 }
 
+export const LOCAL_MODEL_PLACEHOLDERS: AgentAdapter[] = [
+  {
+    id: "local-gemma",
+    displayName: "Gemma 4 E4B",
+    available: false,
+    runtimeKind: "local",
+    capabilities: []
+  }
+];
+
+/** Keep UI labels aligned with placeholders. */
+function canonicalizeLocalModelDisplay(adapter: AgentAdapter): AgentAdapter {
+  const preset = LOCAL_MODEL_PLACEHOLDERS.find((p) => p.id === adapter.id);
+  return preset ? { ...adapter, displayName: preset.displayName } : adapter;
+}
+
+export function mergeLocalModelAdapters(
+  current: AgentAdapter[],
+  fetched: AgentAdapter[]
+): AgentAdapter[] {
+  return LOCAL_MODEL_ADAPTER_IDS.map((id) => {
+    const next = fetched.find((a) => a.id === id);
+    const previous = current.find((a) => a.id === id);
+    const merged = next ?? previous ?? LOCAL_MODEL_PLACEHOLDERS.find((a) => a.id === id)!;
+    return canonicalizeLocalModelDisplay(merged);
+  });
+}
+
 export function mergeMcpServers(current: McpServer[], fetched: McpServer[]): McpServer[] {
   const figma =
     fetched.find((server) => server.id === "figma") ??
@@ -70,9 +99,10 @@ export function mergeMcpServers(current: McpServer[], fetched: McpServer[]): Mcp
 export function applyAgentAdapterList(
   current: AgentAdapter[],
   list: AgentAdapterList
-): { adapters: AgentAdapter[]; activeAdapterId: string | null } {
+): { llmAdapters: AgentAdapter[]; localModelAdapters: AgentAdapter[]; activeAdapterId: string | null } {
   return {
-    adapters: mergeLlmAdapters(current, list.adapters),
+    llmAdapters: mergeLlmAdapters(current, list.adapters),
+    localModelAdapters: mergeLocalModelAdapters(current, list.adapters),
     activeAdapterId: list.activeAdapterId
   };
 }

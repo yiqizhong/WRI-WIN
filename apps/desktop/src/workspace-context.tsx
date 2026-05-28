@@ -11,6 +11,7 @@ import type {
 
 import {
   applyAgentAdapterList,
+  LOCAL_MODEL_PLACEHOLDERS,
   LLM_PROVIDER_PLACEHOLDERS,
   MCP_SERVER_PLACEHOLDERS,
   mergeMcpServers,
@@ -60,6 +61,7 @@ export type WorkspaceContextValue = {
   connectFigma: () => Promise<void>;
   startPastedTextReview: () => Promise<void>;
   llmAdapters: AgentAdapter[];
+  localModelAdapters: AgentAdapter[];
   activeAdapterId: string | null;
   agentsLoadState: AgentsLoadState;
   agentsRefreshing: boolean;
@@ -96,6 +98,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [spreadsheetMapping, setSpreadsheetMapping] = useState<SpreadsheetMappingInput | null>(null);
   const [parsedFigmaScope, setParsedFigmaScope] = useState<string | null>(null);
   const [llmAdapters, setLlmAdapters] = useState<AgentAdapter[]>(LLM_PROVIDER_PLACEHOLDERS);
+  const [localModelAdapters, setLocalModelAdapters] = useState<AgentAdapter[]>(LOCAL_MODEL_PLACEHOLDERS);
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
   const [agentsLoadState, setAgentsLoadState] = useState<AgentsLoadState>("idle");
   const [agentsRefreshing, setAgentsRefreshing] = useState(false);
@@ -382,7 +385,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await daemonClient.setActiveAdapter(adapterId);
-      setLlmAdapters((current) => applyAgentAdapterList(current, result).adapters);
+      const applied = applyAgentAdapterList(llmAdapters, result);
+      setLlmAdapters(applied.llmAdapters);
+      setLocalModelAdapters(applied.localModelAdapters);
       setActiveAdapterId(result.activeAdapterId);
       setWorkflowMessage(`Active provider: ${result.activeAdapterId ?? adapterId}`);
     } catch (error) {
@@ -397,7 +402,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setAgentsRefreshing(true);
     try {
       const agentList = await daemonClient.refreshAgents();
-      setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
+      const applied = applyAgentAdapterList(llmAdapters, agentList);
+      setLlmAdapters(applied.llmAdapters);
+      setLocalModelAdapters(applied.localModelAdapters);
       setActiveAdapterId(agentList.activeAdapterId);
       setAgentsLoadState("ready");
       setWorkflowMessage("Agent detection refreshed.");
@@ -470,7 +477,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
+        const applied = applyAgentAdapterList(llmAdapters, agentList);
+        setLlmAdapters(applied.llmAdapters);
+        setLocalModelAdapters(applied.localModelAdapters);
         setActiveAdapterId(agentList.activeAdapterId);
         setMcpServers((current) => mergeMcpServers(current, mcpList.servers));
         setAgentsLoadState("ready");
@@ -532,6 +541,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     connectFigma,
     startPastedTextReview,
     llmAdapters,
+    localModelAdapters,
     activeAdapterId,
     agentsLoadState,
     agentsRefreshing,

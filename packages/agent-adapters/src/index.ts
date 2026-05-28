@@ -4,6 +4,8 @@ export { createStubAdapter } from "./stub-adapter";
 export { createCliAdapter, detectCliAdapter, smokeCliAdapter } from "./create-cli-adapter";
 export { getCliAdapterConfig, createProviderAdapters, CLI_ADAPTER_IDS } from "./adapter-configs";
 export { commandExists, runCliCommand } from "./cli-runner";
+export { createLocalGemmaAdapter, LOCAL_MODEL_ADAPTER_ID } from "./adapters/local-gemma-adapter";
+export type { LocalGemmaAdapterOptions } from "./adapters/local-gemma-adapter";
 export type {
   AgentAdapterImplementation,
   AgentDetectionResult,

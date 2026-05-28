@@ -104,6 +104,6 @@ describe("agents-runtime", () => {
     });
 
     expect(result.activeAdapterId).toBe("devin");
-    expect(result.adapters.some((adapter) => adapter.id === "cursor-agent")).toBe(true);
+    expect(result.llmAdapters.some((adapter: { id: string }) => adapter.id === "cursor-agent")).toBe(true);
   });
 });

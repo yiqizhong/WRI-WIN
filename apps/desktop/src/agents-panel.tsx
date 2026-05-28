@@ -151,6 +151,32 @@ function adapterRowBadge(
   return { type: "gray", label: "—" };
 }
 
+function localModelAdapterBadge(adapter: AgentAdapter, daemonConnected: boolean): StatusBadge {
+  if (!daemonConnected) {
+    return { type: "gray", label: "Offline" };
+  }
+
+  const code = adapter.diagnostic?.code;
+
+  if (adapter.available) {
+    return { type: "green", label: "Ready" };
+  }
+
+  if (code === "not_installed") {
+    return { type: "gray", label: "Not downloaded" };
+  }
+
+  if (code === "downloading" || code === "verifying") {
+    return { type: "gray", label: code === "verifying" ? "Verifying" : "Downloading" };
+  }
+
+  if (adapter.diagnostic?.severity === "error") {
+    return { type: "red", label: "Failed" };
+  }
+
+  return { type: "gray", label: "Not ready" };
+}
+
 function mcpConnectionBadge(server: McpServer, signingIn: boolean): StatusBadge {
   if (signingIn) {
     return { type: "gray", label: "Connecting" };
@@ -209,6 +235,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   const workspace = useWorkspace();
   const {
     llmAdapters,
+    localModelAdapters,
     activeAdapterId,
     agentsLoadState,
     agentsRefreshing,
@@ -219,6 +246,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     refreshAgentDetection,
     replaceMcpServers
   } = workspace;
+
+  const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
 
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 
@@ -294,6 +323,30 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     figmaAuthCancelRef.current = true;
     setFigmaAuthPending(false);
     setBusyMcpId(null);
+  }
+
+  async function downloadLocalModel(adapterId: string) {
+    setLocalModelLoading(adapterId);
+    try {
+      await client.startLocalModelDownload();
+      await refreshAgentDetection();
+    } catch {
+      // Status refreshes on next Refresh.
+    } finally {
+      setLocalModelLoading(null);
+    }
+  }
+
+  async function resetLocalModel(adapterId: string) {
+    setLocalModelLoading(adapterId);
+    try {
+      await client.resetLocalModel();
+      await refreshAgentDetection();
+    } catch {
+      // Status refreshes on next Refresh.
+    } finally {
+      setLocalModelLoading(null);
+    }
   }
 
   async function connectFigma(serverId: string) {
@@ -458,6 +511,86 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
               })}
             </fieldset>
           </WriterPageStack>
+
+          <div className="mt-8">
+          <WriterPageStack gap={3}>
+            <WriterSectionHeader
+              title="Local models"
+              description="Run inference on-device — no cloud API required."
+            />
+
+            <fieldset className="flex min-h-0 flex-col gap-3">
+              <legend className="sr-only">Local model selection</legend>
+              {localModelAdapters.map((adapter) => {
+                const isSelected = activeAdapterId === adapter.id;
+                const status = localModelAdapterBadge(adapter, stableConnected);
+                const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
+                const isLoading = localModelLoading === adapter.id;
+                const canSelect = stableConnected && adapter.available;
+
+                return (
+                  <GlassCard
+                    key={adapter.id}
+                    selected={isSelected}
+                    className="writer-agent-tile flex min-h-0 w-full flex-col gap-3 p-4"
+                    onClick={canSelect ? () => void setActiveLlmAdapter(adapter.id) : undefined}
+                  >
+                    <div className={rowBetween}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="radio"
+                          id={`radio-${adapter.id}`}
+                          name="writer-active-adapter"
+                          value={adapter.id}
+                          checked={isSelected}
+                          disabled={!canSelect}
+                          onChange={() => void setActiveLlmAdapter(adapter.id)}
+                          className="writer-accent-radio"
+                        />
+                        <Label
+                          htmlFor={`radio-${adapter.id}`}
+                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal"
+                        >
+                          {adapter.displayName}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isLoading ? (
+                          <Loader2 className="size-4 animate-spin text-[#e5f1ff]/70" aria-hidden />
+                        ) : !adapter.available ? (
+                          <WriterPrimaryButton
+                            className={hugWidth}
+                            disabled={!stableConnected}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const code = adapter.diagnostic?.code;
+                              if (code === "not_installed" || !code) {
+                                void downloadLocalModel(adapter.id);
+                              } else {
+                                void resetLocalModel(adapter.id);
+                              }
+                            }}
+                          >
+                            {adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic
+                              ? "Download"
+                              : "Retry"}
+                          </WriterPrimaryButton>
+                        ) : null}
+                        <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {diagnosticText && adapter.diagnostic?.severity === "error" ? (
+                      <ConnectionIssueNotice text={diagnosticText} />
+                    ) : null}
+                  </GlassCard>
+                );
+              })}
+            </fieldset>
+          </WriterPageStack>
+          </div>
         </WriterPageGridHalf>
 
         <div

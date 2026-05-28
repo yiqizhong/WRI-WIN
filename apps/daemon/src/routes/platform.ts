@@ -9,8 +9,11 @@ import {
   decidePermission,
   executeTool,
   getAgentAdapterList,
+  getLocalModelStatus,
   refreshAgentDetection,
+  resetModelDownload,
   smokeAgentAdapter,
+  startModelDownload,
   getAgentRunDetail,
   getMcpServerList,
   getToolList,
@@ -348,6 +351,31 @@ export async function handlePlatformRequest(
       "Requested agent CLI is not installed.",
       "Install the agent CLI or choose another adapter in Settings."
     );
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/local-models") {
+    sendJson(response, 200, getLocalModelStatus(state));
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/local-models/download") {
+    try {
+      const result = await startModelDownload(state);
+      sendJson(response, 202, result);
+    } catch (error) {
+      invalidRequest(response, error instanceof Error ? error.message : "Failed to start download.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/local-models/reset") {
+    try {
+      await resetModelDownload(state);
+      sendJson(response, 200, getLocalModelStatus(state));
+    } catch (error) {
+      invalidRequest(response, error instanceof Error ? error.message : "Failed to reset model.");
+    }
     return true;
   }
 
