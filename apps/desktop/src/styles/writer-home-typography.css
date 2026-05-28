@@ -84,10 +84,10 @@
   width: 100%;
   max-width: none;
   font-size: 14px;
-  font-weight: 200;
+  font-weight: 300;
   line-height: 1.5;
   letter-spacing: normal;
-  color: rgb(229 241 255 / 60%);
+  color: rgb(229 241 255 / 70%);
 }
 
 .writer-home-agent-label {
