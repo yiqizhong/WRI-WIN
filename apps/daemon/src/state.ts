@@ -28,6 +28,12 @@ import { createDefaultMcpState, getMcpServerList, setMcpServerEnabled, smokeFigm
 import type { McpRuntimeState } from "./mcp";
 import { createPermissionRequest, executeTool, getToolList } from "./tools";
 import { ensureDefaultWorkspace } from "./workspace";
+import {
+  getLocalModelStatus,
+  initLocalModelState,
+  resetModelDownload,
+  startModelDownload
+} from "./local-models";
 
 export type DaemonState = {
   store: PlatformStore;
@@ -46,8 +52,11 @@ export async function createDaemonState(): Promise<DaemonState> {
     mcp: createDefaultMcpState()
   };
 
-  await refreshAgentDetection(state);
+  await initLocalModelState(state);
   await ensureDefaultWorkspace(state);
+  // Run agent detection in the background so the daemon starts listening
+  // immediately rather than blocking startup on CLI binary checks.
+  refreshAgentDetection(state).catch(() => undefined);
   return state;
 }
 
@@ -113,6 +122,9 @@ export {
   startFigmaMcpAuth,
   smokeFigmaRead,
   smokeFigmaWrite,
+  getLocalModelStatus,
+  startModelDownload,
+  resetModelDownload,
   type AgentRunResult
 };
 

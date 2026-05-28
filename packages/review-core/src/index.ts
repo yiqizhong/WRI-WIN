@@ -66,6 +66,12 @@ export {
 } from "./surface-review-change";
 export { classifySeverity, formatRationale, isLowConfidence } from "./severity";
 export {
+  buildFigmaAuditPrompt,
+  parseFigmaAuditResults,
+  type FigmaAuditNode,
+  type FigmaAuditResult
+} from "./figma-audit-prompt";
+export {
   buildCopywriterPrompt,
   extractSuggestedTextFromAgentEvents,
   accumulateAgentRunDisplayText,

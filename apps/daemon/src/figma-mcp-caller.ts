@@ -41,5 +41,19 @@ async function callFigmaTool(
     };
   }
 
-  return state.mcp.figmaClient.callTool(name, args);
+  const result = await state.mcp.figmaClient.callTool(name, args);
+
+  // When auth expires mid-session the MCP client tears down its internal
+  // protocol client and returns needs_auth. Mirror that in daemon state so the
+  // UI stops showing "Connected" and prompts the user to re-authenticate.
+  if (!result.ok && result.diagnostic?.code === "needs_auth") {
+    state.mcp.figmaClient = null;
+    state.mcp.figma = {
+      ...state.mcp.figma,
+      status: "disconnected",
+      diagnostic: result.diagnostic
+    };
+  }
+
+  return result;
 }

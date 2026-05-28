@@ -126,6 +126,45 @@ export async function setMcpServerEnabled(state: DaemonState, serverId: string, 
   return state.mcp.figma;
 }
 
+/**
+ * Silently connect the Figma MCP at daemon startup using previously stored
+ * OAuth tokens. The enabled/connection state is in-memory only, so it resets on
+ * every daemon launch — this restores it without forcing the user to flip the
+ * Settings toggle each time.
+ *
+ * Never triggers an interactive sign-in: if there are no stored tokens (or they
+ * are expired/invalid) the server is left disabled and the user connects
+ * manually, which is the only path that opens the browser OAuth flow.
+ */
+export async function autoConnectFigmaMcp(
+  state: DaemonState,
+  oauthProvider: FigmaOAuthProvider = createFigmaOAuthProvider()
+): Promise<McpServer> {
+  const config = getFigmaMcpConfigFromEnv(state.mcp.env);
+
+  // Auto-connect only applies to the remote (HTTP) OAuth flow.
+  if (!config.url) {
+    return state.mcp.figma;
+  }
+
+  if (!(await oauthProvider.hasTokens())) {
+    return state.mcp.figma;
+  }
+
+  const createClient = state.mcp.createClient ?? createMcpClient;
+  const { client } = createFigmaMcpClient({ ...config, authProvider: oauthProvider }, createClient);
+  const connection = await client.connect();
+
+  if (!connection.ok) {
+    // Stored tokens are no longer usable — stay disabled so the UI prompts a
+    // manual reconnect rather than silently failing later.
+    return state.mcp.figma;
+  }
+
+  await finalizeFigmaConnection(state, client, oauthProvider);
+  return state.mcp.figma;
+}
+
 async function appendMcpToggleAudit(
   state: DaemonState,
   serverId: string,

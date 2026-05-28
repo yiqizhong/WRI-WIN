@@ -112,8 +112,12 @@ function extractionSummary(session: ReviewSession): {
 function activeLayerLabel(session: ReviewSession): string {
   const snapshot = session.guidelineSnapshot;
 
-  if (snapshot && "activeProductId" in snapshot && snapshot.activeProductId) {
-    return "Company Base + Software Writing + Product";
+  if (!snapshot) {
+    return "—";
+  }
+
+  if ("activeProductId" in snapshot && snapshot.activeProductId) {
+    return `Company Base + Software Writing + ${snapshot.activeProductId}`;
   }
 
   return "Company Base + Software Writing";

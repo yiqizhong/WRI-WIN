@@ -46,11 +46,14 @@ function formatGlossary(terms: Term[], auditedText: string): string {
 
 function injectLegacy(
   snapshot: GuidelineSnapshot,
-  surface: Surface,
+  surface: Surface | undefined,
   auditedText: string
 ): InjectedGuidelineContext {
   const { guideline } = snapshot;
-  const matchingRules = guideline.rules.filter((r) => r.surfaces.includes(surface));
+  const matchingRules =
+    surface === undefined
+      ? guideline.rules
+      : guideline.rules.filter((r) => r.surfaces.includes(surface));
   const rulesBlock = formatRules(matchingRules, "## Applicable Rules");
   const glossaryBlock = formatGlossary(guideline.glossary, auditedText);
   return { rulesBlock, glossaryBlock, proseBlock: guideline.body?.trim() ?? "" };
@@ -58,7 +61,7 @@ function injectLegacy(
 
 function injectThreeLayer(
   snapshot: ThreeLayerGuidelineSnapshot,
-  surface: Surface,
+  surface: Surface | undefined,
   auditedText: string
 ): InjectedGuidelineContext {
   const proseParts: string[] = [];
@@ -92,12 +95,16 @@ function injectThreeLayer(
 
   const ruleParts: string[] = [];
   const softwareRules =
-    snapshot.softwareWriting?.rules.filter((r) => r.surfaces.includes(surface)) ?? [];
+    surface === undefined
+      ? snapshot.softwareWriting?.rules ?? []
+      : snapshot.softwareWriting?.rules.filter((r) => r.surfaces.includes(surface)) ?? [];
   if (softwareRules.length > 0) {
     ruleParts.push(formatRules(softwareRules, "# Software writing rules (structured)"));
   }
   const productRules =
-    product?.writingGuide?.rules.filter((r) => r.surfaces.includes(surface)) ?? [];
+    surface === undefined
+      ? product?.writingGuide?.rules ?? []
+      : product?.writingGuide?.rules.filter((r) => r.surfaces.includes(surface)) ?? [];
   if (productRules.length > 0) {
     ruleParts.push(formatRules(productRules, "# Product writing rules (structured)"));
   }
@@ -118,9 +125,14 @@ function injectThreeLayer(
   };
 }
 
+/**
+ * Inject guideline context for an audit item.
+ * When `surface` is undefined, all rules from all surfaces are included (used by
+ * the stub audit and batch contexts where per-item surface classification is unknown).
+ */
 export function injectGuidelineContext(
   snapshot: SessionGuidelineSnapshot,
-  surface: Surface,
+  surface: Surface | undefined,
   auditedText: string
 ): InjectedGuidelineContext {
   if (isLegacyGuidelineSnapshot(snapshot)) {

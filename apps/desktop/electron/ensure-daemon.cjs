@@ -82,19 +82,29 @@ function shouldRestart(health) {
 
 function killProcessesOnPort(port) {
   try {
-    const output = execSync(`lsof -ti tcp:${port}`, { encoding: "utf8" }).trim();
-    if (!output) {
-      return;
+    let pids = [];
+    if (process.platform === "win32") {
+      // netstat output: "  TCP  0.0.0.0:47631  ...  LISTENING  <pid>"
+      const output = execSync(`netstat -ano`, { encoding: "utf8" });
+      for (const line of output.split("\n")) {
+        if (line.includes(`:${port}`) && line.includes("LISTENING")) {
+          const parts = line.trim().split(/\s+/);
+          const pid = Number(parts[parts.length - 1]);
+          if (Number.isInteger(pid) && pid > 0) pids.push(pid);
+        }
+      }
+    } else {
+      const output = execSync(`lsof -ti tcp:${port}`, { encoding: "utf8" }).trim();
+      if (output) {
+        pids = output.split("\n").map(Number).filter((n) => Number.isInteger(n) && n > 0);
+      }
     }
 
-    for (const pidText of output.split("\n")) {
-      const pid = Number(pidText);
-      if (Number.isInteger(pid) && pid > 0) {
-        try {
-          process.kill(pid, "SIGTERM");
-        } catch {
-          // Process may have already exited.
-        }
+    for (const pid of pids) {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // Process may have already exited.
       }
     }
   } catch {
@@ -142,7 +152,10 @@ function spawnDaemon() {
       WRITER_DAEMON_HOST: daemonHost,
       WRITER_DAEMON_PORT: String(daemonPort),
       WRITER_DAEMON_VERSION: expectedVersion,
-      WRITER_DAEMON_API_REVISION: expectedApiRevision
+      WRITER_DAEMON_API_REVISION: expectedApiRevision,
+      // Pass the Electron resources path so the daemon can find bundled binaries
+      // (e.g. llama-cli / llama-cli.exe) in production builds.
+      ...(process.resourcesPath ? { WRITER_RESOURCES_PATH: process.resourcesPath } : {})
     },
     stdio: ["ignore", "pipe", "pipe"],
     detached: false

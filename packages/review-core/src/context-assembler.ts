@@ -1,4 +1,11 @@
-import type { DesignContext, FigmaReviewScope, ReviewSourceType } from "@writer/contracts";
+import type {
+  DesignContext,
+  FigmaReviewScope,
+  ReviewSourceType,
+  SessionGuidelineSnapshot
+} from "@writer/contracts";
+
+import { buildGuidelinePromptSection, injectGuidelineContext } from "./guideline-injector";
 
 export type ReviewMode = "clarity" | "tone" | "consistency" | "accessibility" | "full";
 
@@ -21,6 +28,8 @@ export type ContextAssemblerInput = {
   designContext?: DesignContext;
   pastedText?: string;
   textNodes?: Array<{ id: string; characters: string; path: string[] }>;
+  /** Guidelines snapshot to inject into the audit prompt for rule-aware analysis. */
+  guidelineSnapshot?: SessionGuidelineSnapshot;
 };
 
 const MAX_CHUNK_CHARS = 4000;
@@ -73,16 +82,32 @@ export function assembleReviewContext(input: ContextAssemblerInput): AssembledRe
   }
 
   const body = lines.join("\n");
-  const chunks = chunkText(body, MAX_CHUNK_CHARS);
+
+  // Inject active guideline layers so the AI audit is rule-aware.
+  // When a suggestion is based on a specific rule, cite it as: "Rule: [rule-id]".
+  const combinedText = [
+    ...lines.filter((l) => l.startsWith("-")),
+    input.pastedText ?? ""
+  ].join(" ");
+  const guidelineSection = input.guidelineSnapshot
+    ? buildGuidelinePromptSection(injectGuidelineContext(input.guidelineSnapshot, undefined, combinedText))
+    : "";
+
+  const promptBody = guidelineSection ? `${body}${guidelineSection}` : body;
+  const traceabilityInstruction = guidelineSection
+    ? "\n\nWhen a suggestion is based on a specific rule or glossary term, cite it in the rationale as \"Rule: [rule-id]\" or \"Term: [term-id]\"."
+    : "";
+  const chunks = chunkText(promptBody, MAX_CHUNK_CHARS);
 
   return {
     sourceType: input.sourceType,
     mode,
-    prompt: `Review the following UX copy for ${mode} issues. Return structured findings and rewrite candidates.\n\n${body}`,
+    prompt: `Review the following UX copy for ${mode} issues. Return structured findings and rewrite candidates.${traceabilityInstruction}\n\n${promptBody}`,
     chunks,
     metadata: {
       chunkCount: chunks.length,
-      scope: input.scope
+      scope: input.scope,
+      hasGuidelines: Boolean(guidelineSection)
     }
   };
 }

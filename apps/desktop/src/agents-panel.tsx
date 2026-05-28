@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 import {
   type AgentAdapter,
   type LlmProviderAdapterId,
@@ -8,6 +8,7 @@ import {
 } from "@writer/contracts";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/writer/glass-card";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
@@ -150,6 +151,32 @@ function adapterRowBadge(
   return { type: "gray", label: "—" };
 }
 
+function localModelAdapterBadge(adapter: AgentAdapter, daemonConnected: boolean): StatusBadge {
+  if (!daemonConnected) {
+    return { type: "gray", label: "Offline" };
+  }
+
+  const code = adapter.diagnostic?.code;
+
+  if (adapter.available) {
+    return { type: "green", label: "Ready" };
+  }
+
+  if (code === "not_installed") {
+    return { type: "gray", label: "Not downloaded" };
+  }
+
+  if (code === "downloading" || code === "verifying") {
+    return { type: "gray", label: code === "verifying" ? "Verifying" : "Downloading" };
+  }
+
+  if (adapter.diagnostic?.severity === "error") {
+    return { type: "red", label: "Failed" };
+  }
+
+  return { type: "gray", label: "Not ready" };
+}
+
 function mcpConnectionBadge(server: McpServer, signingIn: boolean): StatusBadge {
   if (signingIn) {
     return { type: "gray", label: "Connecting" };
@@ -208,6 +235,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   const workspace = useWorkspace();
   const {
     llmAdapters,
+    localModelAdapters,
     activeAdapterId,
     agentsLoadState,
     agentsRefreshing,
@@ -219,16 +247,66 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     replaceMcpServers
   } = workspace;
 
+  const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
+
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 
   const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
   const [figmaAuthPending, setFigmaAuthPending] = useState(false);
   const figmaAuthCancelRef = useRef(false);
+  const [refreshingAdapterId, setRefreshingAdapterId] = useState<string | null>(null);
+  const [reconnectingMcpId, setReconnectingMcpId] = useState<string | null>(null);
+  // uiRefreshing holds the "Connecting / Refreshing" state for at least MIN_REFRESH_MS
+  // even when the backend responds instantly, so the layout change is never jarring.
+  const [uiRefreshing, setUiRefreshing] = useState(false);
+
+  const MIN_REFRESH_MS = 3_000;
+  const anyRefreshing = panelRefreshing || uiRefreshing;
+  // Keep every interactive element enabled while refreshing so nothing flickers to disabled.
+  const stableConnected = connected || anyRefreshing;
 
   async function handleRefresh() {
-    const daemonConnected = await refreshDaemonStatus();
-    if (daemonConnected) {
+    const start = Date.now();
+    setUiRefreshing(true);
+    try {
+      const daemonConnected = await refreshDaemonStatus();
+      if (daemonConnected) {
+        await refreshAgentDetection();
+      }
+    } finally {
+      const remaining = MIN_REFRESH_MS - (Date.now() - start);
+      if (remaining > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+      }
+      setUiRefreshing(false);
+    }
+  }
+
+  async function refreshAdapter(adapterId: string) {
+    const start = Date.now();
+    setRefreshingAdapterId(adapterId);
+    try {
       await refreshAgentDetection();
+    } finally {
+      const remaining = MIN_REFRESH_MS - (Date.now() - start);
+      if (remaining > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+      }
+      setRefreshingAdapterId(null);
+    }
+  }
+
+  async function reconnectMcp(serverId: string) {
+    setReconnectingMcpId(serverId);
+    try {
+      await client.setMcpServerEnabled(serverId, false);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const result = await client.setMcpServerEnabled(serverId, true);
+      replaceMcpServers(result.servers);
+    } catch {
+      // Refresh restores list state from the daemon.
+    } finally {
+      setReconnectingMcpId(null);
     }
   }
 
@@ -245,6 +323,30 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     figmaAuthCancelRef.current = true;
     setFigmaAuthPending(false);
     setBusyMcpId(null);
+  }
+
+  async function downloadLocalModel(adapterId: string) {
+    setLocalModelLoading(adapterId);
+    try {
+      await client.startLocalModelDownload();
+      await refreshAgentDetection();
+    } catch {
+      // Status refreshes on next Refresh.
+    } finally {
+      setLocalModelLoading(null);
+    }
+  }
+
+  async function resetLocalModel(adapterId: string) {
+    setLocalModelLoading(adapterId);
+    try {
+      await client.resetLocalModel();
+      await refreshAgentDetection();
+    } catch {
+      // Status refreshes on next Refresh.
+    } finally {
+      setLocalModelLoading(null);
+    }
   }
 
   async function connectFigma(serverId: string) {
@@ -304,7 +406,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     <WriterPageStack fill>
       <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
         <div className="flex min-w-0 items-center gap-2">
-          {panelRefreshing ? (
+          {anyRefreshing ? (
             <Loader2 className="size-4 shrink-0 animate-spin text-[#e5f1ff]/70" aria-hidden />
           ) : null}
           <div className="flex min-w-0 flex-col gap-1">
@@ -321,10 +423,10 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         </div>
         <WriterPrimaryButton
           className={hugWidth}
-          disabled={panelRefreshing}
+          disabled={anyRefreshing}
           onClick={() => void handleRefresh()}
         >
-          {panelRefreshing ? "Refreshing…" : "Refresh"}
+          {anyRefreshing ? "Refreshing…" : "Refresh"}
         </WriterPrimaryButton>
       </GlassCard>
 
@@ -339,7 +441,10 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
             <fieldset className="flex min-h-0 flex-col gap-3">
               <legend className="sr-only">Active provider</legend>
               {llmAdapters.map((adapter) => {
-                const status = adapterRowBadge(adapter, agentsLoadState, agentsRefreshing, connected);
+                const isRefreshingThis = refreshingAdapterId === adapter.id || uiRefreshing;
+                const status = isRefreshingThis
+                  ? { type: "gray" as const, label: "Connecting" }
+                  : adapterRowBadge(adapter, agentsLoadState, agentsRefreshing, stableConnected);
                 const isSelected = activeAdapterId === adapter.id;
                 const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
 
@@ -349,7 +454,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                     selected={isSelected}
                     className="writer-agent-tile flex min-h-0 w-full flex-col gap-3 p-4"
                     onClick={
-                      connected ? () => void setActiveLlmAdapter(adapter.id) : undefined
+                      stableConnected ? () => void setActiveLlmAdapter(adapter.id) : undefined
                     }
                   >
                     <div className={rowBetween}>
@@ -360,7 +465,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                           name="writer-active-adapter"
                           value={adapter.id}
                           checked={isSelected}
-                          disabled={!connected}
+                          disabled={!stableConnected}
                           onChange={() => void setActiveLlmAdapter(adapter.id)}
                           className="writer-accent-radio"
                         />
@@ -372,9 +477,30 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                           {adapter.displayName}
                         </Label>
                       </div>
-                      <Badge variant={tagVariant(status.type)} className={hugWidth}>
-                        {status.label}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="writer-chat-toolbar-btn"
+                          aria-label="Refresh connection"
+                          disabled={!stableConnected || refreshingAdapterId === adapter.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void refreshAdapter(adapter.id);
+                          }}
+                        >
+                          <RotateCw
+                            className={classNames(
+                              "size-4",
+                              refreshingAdapterId === adapter.id && "animate-spin"
+                            )}
+                          />
+                        </Button>
+                        <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                          {status.label}
+                        </Badge>
+                      </div>
                     </div>
 
                     {diagnosticText && adapter.diagnostic?.severity === "error" ? (
@@ -385,6 +511,86 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
               })}
             </fieldset>
           </WriterPageStack>
+
+          <div className="mt-8">
+          <WriterPageStack gap={3}>
+            <WriterSectionHeader
+              title="Local models"
+              description="Run inference on-device — no cloud API required."
+            />
+
+            <fieldset className="flex min-h-0 flex-col gap-3">
+              <legend className="sr-only">Local model selection</legend>
+              {localModelAdapters.map((adapter) => {
+                const isSelected = activeAdapterId === adapter.id;
+                const status = localModelAdapterBadge(adapter, stableConnected);
+                const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
+                const isLoading = localModelLoading === adapter.id;
+                const canSelect = stableConnected && adapter.available;
+
+                return (
+                  <GlassCard
+                    key={adapter.id}
+                    selected={isSelected}
+                    className="writer-agent-tile flex min-h-0 w-full flex-col gap-3 p-4"
+                    onClick={canSelect ? () => void setActiveLlmAdapter(adapter.id) : undefined}
+                  >
+                    <div className={rowBetween}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="radio"
+                          id={`radio-${adapter.id}`}
+                          name="writer-active-adapter"
+                          value={adapter.id}
+                          checked={isSelected}
+                          disabled={!canSelect}
+                          onChange={() => void setActiveLlmAdapter(adapter.id)}
+                          className="writer-accent-radio"
+                        />
+                        <Label
+                          htmlFor={`radio-${adapter.id}`}
+                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal"
+                        >
+                          {adapter.displayName}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isLoading ? (
+                          <Loader2 className="size-4 animate-spin text-[#e5f1ff]/70" aria-hidden />
+                        ) : !adapter.available ? (
+                          <WriterPrimaryButton
+                            className={hugWidth}
+                            disabled={!stableConnected}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const code = adapter.diagnostic?.code;
+                              if (code === "not_installed" || !code) {
+                                void downloadLocalModel(adapter.id);
+                              } else {
+                                void resetLocalModel(adapter.id);
+                              }
+                            }}
+                          >
+                            {adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic
+                              ? "Download"
+                              : "Retry"}
+                          </WriterPrimaryButton>
+                        ) : null}
+                        <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                          {status.label}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {diagnosticText && adapter.diagnostic?.severity === "error" ? (
+                      <ConnectionIssueNotice text={diagnosticText} />
+                    ) : null}
+                  </GlassCard>
+                );
+              })}
+            </fieldset>
+          </WriterPageStack>
+          </div>
         </WriterPageGridHalf>
 
         <div
@@ -420,12 +626,19 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                   >
                     <div className="flex min-w-0 flex-1 basis-0 flex-row items-center gap-3">
                       <McpServerLogo server={server} />
-                      <Label
-                        htmlFor={`mcp-${server.id}`}
-                        className="writer-home-text writer-home-agent-label min-w-0 flex-1 cursor-pointer truncate font-extralight leading-snug tracking-normal"
-                      >
-                        {server.name}
-                      </Label>
+                      <div className="flex min-w-0 flex-1 flex-row items-center justify-start gap-3">
+                        <Label
+                          htmlFor={`mcp-${server.id}`}
+                          className="writer-home-text writer-home-agent-label min-w-0 cursor-pointer truncate font-extralight leading-snug tracking-normal"
+                        >
+                          {server.name}
+                        </Label>
+                        {server.status === "connected" && (server.tools?.length ?? 0) > 0 ? (
+                          <span className="text-xs text-[#e5f1ff]/40">
+                            {server.tools!.length} tools
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <div className={classNames(hugHeight, "flex shrink-0 flex-row items-center justify-end gap-3")}>
                       {problemBadge ? (
@@ -433,10 +646,28 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                           {problemBadge.label}
                         </Badge>
                       ) : null}
+                      {server.id === "figma" && server.enabled ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="writer-chat-toolbar-btn"
+                          aria-label="Reconnect Figma MCP"
+                          disabled={!stableConnected || busyMcpId === server.id || reconnectingMcpId === server.id}
+                          onClick={() => void reconnectMcp(server.id)}
+                        >
+                          <RotateCw
+                            className={classNames(
+                              "size-4",
+                              reconnectingMcpId === server.id && "animate-spin"
+                            )}
+                          />
+                        </Button>
+                      ) : null}
                       <WriterSwitch
                         id={`mcp-${server.id}`}
                         checked={server.enabled}
-                        disabled={!connected || busyMcpId === server.id}
+                        disabled={!stableConnected || busyMcpId === server.id}
                         aria-label={`Enable ${server.name}`}
                         onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
                       />
@@ -468,7 +699,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         ) : null}
                         <WriterPrimaryButton
                           className={hugWidth}
-                          disabled={!connected || busyMcpId === server.id}
+                          disabled={!stableConnected || busyMcpId === server.id}
                           onClick={() => void connectFigma(server.id)}
                         >
                           {busyMcpId === server.id ? "Connecting…" : "Connect"}

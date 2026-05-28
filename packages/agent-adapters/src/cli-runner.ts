@@ -115,8 +115,9 @@ export function spawnCliStream(options: CliRunOptions): CliStreamHandle {
 }
 
 export async function commandExists(command: string): Promise<string | null> {
+  const isWindows = process.platform === "win32";
   const result = await runCliCommand({
-    executable: "/usr/bin/which",
+    executable: isWindows ? "where" : "/usr/bin/which",
     args: [command],
     timeoutMs: 5_000
   });
@@ -125,6 +126,6 @@ export async function commandExists(command: string): Promise<string | null> {
     return null;
   }
 
-  const path = result.stdout.trim().split("\n")[0];
+  const path = result.stdout.trim().split(/\r?\n/)[0];
   return path && path.length > 0 ? path : null;
 }

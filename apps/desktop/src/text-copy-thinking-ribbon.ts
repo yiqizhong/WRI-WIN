@@ -27,7 +27,7 @@ export const THINKING_RIBBON_STATUS_MESSAGES = [
 
 /** Random pick from the pool; never returns `current` when another option exists. */
 export function pickThinkingRibbonStatusMessage(current?: string): string {
-  const pool = THINKING_RIBBON_STATUS_MESSAGES;
+  const pool: readonly string[] = THINKING_RIBBON_STATUS_MESSAGES;
   if (pool.length === 0) {
     return "";
   }

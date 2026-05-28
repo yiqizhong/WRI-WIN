@@ -59,7 +59,10 @@ export {
   agentRunSchema,
   agentRunStatusSchema,
   agentSmokeResultSchema,
+  isKnownAdapterId,
+  isLocalModelAdapterId,
   isLlmProviderAdapterId,
+  LOCAL_MODEL_ADAPTER_IDS,
   LLM_PROVIDER_ADAPTER_IDS,
   parseAgentAdapterList,
   parseAgentRun,
@@ -79,6 +82,7 @@ export type {
   AgentRunResult,
   AgentRunStatus,
   AgentSmokeResult,
+  LocalModelAdapterId,
   LlmProviderAdapterId
 } from "./agent";
 
@@ -265,11 +269,12 @@ export type {
 } from "./guideline-upload";
 
 export {
+  guidelineSourceSchema,
   parseRewriteCandidate,
   rewriteCandidateListSchema,
   rewriteCandidateSchema
 } from "./rewrite-candidate";
-export type { RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
+export type { GuidelineSource, RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
 
 export {
   figmaReviewScopeSchema,
@@ -341,6 +346,24 @@ export type {
 
 export { parseWritebackResult, writebackResultSchema } from "./writeback";
 export type { WritebackItemResult, WritebackResult } from "./writeback";
+
+export {
+  localModelManifestSchema,
+  localModelProgressSchema,
+  localModelStateSchema,
+  localModelStatusResponseSchema,
+  localModelStatusSchema,
+  localModelVerificationResultSchema,
+  parseLocalModelStatusResponse
+} from "./local-model";
+export type {
+  LocalModelManifest,
+  LocalModelProgress,
+  LocalModelState,
+  LocalModelStatus,
+  LocalModelStatusResponse,
+  LocalModelVerificationResult
+} from "./local-model";
 
 export {
   attachPasteTextFileInputSchema,

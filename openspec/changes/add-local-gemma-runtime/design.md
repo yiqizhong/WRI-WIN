@@ -39,7 +39,7 @@ Affected areas:
 - Multiple local model support.
 - Fine-tuning or training.
 - Multimodal Gemma support.
-- Full 128K context productization.
+- Context beyond 124K (V1 targets 124K; see Resolved Decisions).
 - Advanced GPU tuning UI.
 - User-visible model file management.
 - Ollama, LM Studio, OpenAI-compatible local server, or third-party API dependency.
@@ -79,9 +79,9 @@ Affected areas:
 
 ## Risks / Trade-offs
 
-[Risk] Google source authentication or license acceptance may require browser/session flow. -> Mitigation: define a manifest/download abstraction that can support direct Google URLs, approved mirrors, or user-provided offline package later.
+[Resolved] Google source authentication / license acceptance. -> Download from the official Google GGUF repo on Hugging Face using a one-time license click-through plus a stored HF read token (or no token if the repo is ungated), via token-authenticated HTTPS with range-resume and HF-reported sha256. No browser-session scraping or Kaggle credentials required.
 
-[Risk] GGUF/llama.cpp compatibility for Gemma 4 may change quickly. -> Mitigation: pin a tested model artifact, checksum, chat template, and sidecar version.
+[Risk] GGUF/llama.cpp compatibility for Gemma may change quickly. -> Mitigation: pin a tested official Google GGUF artifact, checksum, chat template, and sidecar version.
 
 [Risk] A sidecar could accidentally expose a network listener. -> Mitigation: V1 sidecar must communicate only through daemon-owned child process IPC and must not bind public HTTP ports.
 
@@ -111,9 +111,15 @@ Acceptance:
 - Manual or mocked evidence for: download -> verify -> install -> select Local Gemma -> complete one basic local text request
 - Evidence that inference does not use Ollama, LM Studio, third-party APIs, or public local serving endpoints
 
-## Open Questions
+## Resolved Decisions (V1)
 
-- Which exact Gemma 4 E4B artifact should V1 pin: official Google source, GGUF conversion, or a company-approved mirror?
-- Which OS/platform should V1 package first for the private inference sidecar?
-- Should checksum/signature verification rely on a committed manifest or a remote approved manifest?
-- What is the minimum acceptable context length for V1 text requests?
+- **Inference:** V1 must perform a real local Gemma run on actual model weights. A mock runtime may exist only as a dev fallback; it is not the V1 deliverable.
+- **Artifact source + format:** Google publishes only safetensors for Gemma 4 E4B (`google/gemma-4-E4B-it`, ungated) — there is no official Google GGUF/QAT for this model. To avoid an in-app conversion step, pin the manifest to **`ggml-org/gemma-4-E4B-it-GGUF`**, the GGUF build maintained by the llama.cpp/ggml team (canonical conversion of Google's weights), file **`gemma-4-E4B-it-Q8_0.gguf`** (~8.03 GB, 8-bit; higher quality than Q4_K_M and comfortable on the 64GB/RTX targets). This repo is **ungated** — no HF token required.
+  - Deviation note: this is the llama.cpp team's repo, not the Google HF org. If a strictly Google-origin artifact is a hard requirement, the alternative is `google/gemma-4-E4B-it` safetensors plus an in-app GGUF conversion/quantization step.
+- **Download mechanism:** Daemon downloads the single `.gguf` via HTTPS: `GET https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q8_0.gguf`. Use HTTP range requests for resumable progress and the HF-reported sha256 for checksum verification. No auth needed (ungated); keep an optional `Authorization: Bearer <hf-read-token>` hook + WRI-157 secret storage in case the pinned repo ever becomes gated.
+- **Platforms:** Package the private inference sidecar for both Windows (NVIDIA/CUDA) and macOS (Metal) in V1.
+- **Context length:** 124K is a **supported ceiling, not a V1 optimization target**. Pin a GGUF whose model max >= 124K, but set the runtime default `n_ctx` modest (~8K, sufficient for V1 flows). Large-context memory optimization is out of scope for V1.
+
+## Open Questions / Implications to confirm
+
+- **Capture sha256 at pin time:** When WRI-163 hardcodes the manifest, read the current HF-reported sha256 for `gemma-4-E4B-it-Q8_0.gguf` and commit it as the expected checksum.

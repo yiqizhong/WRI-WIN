@@ -9,6 +9,7 @@ import {
   type AgentRunEvent,
   type AuditLogEntry,
   type AuditLogList,
+  type LocalModelState,
   type Project,
   type ProjectList,
   type ReviewChange,
@@ -21,6 +22,7 @@ import {
   agentRunSchema,
   auditLogListSchema,
   auditLogEntrySchema,
+  localModelStateSchema,
   projectListSchema,
   projectSchema,
   reviewChangeSchema,
@@ -53,6 +55,7 @@ export type PlatformStoreSnapshot = {
   findings: UxCopyFinding[];
   rewrites: RewriteCandidate[];
   pasteTextConversations: PasteTextConversation[];
+  localModel: LocalModelState | null;
 };
 
 export type PlatformStoreOptions = {
@@ -85,7 +88,8 @@ export class PlatformStore {
       reviewChanges: [],
       findings: [],
       rewrites: [],
-      pasteTextConversations: []
+      pasteTextConversations: [],
+      localModel: null
     };
   }
 
@@ -120,7 +124,13 @@ export class PlatformStore {
         pasteTextConversations: (parsed.pasteTextConversations ?? []).flatMap((conversation) => {
           const result = pasteTextConversationSchema.safeParse(conversation);
           return result.success ? [result.data] : [];
-        })
+        }),
+        localModel: parsed.localModel
+          ? (() => {
+              const r = localModelStateSchema.safeParse(parsed.localModel);
+              return r.success ? r.data : null;
+            })()
+          : null
       };
 
       const migrated = await this.migrateLoadedSnapshot();
@@ -346,6 +356,18 @@ export class PlatformStore {
     return projectId
       ? this.snapshot.pasteTextConversations.filter((conversation) => conversation.projectId === projectId)
       : this.snapshot.pasteTextConversations;
+  }
+
+  getLocalModel(): LocalModelState | null {
+    return this.snapshot.localModel;
+  }
+
+  setLocalModel(state: LocalModelState): void {
+    this.snapshot.localModel = localModelStateSchema.parse(state);
+  }
+
+  clearLocalModel(): void {
+    this.snapshot.localModel = null;
   }
 
   private async migrateLoadedSnapshot(): Promise<boolean> {

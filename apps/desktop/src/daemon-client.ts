@@ -10,6 +10,7 @@ import {
   parseGuidelineList,
   parseGuidelinesTree,
   parseGuidelineSnapshot,
+  parseLocalModelStatusResponse,
   parseProductPackage,
   productPackageSchema,
   parseMcpServerList,
@@ -36,6 +37,7 @@ import {
   type GuidelineList,
   type GuidelinesTree,
   type GuidelineSnapshot,
+  type LocalModelStatusResponse,
   type ProductPackage,
   type ParsedFigmaUrl,
   type PasteTextConversation,
@@ -715,7 +717,26 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
     productWritingGuideTemplateUrl: () => `${baseUrl}/guidelines/templates/product-writing-guide.md`,
     glossaryTemplateUrl: () => `${baseUrl}/guidelines/templates/glossary.csv`,
     /** @deprecated */
-    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`
+    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`,
+
+    getLocalModelStatus: (): Promise<LocalModelStatusResponse> =>
+      request(baseUrl, "/local-models", undefined, parseLocalModelStatusResponse),
+
+    startLocalModelDownload: (): Promise<{ started: boolean }> =>
+      request(
+        baseUrl,
+        "/local-models/download",
+        { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+        undefined
+      ) as Promise<{ started: boolean }>,
+
+    resetLocalModel: (): Promise<LocalModelStatusResponse> =>
+      request(
+        baseUrl,
+        "/local-models/reset",
+        { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+        parseLocalModelStatusResponse
+      )
   };
 }
 

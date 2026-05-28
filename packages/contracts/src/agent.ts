@@ -10,6 +10,18 @@ export function isLlmProviderAdapterId(adapterId: string): adapterId is LlmProvi
   return (LLM_PROVIDER_ADAPTER_IDS as readonly string[]).includes(adapterId);
 }
 
+export const LOCAL_MODEL_ADAPTER_IDS = ["local-gemma"] as const;
+
+export type LocalModelAdapterId = (typeof LOCAL_MODEL_ADAPTER_IDS)[number];
+
+export function isLocalModelAdapterId(adapterId: string): adapterId is LocalModelAdapterId {
+  return (LOCAL_MODEL_ADAPTER_IDS as readonly string[]).includes(adapterId);
+}
+
+export function isKnownAdapterId(adapterId: string): boolean {
+  return isLlmProviderAdapterId(adapterId) || isLocalModelAdapterId(adapterId);
+}
+
 export const agentCapabilitySchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),

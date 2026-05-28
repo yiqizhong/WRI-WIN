@@ -2,13 +2,15 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult, AgentAdapter } from "@writer/contracts";
-import { isLlmProviderAdapterId } from "@writer/contracts";
+import { isKnownAdapterId, isLlmProviderAdapterId, isLocalModelAdapterId } from "@writer/contracts";
 import {
-  createDefaultAgentRegistry,
+  AgentAdapterRegistry,
+  createLocalGemmaAdapter,
+  createProviderAdapters,
+  createEchoAdapter,
   detectCliAdapter,
   getCliAdapterConfig,
   smokeCliAdapter,
-  type AgentAdapterRegistry,
   type AgentRunHandle
 } from "@writer/agent-adapters";
 
@@ -44,32 +46,57 @@ type ActiveRun = {
 
 let defaultRegistry: AgentAdapterRegistry | null = null;
 
-function getRegistry(): AgentAdapterRegistry {
+function getRegistry(state: DaemonState): AgentAdapterRegistry {
   if (!defaultRegistry) {
-    defaultRegistry = createDefaultAgentRegistry();
+    defaultRegistry = createDaemonRegistry(state);
+  }
+  return defaultRegistry;
+}
+
+function createDaemonRegistry(state: DaemonState): AgentAdapterRegistry {
+  const registry = new AgentAdapterRegistry();
+  const useStubsOnly = process.env["WRITER_AGENT_STUBS"] === "1";
+
+  if (useStubsOnly) {
+    registry.register(createEchoAdapter());
+    return registry;
   }
 
-  return defaultRegistry;
+  registry.register(createEchoAdapter());
+
+  for (const adapter of createProviderAdapters()) {
+    registry.register(adapter);
+  }
+
+  registry.register(
+    createLocalGemmaAdapter({
+      getModelState: () => state.store.getLocalModel()
+    })
+  );
+
+  return registry;
 }
 
 export async function getAgentAdapterList(
   state: DaemonState,
   options?: { force?: boolean }
 ): Promise<AgentAdapterList> {
-  const registry = getRegistry();
+  const registry = getRegistry(state);
   const adapters = (
     await Promise.all(registry.list().map((impl) => impl.detect(options).then((result) => result.adapter)))
-  ).filter((adapter) => isLlmProviderAdapterId(adapter.id));
+  ).filter((adapter) => isKnownAdapterId(adapter.id));
   let storedActive = state.store.getActiveAdapterId();
 
-  if (storedActive && !isLlmProviderAdapterId(storedActive)) {
+  if (storedActive && !isKnownAdapterId(storedActive)) {
     storedActive = null;
     state.store.setActiveAdapterId(null);
     await state.store.save();
   }
 
+  // Prefer LLM provider adapters as the auto-selected fallback; local models
+  // are not selected automatically since they require explicit user download.
   const fallback =
-    adapters.find((adapter) => adapter.available)?.id ?? null;
+    adapters.find((a) => a.available && isLlmProviderAdapterId(a.id))?.id ?? null;
   const activeAdapterId = storedActive ?? fallback;
 
   if (!storedActive && activeAdapterId) {
@@ -91,7 +118,7 @@ async function resolveAdapterForRun(
     throw new Error("No agent adapter selected");
   }
 
-  const impl = getRegistry().get(adapterId);
+  const impl = getRegistry(state).get(adapterId);
 
   if (!impl) {
     throw new Error(`Agent adapter not registered: ${adapterId}`);
@@ -115,6 +142,23 @@ export async function refreshAgentDetection(state: DaemonState): Promise<AgentAd
 
 export async function smokeAgentAdapter(state: DaemonState, input: unknown): Promise<AgentSmokeResult> {
   const parsed = smokeAdapterInputSchema.parse(input);
+
+  // Local-model adapters are not CLI adapters and don't support smoke tests.
+  if (isLocalModelAdapterId(parsed.adapterId)) {
+    const impl = getRegistry(state).get(parsed.adapterId);
+    if (!impl) {
+      throw new Error(`Unknown adapter: ${parsed.adapterId}`);
+    }
+    const detection = await impl.detect();
+    return {
+      ok: detection.adapter.available,
+      adapterId: parsed.adapterId,
+      adapter: detection.adapter,
+      diagnostic: detection.adapter.diagnostic,
+      message: detection.adapter.available ? "Local model is ready." : (detection.adapter.setupMessage ?? "Not ready.")
+    };
+  }
+
   const config = getCliAdapterConfig(parsed.adapterId);
 
   if (!config) {
@@ -161,6 +205,11 @@ export async function smokeAgentAdapter(state: DaemonState, input: unknown): Pro
 
 export async function setActiveAdapter(state: DaemonState, input: unknown): Promise<AgentAdapterList> {
   const parsed = setActiveAdapterInputSchema.parse(input);
+
+  if (parsed.adapterId !== null && !isKnownAdapterId(parsed.adapterId)) {
+    throw new Error(`Unknown adapter: ${parsed.adapterId}`);
+  }
+
   state.store.setActiveAdapterId(parsed.adapterId);
   await state.store.save();
   return getAgentAdapterList(state);
@@ -175,7 +224,7 @@ export async function launchAgentRun(state: DaemonState, input: unknown): Promis
   }
 
   const { adapterId } = await resolveAdapterForRun(state, parsed.adapterId);
-  const impl = getRegistry().get(adapterId);
+  const impl = getRegistry(state).get(adapterId);
 
   if (!impl) {
     throw new Error(`Agent adapter not registered: ${adapterId}`);

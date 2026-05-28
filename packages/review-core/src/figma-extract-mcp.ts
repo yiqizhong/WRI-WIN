@@ -7,6 +7,7 @@ import type {
 } from "@writer/contracts";
 
 import {
+  collectInstanceRefs,
   collectTextRefs,
   flattenMetadataHierarchy,
   parseMetadataXml,
@@ -25,7 +26,13 @@ import {
   toSurfaceCopy
 } from "./figma-text-sanitize";
 import { extractMcpToolText } from "./mcp-tool-text";
-import { buildFigmaTextReadScript, parseFigmaTextReadResult } from "./figma-text-read-mcp";
+import {
+  buildFigmaFrameTextScanScript,
+  buildFigmaTextReadScript,
+  parseFigmaFrameTextScanResult,
+  parseFigmaTextReadResult,
+  type FigmaScannedTextNode
+} from "./figma-text-read-mcp";
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
@@ -105,11 +112,25 @@ export async function extractFigmaTextNodesViaMcp(
     return metadataXml;
   }
 
-  const textRefs = collectTextRefs(parseMetadataXml(metadataXml.xml));
+  const metadataNodes = parseMetadataXml(metadataXml.xml);
+  const textRefs = collectTextRefs(metadataNodes);
+  const instanceRefs = collectInstanceRefs(metadataNodes);
+
+  // get_metadata XML omits TEXT nodes inside INSTANCE children. When the frame
+  // contains instances, run a single use_figma scan to discover them.
+  const scannedFromInstances =
+    instanceRefs.length > 0
+      ? await scanInstanceTextNodes(scope, instanceRefs, textRefs, mcpCaller)
+      : [];
+
   const nodes: FigmaTextNode[] = [];
 
   for (const ref of textRefs) {
     nodes.push(await buildTextNode(scope, ref, mcpCaller));
+  }
+
+  for (const node of scannedFromInstances) {
+    nodes.push(node);
   }
 
   const extraction: FigmaTextExtraction = {
@@ -255,6 +276,75 @@ async function buildTextNode(
   } catch {
     return textNodeFromRef(ref, resolveExtractedCharacters(ref, []));
   }
+}
+
+async function scanInstanceTextNodes(
+  scope: FigmaReviewScope,
+  instanceRefs: ReturnType<typeof collectInstanceRefs>,
+  existingTextRefs: MetadataTextRef[],
+  mcpCaller: McpCaller
+): Promise<FigmaTextNode[]> {
+  const existingIds = new Set(existingTextRefs.map((r) => r.id));
+  const rootId = scope.kind === "frame" ? scope.nodeId : scope.kind === "flow" ? scope.nodeIds[0] : undefined;
+
+  if (!rootId) {
+    return [];
+  }
+
+  const response = await mcpCaller.callTool("use_figma", {
+    fileKey: scope.fileKey,
+    code: buildFigmaFrameTextScanScript(rootId),
+    description: `Scan TEXT nodes inside component instances in frame ${rootId}`,
+    skillNames: "figma-use"
+  });
+
+  if (!response.ok) {
+    // Instance scan is best-effort: metadata-derived TEXT nodes are still
+    // returned by the caller. Log so a failing scan is visible, not silent.
+    console.warn("[review-core] instance TEXT scan failed; skipping instance nodes", {
+      rootId,
+      diagnostic: response.diagnostic?.code
+    });
+    return [];
+  }
+
+  const payloadText = extractMcpToolText(response.result);
+  if (!payloadText) return [];
+
+  const scanned = parseFigmaFrameTextScanResult(payloadText);
+  const nodes: FigmaTextNode[] = [];
+
+  for (const scannedNode of scanned) {
+    // Only include nodes that the XML metadata missed (i.e. inside instances)
+    if (existingIds.has(scannedNode.id)) continue;
+
+    const isInsideInstance = instanceRefs.some(
+      (inst) =>
+        scannedNode.path.length > inst.path.length &&
+        inst.path.every((seg, i) => scannedNode.path[i] === seg)
+    );
+
+    if (!isInsideInstance) continue;
+
+    existingIds.add(scannedNode.id);
+    nodes.push(textNodeFromScanned(scannedNode));
+  }
+
+  return nodes;
+}
+
+function textNodeFromScanned(scanned: FigmaScannedTextNode): FigmaTextNode {
+  const characters = resolveExtractedCharacters(
+    { id: scanned.id, name: scanned.name, path: scanned.path, visible: scanned.visible },
+    [scanned.characters]
+  );
+  return {
+    id: scanned.id,
+    name: scanned.name,
+    path: scanned.path,
+    characters,
+    visible: scanned.visible
+  };
 }
 
 async function readTextCharactersViaMcp(
