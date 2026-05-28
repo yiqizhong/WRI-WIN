@@ -74,7 +74,7 @@ export function usePasteTextChatRuntime({
   const scheduleWelcomeThinking = useCallback(() => {
     clearWelcomeThinkingTimer();
     setWelcomeThinkingVisible(false);
-    welcomeThinkingTimerRef.current = window.setTimeout(() => {
+    welcomeThinkingTimerRef.current = setTimeout(() => {
       welcomeThinkingTimerRef.current = null;
       setWelcomeThinkingVisible(true);
     }, WELCOME_THINKING_VISIBLE_MS);

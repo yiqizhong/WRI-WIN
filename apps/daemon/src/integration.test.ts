@@ -161,8 +161,13 @@ describe("daemon integration smoke", () => {
           };
         }
 
-        return { ok: false, diagnostic: { code: "unsupported", message: "unsupported" } };
-      }
+        return {
+          ok: false,
+          diagnostic: { code: "unsupported_source", severity: "error", message: "unsupported" }
+        };
+      },
+      finishAuth: async () => ({ ok: true }),
+      close: async () => undefined
     };
 
     const parseRes = await fetch(`${baseUrl}/figma/parse-url`, {
