@@ -78,7 +78,8 @@ describe("buildManualWorkflowFromUrls", () => {
 
     expect(result).toEqual({
       fileKey: "file123",
-      nodeIds: ["1:2", "1:1"]
+      nodeIds: ["1:2", "1:1"],
+      nodeNames: {}
     });
   });
 });

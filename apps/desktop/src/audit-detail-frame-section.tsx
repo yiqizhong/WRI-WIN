@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AuditDetailEditModal } from "./audit-detail-edit-modal";
 import { AuditDetailRuleModal } from "./audit-detail-rule-modal";
 import type { DaemonClient } from "./daemon-client";
 import { WorkflowGlassPanel } from "./layout/workflow-screen-shell";
@@ -16,6 +15,19 @@ type AuditDetailFrameSectionProps = {
   onEditsChange: (edits: Record<string, string>) => void;
 };
 
+type RuleModalState = {
+  original: string;
+  aiSuggestion: string;
+  rationale?: string;
+};
+
+type EditModalState = {
+  changeId: string;
+  original: string;
+  aiSuggestion: string;
+  value: string;
+};
+
 export function AuditDetailFrameSection({
   client,
   session,
@@ -27,7 +39,8 @@ export function AuditDetailFrameSection({
   const [edits, setEdits] = useState<Record<string, string>>(() =>
     Object.fromEntries(changes.map((change) => [change.id, change.after]))
   );
-  const [ruleContent, setRuleContent] = useState<string | null>(null);
+  const [ruleModal, setRuleModal] = useState<RuleModalState | null>(null);
+  const [editModal, setEditModal] = useState<EditModalState | null>(null);
 
   const screenshotUrl = useMemo(
     () => client.sessionScreenshotUrl(session.id, frameId),
@@ -54,63 +67,99 @@ export function AuditDetailFrameSection({
         }}
       />
 
-      <div className="overflow-auto rounded-md border border-white/10">
-        <table className="writer-home-text w-full text-left text-sm">
-          <thead className="border-b border-white/10 text-[#e5f1ff]/70">
+      <table className="writer-audit-findings-table writer-home-text">
+        <thead>
+          <tr>
+            <th className="writer-audit-findings-table__head writer-audit-findings-table__head--index">
+              #
+            </th>
+            <th className="writer-audit-findings-table__head">Original</th>
+            <th className="writer-audit-findings-table__head">AI suggestion</th>
+            <th className="writer-audit-findings-table__head">Rule</th>
+            <th className="writer-audit-findings-table__head">Your edit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {changes.length === 0 ? (
             <tr>
-              <th className="px-3 py-2 font-normal">#</th>
-              <th className="px-3 py-2 font-normal">Original</th>
-              <th className="px-3 py-2 font-normal">AI suggestion</th>
-              <th className="px-3 py-2 font-normal">Rule</th>
-              <th className="px-3 py-2 font-normal">Your edit</th>
+              <td className="writer-audit-findings-table__empty" colSpan={5}>
+                No text rows for this frame yet.
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {changes.length === 0 ? (
-              <tr>
-                <td className="px-3 py-4 text-[#e5f1ff]/60" colSpan={5}>
-                  No text rows for this frame yet.
-                </td>
-              </tr>
-            ) : null}
-            {changes.map((change, index) => (
-              <tr key={change.id} className="border-t border-white/10">
-                <td className="px-3 py-2">{index + 1}</td>
-                <td className="px-3 py-2">{change.before}</td>
-                <td className="px-3 py-2">{change.after}</td>
-                <td className="px-3 py-2">
-                  <Button
+          ) : null}
+          {changes.map((change, index) => {
+            const currentEdit = edits[change.id] ?? change.after;
+
+            return (
+              <tr key={change.id} className="writer-audit-findings-table__row">
+                <td className="writer-audit-findings-table__index">{index + 1}</td>
+                <td className="writer-audit-findings-table__cell">{change.before}</td>
+                <td className="writer-audit-findings-table__cell">{change.after}</td>
+                <td className="writer-audit-findings-table__actions">
+                  <button
                     type="button"
-                    variant="link"
-                    className="writer-home-text h-auto p-0"
+                    className="writer-text-action-link"
                     onClick={() =>
-                      setRuleContent(change.rationale ?? "No rule rationale captured for this finding.")
+                      setRuleModal({
+                        original: change.before,
+                        aiSuggestion: change.after,
+                        rationale: change.rationale
+                      })
                     }
                   >
                     View rule
-                  </Button>
+                  </button>
                 </td>
-                <td className="px-3 py-2">
-                  <Input
-                    value={edits[change.id] ?? change.after}
-                    onChange={(event) => updateEdit(change.id, event.target.value)}
-                  />
+                <td className="writer-audit-findings-table__actions">
+                  <button
+                    type="button"
+                    className="writer-text-action-link"
+                    onClick={() =>
+                      setEditModal({
+                        changeId: change.id,
+                        original: change.before,
+                        aiSuggestion: change.after,
+                        value: currentEdit
+                      })
+                    }
+                  >
+                    Edit
+                  </button>
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
 
       <AuditDetailRuleModal
-        open={Boolean(ruleContent)}
+        open={Boolean(ruleModal)}
         onOpenChange={(open) => {
           if (!open) {
-            setRuleContent(null);
+            setRuleModal(null);
           }
         }}
         layerLabel="Writing rule"
-        content={ruleContent ?? ""}
+        original={ruleModal?.original ?? ""}
+        aiSuggestion={ruleModal?.aiSuggestion ?? ""}
+        rationale={ruleModal?.rationale}
+      />
+
+      <AuditDetailEditModal
+        open={Boolean(editModal)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditModal(null);
+          }
+        }}
+        original={editModal?.original ?? ""}
+        aiSuggestion={editModal?.aiSuggestion ?? ""}
+        value={editModal?.value ?? ""}
+        onSave={(value) => {
+          if (editModal) {
+            updateEdit(editModal.changeId, value);
+          }
+        }}
       />
     </WorkflowGlassPanel>
   );

@@ -281,6 +281,8 @@ export {
 } from "./figma-scope";
 export type { FigmaReviewScope, FigmaScopeKind, ParsedFigmaUrl } from "./figma-scope";
 
+export { resolveFigmaFrameDisplayName } from "./figma-frame-label";
+
 export {
   createFigmaSessionInputSchema,
   figmaAuditModeSchema,

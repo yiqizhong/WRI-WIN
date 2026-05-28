@@ -86,14 +86,18 @@ export function FigmaAuditPageBrowser({ disabled, onSubmit, onListPageFrames }: 
       return;
     }
 
-    const nodeIds = frames.filter((frame) => frame.checked).map((frame) => frame.nodeId);
+    const selectedFrames = frames.filter((frame) => frame.checked);
 
-    if (nodeIds.length === 0) {
+    if (selectedFrames.length === 0) {
       setError("Select at least one frame.");
       return;
     }
 
-    onSubmit({ fileKey, nodeIds });
+    onSubmit({
+      fileKey,
+      nodeIds: selectedFrames.map((frame) => frame.nodeId),
+      nodeNames: Object.fromEntries(selectedFrames.map((frame) => [frame.nodeId, frame.name]))
+    });
   }
 
   return (

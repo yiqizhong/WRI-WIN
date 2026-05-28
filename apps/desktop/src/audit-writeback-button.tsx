@@ -84,7 +84,7 @@ export function AuditWritebackButton({
         disabled={disabled || busy || rows.length === 0}
         onClick={() => void runWriteback(rows.map((row) => row.changeId))}
       >
-        Approve & writeback to Figma
+        Approve & Write Back to Figma
       </WriterPrimaryButton>
       {failedIds.length > 0 ? (
         <Button

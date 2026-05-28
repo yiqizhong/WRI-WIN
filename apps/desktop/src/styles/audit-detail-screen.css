@@ -1,0 +1,144 @@
+/* Audit report — scroll edge fade + page inset (matches Figma Audit / Audits Log). */
+.audit-detail-page .writer-page-content-inset {
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+.writer-chat-scroll.audit-detail-content-scroll {
+  --audit-detail-scroll-edge-fade: 28px;
+  min-height: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.writer-chat-scroll.audit-detail-content-scroll[data-can-scroll="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audit-detail-scroll-edge-fade),
+    #000 calc(100% - var(--audit-detail-scroll-edge-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audit-detail-scroll-edge-fade),
+    #000 calc(100% - var(--audit-detail-scroll-edge-fade)),
+    transparent 100%
+  );
+}
+
+.writer-chat-scroll.audit-detail-content-scroll[data-can-scroll="true"][data-at-bottom="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audit-detail-scroll-edge-fade),
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audit-detail-scroll-edge-fade),
+    #000 100%
+  );
+}
+
+/* Frame findings table — same chrome as Audits Log (horizontal rules, no vertical grid). */
+.writer-audit-findings-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.writer-audit-findings-table thead {
+  border-bottom: 1px solid rgb(229 241 255 / 0.1);
+  color: rgb(229 241 255 / 0.7);
+}
+
+.writer-audit-findings-table__head {
+  padding: 12px 16px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.writer-audit-findings-table__head--index {
+  width: 3rem;
+  padding-right: 8px;
+}
+
+.writer-audit-findings-table__row {
+  border-bottom: 1px solid rgb(229 241 255 / 0.05);
+  transition: background-color 0.15s ease;
+}
+
+.writer-audit-findings-table__row:hover {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.writer-audit-findings-table__row:last-child {
+  border-bottom: none;
+}
+
+.writer-audit-findings-table__index {
+  padding: 12px 8px 12px 16px;
+  color: rgb(229 241 255 / 0.55);
+  vertical-align: top;
+}
+
+.writer-audit-findings-table__cell {
+  padding: 12px 16px;
+  color: rgb(229 241 255 / 0.95);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.writer-audit-findings-table__actions {
+  padding: 12px 16px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.writer-audit-findings-table__empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: rgb(229 241 255 / 0.6);
+}
+
+/* Session details accordion — collapsed by default; motion via accordion-down/up. */
+.writer-audit-session-accordion .writer-audit-session-accordion__trigger {
+  width: 100%;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  color: rgb(229 241 255 / 0.95);
+  text-decoration: none;
+}
+
+.writer-audit-session-accordion .writer-audit-session-accordion__trigger:hover {
+  text-decoration: none;
+  color: rgb(229 241 255);
+}
+
+.writer-audit-session-accordion .writer-audit-session-accordion__trigger:focus-visible {
+  border-radius: 6px;
+}
+
+.writer-audit-session-accordion
+  .writer-audit-session-accordion__trigger
+  [data-slot="accordion-trigger-icon"] {
+  color: rgb(229 241 255 / 0.55);
+}
+
+.writer-audit-session-accordion .writer-audit-session-accordion__content {
+  padding-top: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .writer-audit-session-accordion [data-slot="accordion-content"] {
+    animation: none !important;
+  }
+}

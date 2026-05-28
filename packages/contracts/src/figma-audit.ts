@@ -61,7 +61,8 @@ export const createFigmaSessionInputSchema = z.discriminatedUnion("mode", [
     mode: z.literal("workflow"),
     fileKey: z.string().min(1),
     nodeIds: z.array(z.string().min(1)).min(1),
-    flowName: z.string().optional()
+    flowName: z.string().optional(),
+    nodeNames: z.record(z.string().min(1), z.string().min(1)).optional()
   })
 ]);
 

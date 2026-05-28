@@ -6,12 +6,17 @@ import { GlassCard } from "@/components/writer/glass-card";
 import { InlineAlert } from "@/components/writer/inline-alert";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
-import type { WorkflowSubmitPayload } from "./figma-audit-workflow-tabs";
+import { frameNameFromParsedUrl, type WorkflowSubmitPayload } from "./figma-audit-workflow-tabs";
 
 type FigmaAuditPasteLinksProps = {
   disabled?: boolean;
   onSubmit: (payload: WorkflowSubmitPayload) => void;
-  onParseUrl: (url: string) => Promise<{ fileKey: string; nodeId?: string }>;
+  onParseUrl: (url: string) => Promise<{
+    fileKey: string;
+    nodeId?: string;
+    frameName?: string;
+    suggestedScope: { kind: string; frameName?: string };
+  }>;
 };
 
 export function buildWorkflowNodeIds(urls: string[]): string[] {
@@ -54,16 +59,29 @@ export function FigmaAuditPasteLinks({ disabled, onSubmit, onParseUrl }: FigmaAu
         return;
       }
 
-      const nodeIds = parsedFrames
-        .map((frame) => frame.nodeId)
-        .filter((nodeId): nodeId is string => Boolean(nodeId));
+      const nodeIds: string[] = [];
+      const nodeNames: Record<string, string> = {};
 
-      if (nodeIds.length !== urls.length) {
-        setError("Each URL must include a frame node-id.");
-        return;
+      for (const frame of parsedFrames) {
+        if (!frame.nodeId) {
+          setError("Each URL must include a frame node-id.");
+          return;
+        }
+
+        nodeIds.push(frame.nodeId);
+
+        const name = frameNameFromParsedUrl(frame);
+
+        if (name) {
+          nodeNames[frame.nodeId] = name;
+        }
       }
 
-      onSubmit({ fileKey, nodeIds });
+      onSubmit({
+        fileKey,
+        nodeIds,
+        nodeNames: Object.keys(nodeNames).length > 0 ? nodeNames : undefined
+      });
     } catch {
       setError("Could not parse one or more frame URLs.");
     }

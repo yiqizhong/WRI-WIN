@@ -18,6 +18,7 @@ import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 export type WorkflowSubmitPayload = {
   fileKey: string;
   nodeIds: string[];
+  nodeNames?: Record<string, string>;
 };
 
 type WorkflowFrame = {
@@ -176,7 +177,7 @@ export async function buildManualWorkflowFromUrls({
 }: {
   urls: string[];
   parseFrameUrl: FigmaAuditWorkflowTabsProps["onParseUrl"];
-}): Promise<{ fileKey: string; nodeIds: string[] }> {
+}): Promise<{ fileKey: string; nodeIds: string[]; nodeNames: Record<string, string> }> {
   const links = urls.map((url) => url.trim()).filter(Boolean);
 
   if (links.length === 0) {
@@ -190,15 +191,24 @@ export async function buildManualWorkflowFromUrls({
     throw new Error("All frame URLs must belong to the same Figma file.");
   }
 
-  const nodeIds = parsedFrames.map((frame) => {
+  const nodeIds: string[] = [];
+  const nodeNames: Record<string, string> = {};
+
+  for (const frame of parsedFrames) {
     if (!frame.nodeId) {
       throw new Error("Each URL must include a frame node-id.");
     }
 
-    return frame.nodeId;
-  });
+    nodeIds.push(frame.nodeId);
 
-  return { fileKey, nodeIds };
+    const name = frameNameFromParsedUrl(frame);
+
+    if (name) {
+      nodeNames[frame.nodeId] = name;
+    }
+  }
+
+  return { fileKey, nodeIds, nodeNames };
 }
 
 function isWorkflowInputMethod(value: string | null): value is WorkflowInputMethod {
@@ -353,7 +363,11 @@ export function FigmaAuditWorkflowTabs({
         parseFrameUrl: onParseUrl
       });
 
-      onSubmit({ fileKey: result.fileKey, nodeIds: result.nodeIds });
+      onSubmit({
+        fileKey: result.fileKey,
+        nodeIds: result.nodeIds,
+        nodeNames: Object.keys(result.nodeNames).length > 0 ? result.nodeNames : undefined
+      });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not parse frame URLs.");
     } finally {
@@ -374,7 +388,13 @@ export function FigmaAuditWorkflowTabs({
       return;
     }
 
-    onSubmit({ fileKey: detectedFileKey, nodeIds });
+    const selectedFrames = detectedFrames.filter((frame) => frame.checked);
+
+    onSubmit({
+      fileKey: detectedFileKey,
+      nodeIds: selectedFrames.map((frame) => frame.nodeId),
+      nodeNames: Object.fromEntries(selectedFrames.map((frame) => [frame.nodeId, frame.name]))
+    });
   }
 
   return (

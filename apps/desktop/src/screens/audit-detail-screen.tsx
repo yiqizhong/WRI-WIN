@@ -1,16 +1,82 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
-import { parseFigmaReviewScope } from "@writer/contracts";
+import { parseFigmaReviewScope, resolveFigmaFrameDisplayName } from "@writer/contracts";
 import { InlineAlert } from "@/components/writer/inline-alert";
 import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
-import { formatProductDisplayName } from "@/lib/writer-product-display";
+import { formatAuditDetailPageTitle } from "@/lib/writer-product-display";
 
+import { AuditSessionDetailsAccordion } from "../audit-session-details-accordion";
+import { deriveAuditRunStatus } from "../audit-run-status";
 import { AuditDetailFrameSection } from "../audit-detail-frame-section";
 import { AuditWritebackButton } from "../audit-writeback-button";
-import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
+import { WorkflowGlassPanel } from "../layout/workflow-screen-shell";
+import { WriterPageStack } from "../layout/writer-grid";
+import { DaemonClientError } from "../daemon-client";
+import { syncScrollEdgeMask } from "../lib/sync-scroll-edge-mask";
 import { useWorkspace } from "../workspace-context";
+
+const AUDIT_DETAIL_POLL_INTERVAL_MS = 2000;
+
+type AuditDetailLoadState = "loading" | "ready" | "error";
+
+function AuditDetailPageShell({
+  title,
+  scrollSyncKey,
+  children
+}: {
+  title: string;
+  scrollSyncKey: string | number;
+  children: ReactNode;
+}) {
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scrollEl = contentScrollRef.current;
+    if (!scrollEl) {
+      return;
+    }
+
+    const sync = () => syncScrollEdgeMask(scrollEl);
+
+    sync();
+    const raf = requestAnimationFrame(sync);
+    scrollEl.addEventListener("scroll", sync, { passive: true });
+
+    const resizeObserver = new ResizeObserver(sync);
+    resizeObserver.observe(scrollEl);
+
+    const mutationObserver = new MutationObserver(sync);
+    mutationObserver.observe(scrollEl, { childList: true, subtree: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      scrollEl.removeEventListener("scroll", sync);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [scrollSyncKey]);
+
+  return (
+    <div className="audit-detail-page flex h-full min-h-0 flex-col overflow-hidden">
+      <WriterPageSubheader title={title} backTo="/audits" backLabel="Back to Audits Log" />
+
+      <div className="writer-page-content-inset writer-content-fade-in flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="writer-chat-scroll-region relative min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div
+            ref={contentScrollRef}
+            className="writer-chat-scroll audit-detail-content-scroll h-full min-h-0"
+          >
+            <div className="writer-page-subheader-content-gap">
+              <WriterPageStack gap={4}>{children}</WriterPageStack>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function frameIdsForSession(session: ReviewSession): string[] {
   const scope = session.scope as Record<string, unknown>;
@@ -60,118 +126,208 @@ export function AuditDetailScreen() {
   const [session, setSession] = useState<ReviewSession | null>(null);
   const [changes, setChanges] = useState<ReviewChange[]>([]);
   const [editsByChange, setEditsByChange] = useState<Record<string, string>>({});
+  const [loadState, setLoadState] = useState<AuditDetailLoadState>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) {
+      setLoadState("error");
+      setLoadError("Missing audit session id.");
       return;
     }
 
-    void daemonClient.getSession(sessionId).then(setSession);
-    void daemonClient.getReviewQueue(sessionId).then((queue) => setChanges(queue.changes));
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) {
+        return;
+      }
+
+      pollTimer = setInterval(() => {
+        void refresh().then((nextSession) => {
+          if (cancelled || !nextSession) {
+            return;
+          }
+
+          if (deriveAuditRunStatus(nextSession).variant !== "in_progress") {
+            stopPolling();
+          }
+        });
+      }, AUDIT_DETAIL_POLL_INTERVAL_MS);
+    }
+
+    async function refresh(): Promise<ReviewSession | null> {
+      try {
+        const [nextSession, queue] = await Promise.all([
+          daemonClient.getSession(sessionId),
+          daemonClient.getReviewQueue(sessionId)
+        ]);
+
+        if (cancelled) {
+          return null;
+        }
+
+        setSession(nextSession);
+        setChanges(queue.changes);
+        setLoadState("ready");
+        setLoadError(null);
+        return nextSession;
+      } catch (error) {
+        if (cancelled) {
+          return null;
+        }
+
+        setSession(null);
+        setLoadState("error");
+        setLoadError(
+          error instanceof DaemonClientError ? error.message : "Could not load this audit session."
+        );
+        return null;
+      }
+    }
+
+    void refresh().then((nextSession) => {
+      if (cancelled) {
+        return;
+      }
+
+      if (nextSession && deriveAuditRunStatus(nextSession).variant === "in_progress") {
+        startPolling();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+    };
   }, [daemonClient, sessionId]);
 
   const frameIds = useMemo(() => (session ? frameIdsForSession(session) : []), [session]);
+
+  const pageTitle = formatAuditDetailPageTitle(session);
+
+  const frameLabelsById = useMemo(() => {
+    if (!session) {
+      return {} as Record<string, string>;
+    }
+
+    return Object.fromEntries(
+      frameIds.map((frameId) => [frameId, resolveFigmaFrameDisplayName(session, frameId)])
+    );
+  }, [frameIds, session]);
 
   const rows = changes.map((change) => ({
     changeId: change.id,
     finalText: editsByChange[change.id] ?? change.after
   }));
 
-  if (!session) {
-    return null;
+  const scrollSyncKey =
+    loadState === "ready" && session
+      ? `${session.id}-${changes.length}-${frameIds.length}-${deriveAuditRunStatus(session).variant}`
+      : loadState;
+
+  if (loadState === "loading") {
+    return (
+      <AuditDetailPageShell title={pageTitle} scrollSyncKey={scrollSyncKey}>
+        <WorkflowGlassPanel>
+          <p className="writer-home-text m-0 text-sm text-[#e5f1ff]/70">Loading audit…</p>
+        </WorkflowGlassPanel>
+      </AuditDetailPageShell>
+    );
+  }
+
+  if (loadState === "error" || !session) {
+    return (
+      <AuditDetailPageShell title={pageTitle} scrollSyncKey={scrollSyncKey}>
+        <InlineAlert
+          kind="error"
+          title="Could not open audit"
+          subtitle={loadError ?? "This audit session could not be loaded."}
+        />
+      </AuditDetailPageShell>
+    );
   }
 
   const { nodeCount, diagnosticMessage } = extractionSummary(session);
 
-  const pageTitle = session.featureName?.trim() || "Audit";
-
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <WriterPageSubheader title={pageTitle} backTo="/audits" backLabel="Back to Audits Log" />
+    <AuditDetailPageShell title={pageTitle} scrollSyncKey={scrollSyncKey}>
+      {deriveAuditRunStatus(session).variant === "in_progress" ? (
+        <InlineAlert
+          kind="info"
+          title="Audit in progress"
+          subtitle="Findings will appear here when the run finishes. This page refreshes automatically."
+        />
+      ) : null}
 
-      <div className="writer-page-content-inset flex min-h-0 flex-1 flex-col">
-        <WorkflowScreenShell className="writer-page-subheader-content-gap min-h-0 flex-1">
-          {session.description ? (
-            <p className="writer-type-body-compact m-0 max-w-2xl text-[#e5f1ff]/70">{session.description}</p>
-          ) : null}
+      <AuditSessionDetailsAccordion
+        session={session}
+        guidelinesLabel={activeLayerLabel(session)}
+        nodeCount={nodeCount}
+        reviewRowCount={changes.length}
+      />
 
-          <WorkflowGlassPanel title="Session details">
-            <dl className="writer-home-text grid gap-2 text-sm text-[#e5f1ff]/80">
-              <div className="flex flex-wrap gap-x-2">
-                <dt className="text-[#e5f1ff]/60">Product</dt>
-                <dd>{session.productId ? formatProductDisplayName(session.productId) : "—"}</dd>
-              </div>
-              <div className="flex flex-wrap gap-x-2">
-                <dt className="text-[#e5f1ff]/60">Guidelines</dt>
-                <dd>{activeLayerLabel(session)}</dd>
-              </div>
-              <div className="flex flex-wrap gap-x-2">
-                <dt className="text-[#e5f1ff]/60">Extraction</dt>
-                <dd>
-                  {nodeCount} text layer{nodeCount === 1 ? "" : "s"}
-                  {changes.length > 0
-                    ? ` · ${changes.length} review row${changes.length === 1 ? "" : "s"}`
-                    : ""}
-                </dd>
-              </div>
-            </dl>
-          </WorkflowGlassPanel>
+      {diagnosticMessage ? (
+        <InlineAlert kind="warning" title="Figma extraction issue" subtitle={diagnosticMessage} />
+      ) : null}
 
-          {diagnosticMessage ? (
-            <InlineAlert kind="warning" title="Figma extraction issue" subtitle={diagnosticMessage} />
-          ) : null}
+      {nodeCount === 0 && !diagnosticMessage ? (
+        <InlineAlert
+          kind="warning"
+          title="No text extracted"
+          subtitle="Confirm the Figma MCP connection, frame URL, and that the frame contains TEXT layers."
+        />
+      ) : null}
 
-          {nodeCount === 0 && !diagnosticMessage ? (
-            <InlineAlert
-              kind="warning"
-              title="No text extracted"
-              subtitle="Confirm the Figma MCP connection, frame URL, and that the frame contains TEXT layers."
-            />
-          ) : null}
+      {changes.length === 0 && nodeCount > 0 ? (
+        <InlineAlert
+          kind="info"
+          title="No review rows"
+          subtitle="Text was extracted but no review rows were created. Try re-running the audit."
+        />
+      ) : null}
 
-          {changes.length === 0 && nodeCount > 0 ? (
-            <InlineAlert
-              kind="info"
-              title="No review rows"
-              subtitle="Text was extracted but no review rows were created. Try re-running the audit."
-            />
-          ) : null}
+      {frameIds.length === 0 ? (
+        <InlineAlert kind="info" title="No frames" subtitle="No frame scope found on this session." />
+      ) : null}
 
-          {frameIds.length === 0 ? (
-            <InlineAlert kind="info" title="No frames" subtitle="No frame scope found on this session." />
-          ) : null}
+      {frameIds.map((frameId) => (
+        <AuditDetailFrameSection
+          key={frameId}
+          client={daemonClient}
+          session={session}
+          frameId={frameId}
+          frameLabel={frameLabelsById[frameId] ?? frameId}
+          changes={changes}
+          onEditsChange={(edits) => setEditsByChange((current) => ({ ...current, ...edits }))}
+        />
+      ))}
 
-          {frameIds.map((frameId, index) => (
-            <AuditDetailFrameSection
-              key={frameId}
-              client={daemonClient}
-              session={session}
-              frameId={frameId}
-              frameLabel={`Frame ${index + 1}`}
-              changes={changes}
-              onEditsChange={(edits) => setEditsByChange((current) => ({ ...current, ...edits }))}
-            />
-          ))}
-
-          <WorkflowGlassPanel>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="writer-home-text text-sm text-[#e5f1ff]/70">
-                Approve edits and push changes back to Figma when ready.
-              </p>
-              <AuditWritebackButton
-                client={daemonClient}
-                session={session}
-                rows={rows}
-                changes={changes}
-                onComplete={() => {
-                  void daemonClient.getSession(sessionId).then(setSession);
-                  navigate("/audits");
-                }}
-              />
-            </div>
-          </WorkflowGlassPanel>
-        </WorkflowScreenShell>
-      </div>
-    </div>
+      <WorkflowGlassPanel>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="writer-home-text text-sm text-[#e5f1ff]/70">
+            Approve edits and push changes back to Figma when ready.
+          </p>
+          <AuditWritebackButton
+            client={daemonClient}
+            session={session}
+            rows={rows}
+            changes={changes}
+            onComplete={() => {
+              void daemonClient.getSession(sessionId).then(setSession);
+              navigate("/audits");
+            }}
+          />
+        </div>
+      </WorkflowGlassPanel>
+    </AuditDetailPageShell>
   );
 }

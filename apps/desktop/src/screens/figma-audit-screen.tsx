@@ -20,6 +20,7 @@ import type { CreateFigmaSessionInput, FigmaAuditMode } from "@writer/contracts"
 
 import { FigmaAuditWorkflowTabs, type WorkflowSubmitPayload } from "../figma-audit-workflow-tabs";
 import { DaemonClientError } from "../daemon-client";
+import { syncScrollEdgeMask } from "../lib/sync-scroll-edge-mask";
 import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
@@ -29,19 +30,6 @@ type FigmaAuditLayoutPhase = "default" | "split";
 
 /** Workflow / Frame panel visibility lag after session resize begins */
 const FIGMA_AUDIT_FRAME_VISIBLE_DELAY_MS = 100;
-
-function syncFigmaAuditContentScrollMask(scrollEl: HTMLDivElement | null) {
-  if (!scrollEl) {
-    return;
-  }
-
-  const canScroll = scrollEl.scrollHeight > scrollEl.clientHeight + 1;
-  const atBottom =
-    scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2;
-
-  scrollEl.dataset.canScroll = canScroll ? "true" : "false";
-  scrollEl.dataset.atBottom = atBottom ? "true" : "false";
-}
 
 const AUDIT_MODE_OPTIONS = [
   { value: "single_frame" as const, label: "Single frame", icon: Frame },
@@ -154,7 +142,7 @@ export function FigmaAuditScreen() {
         }
 
         scrollEl.scrollTo({ top: scrollHeight, behavior: "smooth" });
-        syncFigmaAuditContentScrollMask(scrollEl);
+        syncScrollEdgeMask(scrollEl);
       });
     });
   }, []);
@@ -165,7 +153,7 @@ export function FigmaAuditScreen() {
       return;
     }
 
-    const onScroll = () => syncFigmaAuditContentScrollMask(scrollEl);
+    const onScroll = () => syncScrollEdgeMask(scrollEl);
 
     onScroll();
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
@@ -244,18 +232,16 @@ export function FigmaAuditScreen() {
       }
 
       const session = await daemonClient.createFigmaSession(input);
-      const audit = await daemonClient.runAudit(session.id);
+      navigate("/audits");
+      setSubmitting(false);
 
-      if (audit.diagnostic) {
-        setError(audit.diagnostic.message);
-        navigate(`/audits/${session.id}`);
-        return;
-      }
-
-      navigate(`/audits/${session.id}`);
+      void daemonClient.runAudit(session.id).catch((auditError) => {
+        console.error(
+          auditError instanceof Error ? auditError.message : "Figma audit run failed after navigation."
+        );
+      });
     } catch (submitError) {
       setError(submitError instanceof DaemonClientError ? submitError.message : "Could not start Figma audit.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -295,7 +281,8 @@ export function FigmaAuditScreen() {
       featureName: trimmedFeatureName,
       description: trimmedDescription,
       fileKey: payload.fileKey,
-      nodeIds: payload.nodeIds
+      nodeIds: payload.nodeIds,
+      nodeNames: payload.nodeNames
     });
   }
 
@@ -316,7 +303,7 @@ export function FigmaAuditScreen() {
         }
       />
 
-      <div className="writer-page-content-inset flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="writer-page-content-inset writer-content-fade-in flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="writer-chat-scroll-region relative min-h-0 min-w-0 flex-1 overflow-hidden">
           <div
             ref={contentScrollRef}

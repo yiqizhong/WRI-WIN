@@ -1,0 +1,113 @@
+/**
+ * Audits Log status badges — muted pill chrome aligned with writer-pill-add / writer-pill-ghost.
+ */
+
+.writer-audit-status-badge {
+  height: auto !important;
+  min-height: 1.25rem;
+  border-radius: 9999px !important;
+  padding: 4px 10px !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  box-shadow: none !important;
+}
+
+.writer-audit-status-badge--neutral {
+  border: 1px solid rgb(229 241 255 / 0.1) !important;
+  background: rgb(32 131 234 / 0.14) !important;
+  color: rgb(229 241 255 / 0.82) !important;
+}
+
+.writer-audit-status-badge--in-progress {
+  border: 1px solid rgb(229 241 255 / 0.14) !important;
+  background: rgb(229 241 255 / 0.08) !important;
+  color: rgb(229 241 255 / 0.72) !important;
+}
+
+.writer-audit-status-badge--failed {
+  border: 1px solid rgb(176 64 72 / 0.35) !important;
+  background: rgb(176 64 72 / 0.28) !important;
+  color: #e88a8a !important;
+}
+
+/* Blue text actions (Audits Log View, audit report View rule / Edit). */
+.writer-text-action-link {
+  display: inline-block;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: inherit;
+  color: var(--writer-accent-blue);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.writer-text-action-link:hover {
+  color: var(--writer-accent-blue);
+  text-decoration: underline;
+}
+
+a.writer-text-action-link {
+  font: inherit;
+}
+
+/* Audits Log table — content height follows row count (no stretched card chrome). */
+.writer-audits-log-table {
+  border-collapse: collapse;
+}
+
+.writer-audits-log-table__feature {
+  min-width: 11rem;
+  width: 26%;
+  word-break: break-word;
+}
+
+/* Audits Log table — hidden scrollbar + top/bottom edge fade (same as Figma Audit page) */
+.writer-audits-log-page .writer-page-content-inset {
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+.writer-chat-scroll.writer-audits-log-table-scroll {
+  --audits-log-scroll-edge-fade: 28px;
+  min-height: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.writer-chat-scroll.writer-audits-log-table-scroll[data-can-scroll="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audits-log-scroll-edge-fade),
+    #000 calc(100% - var(--audits-log-scroll-edge-fade)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audits-log-scroll-edge-fade),
+    #000 calc(100% - var(--audits-log-scroll-edge-fade)),
+    transparent 100%
+  );
+}
+
+.writer-chat-scroll.writer-audits-log-table-scroll[data-can-scroll="true"][data-at-bottom="true"] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audits-log-scroll-edge-fade),
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--audits-log-scroll-edge-fade),
+    #000 100%
+  );
+}

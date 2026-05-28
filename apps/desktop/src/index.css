@@ -3,6 +3,9 @@
 @import "./styles/writer-chat-welcome.css";
 @import "./styles/writer-settings-page.css";
 @import "./styles/figma-audit-screen.css";
+@import "./styles/writer-audits-log.css";
+@import "./styles/writer-audits-route-transition.css";
+@import "./styles/audit-detail-screen.css";
 @import "./styles/writer-modal-overlay.css";
 @import "./styles/writer-form-field.css";
 @import "./styles/writer-interactive-cursor.css";

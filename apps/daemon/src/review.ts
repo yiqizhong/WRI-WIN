@@ -134,7 +134,8 @@ export async function createFigmaReviewSession(state: DaemonState, input: unknow
         kind: "flow",
         fileKey: parsed.fileKey,
         nodeIds: parsed.nodeIds,
-        flowName: parsed.flowName
+        flowName: parsed.flowName,
+        nodeNames: parsed.nodeNames
       }
     }
   });

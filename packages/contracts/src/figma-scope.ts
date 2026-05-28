@@ -18,7 +18,9 @@ export const figmaReviewScopeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("flow"),
     fileKey: z.string().min(1),
     nodeIds: z.array(z.string().min(1)).min(1),
-    flowName: z.string().optional()
+    flowName: z.string().optional(),
+    /** Figma layer names keyed by node id (from page detect or parse-url). */
+    nodeNames: z.record(z.string().min(1), z.string().min(1)).optional()
   })
 ]);
 
