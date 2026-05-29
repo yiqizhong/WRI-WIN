@@ -31,7 +31,7 @@ export type McpToolSummary = {
 
 export type McpProtocolClient = {
   connect: () => Promise<void>;
-  listTools: () => Promise<{ tools: McpToolSummary[] }>;
+  listTools: (params?: { cursor?: string }) => Promise<{ tools: McpToolSummary[]; nextCursor?: string }>;
   callTool: (input: { name: string; arguments?: Record<string, unknown> }) => Promise<unknown>;
   finishAuth?: (authorizationCode: string) => Promise<void>;
   close: () => Promise<void>;
@@ -123,11 +123,29 @@ export function createMcpClient(
         return [];
       }
 
-      const result = await protocolClient.listTools();
-      return result.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description
-      }));
+      // tools/list is paginated (MCP spec): follow nextCursor until exhausted,
+      // otherwise we only ever see the first page (e.g. Figma returns 10/page).
+      const tools: McpToolSummary[] = [];
+      let cursor: string | undefined;
+      const seenCursors = new Set<string>();
+
+      do {
+        const result = await protocolClient.listTools(cursor ? { cursor } : undefined);
+        for (const tool of result.tools) {
+          tools.push({ name: tool.name, description: tool.description });
+        }
+
+        cursor = result.nextCursor;
+        // Guard against a server that returns the same cursor forever.
+        if (cursor && seenCursors.has(cursor)) {
+          break;
+        }
+        if (cursor) {
+          seenCursors.add(cursor);
+        }
+      } while (cursor);
+
+      return tools;
     },
 
     async callTool(name: string, args: Record<string, unknown>): Promise<McpCallToolResult> {
@@ -255,7 +273,7 @@ function createSdkProtocolClient(config: NormalizedMcpClientConfig): McpProtocol
 
   return {
     connect: () => client.connect(transport),
-    listTools: () => client.listTools(),
+    listTools: (params) => client.listTools(params),
     callTool: (input) => client.callTool(input),
     finishAuth:
       transport instanceof StreamableHTTPClientTransport

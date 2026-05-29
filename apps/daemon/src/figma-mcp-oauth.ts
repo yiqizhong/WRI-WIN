@@ -69,7 +69,13 @@ export function createFigmaOAuthProvider(options: FigmaOAuthProviderOptions = {}
         token_endpoint_auth_method: "none",
         grant_types: ["authorization_code", "refresh_token"],
         response_types: ["code"],
-        client_name: options.clientName ?? "Claude Code (figma)",
+        // Figma's MCP registration endpoint enforces a client-name allowlist:
+        // "Claude Code" is accepted, while names like "Cursor"/"Visual Studio Code"
+        // (and arbitrary names) are now rejected with 403. Register under the
+        // allowlisted name so dynamic client registration succeeds.
+        // (The full 18-tool surface is exposed by merging known tools in mcp.ts;
+        // the server's tools/list only enumerates ~10 though all are callable.)
+        client_name: options.clientName ?? "Claude Code",
         scope: "mcp:connect"
       };
     },

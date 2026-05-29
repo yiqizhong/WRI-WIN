@@ -143,6 +143,15 @@ function resolveTsxExecutable() {
   return path.join(repoRoot, "node_modules", ".bin", binName);
 }
 
+/** Append a Node CLI option to an existing NODE_OPTIONS string, avoiding duplicates. */
+function appendNodeOption(existing, option) {
+  const current = (existing ?? "").trim();
+  if (current.split(/\s+/).includes(option)) {
+    return current;
+  }
+  return current ? `${current} ${option}` : option;
+}
+
 function spawnDaemon() {
   const tsxExecutable = resolveTsxExecutable();
   const child = spawn(tsxExecutable, ["src/index.ts"], {
@@ -155,6 +164,12 @@ function spawnDaemon() {
       WRITER_DAEMON_PORT: String(daemonPort),
       WRITER_DAEMON_VERSION: expectedVersion,
       WRITER_DAEMON_API_REVISION: expectedApiRevision,
+      // Trust the OS certificate store so remote MCP servers (e.g. Figma at
+      // https://mcp.figma.com) connect on machines behind a TLS-inspecting
+      // corporate proxy that re-signs HTTPS with its own root CA. Without this,
+      // Node's bundled CA store rejects the proxy cert ("fetch failed" /
+      // SELF_SIGNED_CERT_IN_CHAIN). Append to any existing NODE_OPTIONS.
+      NODE_OPTIONS: appendNodeOption(process.env.NODE_OPTIONS, "--use-system-ca"),
       // Pass the Electron resources path so the daemon can find bundled binaries
       // (e.g. llama-cli / llama-cli.exe) in production builds.
       ...(process.resourcesPath ? { WRITER_RESOURCES_PATH: process.resourcesPath } : {})

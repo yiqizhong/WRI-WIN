@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { McpServer, McpServerList, McpSmokeResult } from "@writer/contracts";
 
 import type { DaemonState } from "./state";
-import { createMcpClient, type McpClientConfig } from "./mcp-client";
+import { createMcpClient, type McpClientConfig, type McpToolSummary } from "./mcp-client";
 import {
   createFigmaOAuthProvider,
   createOAuthCallbackServer,
@@ -16,6 +16,44 @@ import { executeTool } from "./tools";
 const toggleMcpInputSchema = z.object({
   enabled: z.boolean()
 });
+
+/**
+ * The Figma remote MCP server only *lists* a curated ~10 tools from tools/list,
+ * but additional tools (the write / design-system / Code Connect family) are fully
+ * callable by name even though they are omitted from the listing. We merge this
+ * canonical set with whatever the server lists so the full capability surface is
+ * visible and usable. Verified callable against https://mcp.figma.com/mcp.
+ */
+const FIGMA_KNOWN_TOOLS: McpToolSummary[] = [
+  { name: "get_design_context" },
+  { name: "get_screenshot" },
+  { name: "get_metadata" },
+  { name: "get_variable_defs" },
+  { name: "get_figjam" },
+  { name: "get_code_connect_map" },
+  { name: "add_code_connect_map" },
+  { name: "get_code_connect_suggestions" },
+  { name: "send_code_connect_mappings" },
+  { name: "get_context_for_code_connect" },
+  { name: "get_libraries" },
+  { name: "search_design_system" },
+  { name: "create_new_file" },
+  { name: "generate_diagram" },
+  { name: "generate_figma_design" },
+  { name: "use_figma" },
+  { name: "upload_assets" },
+  { name: "whoami" }
+];
+
+/** Merge server-listed tools with the canonical Figma set, deduped by name. */
+function mergeFigmaTools(listed: McpToolSummary[]): McpToolSummary[] {
+  const byName = new Map<string, McpToolSummary>();
+  for (const tool of [...FIGMA_KNOWN_TOOLS, ...listed]) {
+    // Prefer the server's entry (richer description) when present.
+    byName.set(tool.name, { ...byName.get(tool.name), ...tool });
+  }
+  return [...byName.values()];
+}
 
 export type McpRuntimeState = {
   figma: McpServer;
@@ -104,7 +142,7 @@ export async function setMcpServerEnabled(state: DaemonState, serverId: string, 
     return state.mcp.figma;
   }
 
-  const tools = await client.listTools();
+  const tools = mergeFigmaTools(await client.listTools());
   state.mcp.figmaClient = client;
   state.mcp.figmaOAuthProvider = oauthProvider ?? null;
 
@@ -331,7 +369,7 @@ async function finalizeFigmaConnection(
   oauthProvider: FigmaOAuthProvider
 ): Promise<FigmaMcpAuthStartResult> {
   const config = getFigmaMcpConfigFromEnv(state.mcp.env);
-  const tools = await client.listTools();
+  const tools = mergeFigmaTools(await client.listTools());
 
   state.mcp.figmaClient = client;
   state.mcp.figmaOAuthProvider = oauthProvider;
