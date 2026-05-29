@@ -20,6 +20,36 @@ function getGpuLayers(): string {
   return process.env["WRITER_GPU_LAYERS"] ?? "99";
 }
 
+// Extracts the model's response from llama-cli's full stdout.
+// Strips: the startup banner (everything up to and including the prompt-echo
+// line "> <prompt>"), any "[Start thinking]...[End thinking]" reasoning block,
+// and the trailing stats footer ("[ Prompt: ... t/s ]" / "Exiting...").
+// Handles both CRLF and LF line endings.
+export function extractResponse(raw: string, prompt: string): string {
+  let text = raw.replace(/\r\n/g, "\n");
+
+  // Drop everything through the prompt-echo line. The echo is "> <prompt>" on its
+  // own line; match by the first line that starts with "> " and contains the
+  // prompt's first line (prompts may be multi-line).
+  const promptHead = prompt.split("\n")[0]!.trim();
+  const echoIdx = text.indexOf(`> ${promptHead}`);
+  if (echoIdx !== -1) {
+    const afterEcho = text.indexOf("\n", echoIdx);
+    if (afterEcho !== -1) text = text.slice(afterEcho + 1);
+  }
+
+  // Remove a thinking/reasoning block if present.
+  text = text.replace(/\[Start thinking\][\s\S]*?\[End thinking\]\s*/i, "");
+  // Some builds open the block but the footer arrives before a matching close.
+  text = text.replace(/\[Start thinking\][\s\S]*$/i, "");
+
+  // Strip the stats footer and anything after it.
+  const footerIdx = text.search(/\[ Prompt:|\nExiting\.\.\./);
+  if (footerIdx !== -1) text = text.slice(0, footerIdx);
+
+  return text.trim();
+}
+
 // Asks llama-cli which compute devices it can actually load. This is stronger
 // than `nvidia-smi`: it exercises the exact backend path inference will use, so
 // it catches a present-but-unloadable CUDA backend (e.g. ggml-cuda.dll missing
@@ -263,63 +293,24 @@ async function run(
     }
 
     try {
-      // llama-cli in --single-turn --simple-io mode writes the banner, then the
-      // prompt echo ("> <prompt>\n\n"), then response tokens, then a stats footer
-      // ("\n\n[ Prompt: ... ]\n\nExiting...\n") — all on stdout. We buffer until
-      // the prompt echo ends, stream response tokens in real-time, then strip the
-      // stats footer from the tail.
-      const PROMPT_ECHO_SUFFIX = `\n> ${request.prompt}\n\n`;
-      const FOOTER_MARKER = "\n\n[ Prompt:";
-      const FOOTER_LOOKAHEAD = FOOTER_MARKER.length + 20;
-      let headerBuf: string | null = "";
-      let tailBuf = "";
-      let footerReached = false;
-
+      // llama-cli writes a startup banner, the prompt echo line ("> <prompt>"),
+      // optionally a "[Start thinking]...[End thinking]" reasoning block, the
+      // response, and a stats footer ("[ Prompt: ... t/s ]\nExiting...") — all on
+      // stdout, with CRLF line endings on Windows.
+      //
+      // The previous streaming parser matched a literal "\n> <prompt>\n\n" suffix,
+      // which never matched under CRLF, so it buffered forever and emitted nothing.
+      // We instead buffer the full stdout and extract the response once at the end.
+      // The model is fast (~58 tok/s) and responses are short, so the latency cost
+      // of not streaming is acceptable and the parser is far more robust.
+      let raw = "";
       for await (const chunk of child.stdout!) {
         if (cancelled) break;
-        const text = (chunk as Buffer).toString("utf8");
-        if (!text) continue;
-
-        if (headerBuf !== null) {
-          // Still searching for the end of the prompt echo.
-          headerBuf += text;
-          const echoEnd = headerBuf.indexOf(PROMPT_ECHO_SUFFIX);
-          if (echoEnd !== -1) {
-            // Transition: everything after the echo suffix is response content.
-            const responseStart = echoEnd + PROMPT_ECHO_SUFFIX.length;
-            tailBuf = headerBuf.slice(responseStart);
-            headerBuf = null;
-          }
-          continue;
-        }
-
-        if (footerReached) continue; // Drain remaining stdout silently.
-
-        tailBuf += text;
-        // Check if the stats footer has arrived.
-        const footerIdx = tailBuf.indexOf(FOOTER_MARKER);
-        if (footerIdx !== -1) {
-          const safe = tailBuf.slice(0, footerIdx);
-          tailBuf = "";
-          footerReached = true;
-          if (safe) yield makeText(safe);
-          continue;
-        }
-        // Yield all but the last FOOTER_LOOKAHEAD bytes (in case the footer
-        // marker spans two chunks).
-        if (tailBuf.length > FOOTER_LOOKAHEAD) {
-          const safe = tailBuf.slice(0, tailBuf.length - FOOTER_LOOKAHEAD);
-          tailBuf = tailBuf.slice(tailBuf.length - FOOTER_LOOKAHEAD);
-          yield makeText(safe);
-        }
+        raw += (chunk as Buffer).toString("utf8");
       }
 
-      // Flush anything left (strip footer if present).
-      if (tailBuf) {
-        const footerIdx = tailBuf.indexOf(FOOTER_MARKER);
-        const safe = footerIdx !== -1 ? tailBuf.slice(0, footerIdx) : tailBuf;
-        if (safe) yield makeText(safe);
-      }
+      const response = extractResponse(raw, request.prompt);
+      if (response) yield makeText(response);
 
       const exitCode = await new Promise<number | null>((resolve) => {
         child.on("close", (code) => resolve(code));

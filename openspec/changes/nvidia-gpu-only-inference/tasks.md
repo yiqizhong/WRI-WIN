@@ -25,7 +25,14 @@
 - [x] 4.3 Add `scripts/install-cuda-runtime.sh` to fetch the 3 CUDA 12 redist DLLs into the llama folder
 - [ ] 4.4 Bundle CUDA redist DLLs in app packaging (deferred — no electron-builder config exists yet)
 
-## 5. Verification
+## 5. Output parser (second silent-failure cause)
 
-- [x] 5.1 Run `npm run typecheck` — clean
-- [x] 5.2 Direct GPU proof: `llama-cli --list-devices` shows `CUDA0: NVIDIA RTX PRO 3000`; inference ran at 57 tok/s with nvidia-smi showing 95% GPU util, 5.6GB VRAM, llama-cli as a CUDA compute process
+- [x] 5.1 Diagnose: GPU ran fine but rewrite was still empty. Parser matched a literal `"\n> <prompt>\n\n"` echo suffix that never matched under Windows CRLF, so it buffered forever and emitted nothing. This build also prints a banner + `[Start thinking]` reasoning block.
+- [x] 5.2 Replace streaming parser with `extractResponse(raw, prompt)`: normalize CRLF→LF, strip banner up to the prompt-echo line, strip `[Start thinking]...[End thinking]`, strip the `[ Prompt: ... ]`/`Exiting...` footer
+- [x] 5.3 Add unit tests in `local-gemma-adapter.test.ts` (CRLF, thinking block, LF-only, no-banner) — 4/4 pass
+
+## 6. Verification
+
+- [x] 6.1 Run `npm run typecheck` — clean
+- [x] 6.2 Direct GPU proof: `llama-cli --list-devices` shows `CUDA0: NVIDIA RTX PRO 3000`; inference ran at 58 tok/s with nvidia-smi showing 95% GPU util, 5.6GB VRAM, llama-cli as a CUDA compute process
+- [x] 6.3 Parser proof: `extractResponse` on real captured stdout returns 1224 chars of clean rewrite (was 0)
