@@ -2,6 +2,8 @@ const path = require("node:path");
 
 const { BrowserWindow } = require("electron");
 
+const { applyWindowEffects, applyBorderColorEffect } = require("./windows-window-effects.cjs");
+
 /** @returns {import("electron").BrowserWindowConstructorOptions} */
 function getMainWindowOptions() {
   const webPreferences = {
@@ -74,6 +76,9 @@ function getMainWindowOptions() {
 function createMainWindow() {
   const window = new BrowserWindow(getMainWindowOptions());
 
+  // Windows 11: native rounded corners + dark-blue DWM border (no-op elsewhere).
+  applyWindowEffects(window);
+
   window.once("ready-to-show", () => {
     if (process.platform === "darwin") {
       window.setBackgroundColor("#00000000");
@@ -81,6 +86,8 @@ function createMainWindow() {
     } else if (process.platform === "win32") {
       window.setBackgroundMaterial("tabbed");
       window.setBackgroundColor("#00000000");
+      // setBackgroundMaterial resets the DWM border to default gray — re-apply blue last.
+      applyBorderColorEffect(window);
     }
     window.show();
   });

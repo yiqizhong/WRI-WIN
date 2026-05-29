@@ -22,6 +22,10 @@ let WinCompAttrData = null;
 const DWMWA_WINDOW_CORNER_PREFERENCE = 33;
 const DWMWCP_ROUND = 2;
 
+const DWMWA_BORDER_COLOR = 34;
+// DWMWA_BORDER_COLOR takes a COLORREF (0x00BBGGRR). Dark blue #21366B.
+const BORDER_COLOR_DARK_BLUE = 0x006b3621;
+
 const WCA_ACCENT_POLICY = 19;
 const ACCENT_ENABLE_ACRYLICBLURBEHIND = 4;
 // AccentFlags bits 1..4 draw the left/top/right/bottom borders of the accent.
@@ -88,7 +92,17 @@ function applyRoundedCorners(hwnd) {
   pref.writeInt32LE(DWMWCP_ROUND, 0);
   const hr = DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, pref, 4);
   if (hr !== 0) {
-    console.warn("[writer-desktop] DwmSetWindowAttribute HRESULT", hr);
+    console.warn("[writer-desktop] DwmSetWindowAttribute corner HRESULT", hr);
+  }
+}
+
+/** Color the native DWM window border dark blue (Windows 11 22000+). */
+function applyBorderColor(hwnd) {
+  const color = Buffer.alloc(4);
+  color.writeUInt32LE(BORDER_COLOR_DARK_BLUE, 0);
+  const hr = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, color, 4);
+  if (hr !== 0) {
+    console.warn("[writer-desktop] DwmSetWindowAttribute border HRESULT", hr);
   }
 }
 
@@ -130,8 +144,8 @@ function applyWindowEffects(window) {
   }
   try {
     const hwnd = hwndOf(window);
-    applyAcrylicBlur(hwnd);
     applyRoundedCorners(hwnd);
+    applyBorderColor(hwnd);
   } catch (error) {
     console.warn(
       "[writer-desktop] window-effects: apply failed:",
@@ -140,4 +154,26 @@ function applyWindowEffects(window) {
   }
 }
 
-module.exports = { applyWindowEffects };
+/**
+ * Re-apply only the dark-blue DWM border. Call this AFTER setBackgroundMaterial,
+ * which resets the border color back to the system default gray.
+ * @param {import("electron").BrowserWindow} window
+ */
+function applyBorderColorEffect(window) {
+  if (process.platform !== "win32") {
+    return;
+  }
+  if (!load()) {
+    return;
+  }
+  try {
+    applyBorderColor(hwndOf(window));
+  } catch (error) {
+    console.warn(
+      "[writer-desktop] window-effects: border apply failed:",
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
+module.exports = { applyWindowEffects, applyBorderColorEffect };

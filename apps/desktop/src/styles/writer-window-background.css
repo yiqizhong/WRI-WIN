@@ -8,12 +8,10 @@
   --writer-frame-border-width: 1px;
   --writer-backdrop-blur: 80px;
 
-  /* Figma border gradient (node 1063:811) */
-  --writer-border-gradient: radial-gradient(
-    141.91% 107.01% at 19.5% 8.33%,
-    rgba(157, 202, 251, 0.70) 0%,
-    rgba(33, 54, 107, 0.70) 56.25%,
-    rgba(157, 202, 251, 0.21) 100%
+  /* Solid dark-blue window border */
+  --writer-border-gradient: linear-gradient(
+    #21366b 0%,
+    #21366b 100%
   );
 
   /* Figma backgroundImage layers (node 1063:811 — do not change) */
@@ -100,18 +98,22 @@ body,
 
 /* Win11: Mica Alt (Electron "tabbed") + Figma layers — lower tint opacity so wallpaper shows through */
 html[data-platform="win32"] {
-  --writer-frame-border-width: 0.5px;
+  /* Border is drawn natively by DWM (DWMWA_BORDER_COLOR) — disable the CSS stroke. */
+  --writer-frame-border-width: 0px;
   --writer-figma-overlay: linear-gradient(
     0deg,
     rgba(0, 0, 0, 0.08) 0%,
     rgba(0, 0, 0, 0.08) 100%
   );
-  --writer-border-gradient: radial-gradient(
-    141.91% 107.01% at 19.5% 8.33%,
-    rgba(157, 202, 251, 0.42) 0%,
-    rgba(33, 54, 107, 0.38) 56.25%,
-    rgba(157, 202, 251, 0.12) 100%
+  --writer-border-gradient: linear-gradient(
+    #21366b 0%,
+    #21366b 100%
   );
+}
+
+/* DWM draws the dark-blue border natively on Win11 — drop the CSS stroke entirely. */
+html[data-platform="win32"] .writer-window-frame::before {
+  display: none;
 }
 
 html[data-platform="win32"] .writer-window-frame__glass {
