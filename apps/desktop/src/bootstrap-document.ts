@@ -6,8 +6,13 @@ export function bootstrapDocumentChrome(): void {
   const chrome = window.writerDesktop?.windowChrome === "transparent" ? "transparent" : "opaque";
   html.dataset.windowChrome = chrome;
   html.style.colorScheme = "dark";
+  const platform = window.writerDesktop?.platform;
   html.dataset.platform =
-    window.writerDesktop?.platform ??
-    (navigator.platform.toLowerCase().includes("mac") ? "darwin" : "other");
+    platform ??
+    (navigator.platform.toLowerCase().includes("mac")
+      ? "darwin"
+      : navigator.userAgent.includes("Windows")
+        ? "win32"
+        : "other");
 
 }

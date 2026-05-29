@@ -4,33 +4,29 @@
 
 :root {
   --writer-blue-200: #9dcafb;
-  --writer-border-radius: 12px;
+  --writer-border-radius: 4px;
+  --writer-frame-border-width: 1px;
   --writer-backdrop-blur: 80px;
-  /* Hairline window stroke */
-  --writer-border-thickness: 0.1px;
 
   /* Figma border gradient (node 1063:811) */
   --writer-border-gradient: radial-gradient(
     141.91% 107.01% at 19.5% 8.33%,
-    var(--Blue-200, rgba(157, 202, 251, 0.70)) 0%,
+    rgba(157, 202, 251, 0.70) 0%,
     rgba(33, 54, 107, 0.70) 56.25%,
     rgba(157, 202, 251, 0.21) 100%
   );
 
-  /* Figma backgroundImage layers (node 1063:811) */
+  /* Figma backgroundImage layers (node 1063:811 — do not change) */
   --writer-figma-overlay: linear-gradient(
     0deg,
-    rgba(0, 0, 0, 0.18) 0%,
-    rgba(0, 0, 0, 0.18) 100%
+    rgba(0, 0, 0, 0.09) 0%,
+    rgba(0, 0, 0, 0.09) 100%
   );
-  /* Higher alphas so the navy tint dominates the blurred backdrop — keeps the
-   * window's transparency/color consistent across monitors with different
-   * wallpapers, color profiles, and scaling. */
   --writer-figma-fill: linear-gradient(
     176deg,
-    rgba(26, 61, 76, 0.9) -3.04%,
-    rgba(14, 26, 62, 0.97) 41.61%,
-    rgba(1, 3, 17, 0.97) 96.95%
+    rgba(48, 100, 125, 0.62) -3.04%,
+    rgba(14, 26, 62, 0.95) 41.61%,
+    rgba(1, 3, 17, 0.95) 96.95%
   );
   --writer-figma-background-image: var(--writer-figma-overlay), var(--writer-figma-fill);
 }
@@ -45,8 +41,8 @@ body,
   background: transparent !important;
 }
 
-/* Full app frame: rounded corners + gradient border. Frosted glass comes from macOS vibrancy
- * (set on the BrowserWindow); CSS provides only the dark tint layer below. */
+/* Full app frame: rounded corners + gradient border. OS backdrop (macOS vibrancy / Win11 Mica Alt)
+ * sits below; CSS stacks Figma fill gradient, black overlay, and thin gradient stroke. */
 .writer-window-frame {
   position: relative;
   box-sizing: border-box;
@@ -57,17 +53,16 @@ body,
   border: none;
   border-radius: var(--writer-border-radius);
   background: transparent;
-  overflow: hidden;
 }
 
-/* Gradient border: hairline radial-gradient stroke that respects border-radius */
+/* Gradient border: radial-gradient stroke that respects border-radius */
 .writer-window-frame::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: 100;
   border-radius: var(--writer-border-radius);
-  padding: var(--writer-border-thickness);
+  padding: var(--writer-frame-border-width);
   background: var(--writer-border-gradient);
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
@@ -83,14 +78,13 @@ body,
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  border-radius: calc(var(--writer-border-radius) - var(--writer-border-thickness));
+  border-radius: calc(var(--writer-border-radius) - var(--writer-frame-border-width));
   overflow: hidden;
 }
 
-/* Tint layer — sits over the macOS vibrancy backdrop.
- * mix-blend-mode CANNOT reach the OS vibrancy layer in Chromium, so we use alpha
- * reduction (opacity) to let the wallpaper blur show through, then boost saturation
- * via filter so the reduced-alpha colors still read as the rich Figma navy. */
+/* Tint layer — sits over the native OS backdrop (macOS vibrancy / Win11 Mica Alt).
+ * mix-blend-mode CANNOT reach the OS layer in Chromium, so we use alpha reduction
+ * (opacity) to let the wallpaper tint show through, then boost saturation via filter. */
 .writer-window-frame__glass {
   position: absolute;
   inset: 0;
@@ -100,8 +94,29 @@ body,
   background-image: var(--writer-figma-background-image);
   background-repeat: no-repeat;
   background-size: cover;
-  opacity: var(--writer-tint-opacity, 1);
+  opacity: var(--writer-tint-opacity, 0.88);
   filter: saturate(var(--writer-tint-saturate, 0.98));
+}
+
+/* Win11: Mica Alt (Electron "tabbed") + Figma layers — lower tint opacity so wallpaper shows through */
+html[data-platform="win32"] {
+  --writer-frame-border-width: 0.5px;
+  --writer-figma-overlay: linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+  --writer-border-gradient: radial-gradient(
+    141.91% 107.01% at 19.5% 8.33%,
+    rgba(157, 202, 251, 0.42) 0%,
+    rgba(33, 54, 107, 0.38) 56.25%,
+    rgba(157, 202, 251, 0.12) 100%
+  );
+}
+
+html[data-platform="win32"] .writer-window-frame__glass {
+  --writer-tint-opacity: 0.76;
+  --writer-tint-saturate: 1.02;
 }
 
 .writer-window-frame__content {
@@ -111,8 +126,6 @@ body,
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  border-radius: inherit;
-  overflow: hidden;
 }
 
 .writer-window-frame__clip {
@@ -139,7 +152,7 @@ html[data-window-chrome="transparent"] .writer-window-frame {
 }
 
 html[data-window-chrome="transparent"] .writer-app-viewport {
-  border-radius: calc(var(--writer-border-radius) - var(--writer-border-thickness));
+  border-radius: calc(var(--writer-border-radius) - var(--writer-frame-border-width));
   overflow: hidden;
 }
 

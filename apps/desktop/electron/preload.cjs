@@ -1,8 +1,10 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+const usesNativeWindowBackdrop = process.platform === "darwin" || process.platform === "win32";
+
 contextBridge.exposeInMainWorld("writerDesktop", {
   platform: process.platform,
-  windowChrome: "transparent",
+  windowChrome: usesNativeWindowBackdrop ? "transparent" : "opaque",
   windowMinimize: () => ipcRenderer.send("window:minimize"),
   windowMaximize: () => ipcRenderer.send("window:maximize"),
   windowClose: () => ipcRenderer.send("window:close"),

@@ -2,8 +2,6 @@ const path = require("node:path");
 
 const { BrowserWindow } = require("electron");
 
-const { applyWindowEffects } = require("./windows-window-effects.cjs");
-
 /** @returns {import("electron").BrowserWindowConstructorOptions} */
 function getMainWindowOptions() {
   const webPreferences = {
@@ -46,19 +44,29 @@ function getMainWindowOptions() {
     };
   }
 
-  /**
-   * Windows/Linux: transparent frameless window. On Windows the real desktop
-   * acrylic blur + rounded corners are applied natively after creation in
-   * applyWindowEffects() (SetWindowCompositionAttribute), since Electron's
-   * backgroundMaterial does not composite the DWM blur into a transparent window.
-   * The translucent CSS gradient tint then sits over the blurred desktop.
-   */
+  if (process.platform === "win32") {
+    return {
+      ...base,
+      frame: false,
+      /**
+       * Windows 11 DWM Mica Alt ("tabbed") — stronger wallpaper tint than standard Mica.
+       * CSS stacks Figma gradient fill + 8% black overlay + thin gradient stroke on top.
+       * Do NOT set transparent: true; it disables Aero Snap/shadows and breaks material.
+       */
+      transparent: false,
+      backgroundColor: "#00000000",
+      backgroundMaterial: "tabbed",
+      roundedCorners: true,
+      hasShadow: true,
+      acceptFirstMouse: true
+    };
+  }
+
   return {
     ...base,
     frame: false,
-    transparent: true,
-    backgroundColor: "#00000000",
-    hasShadow: false
+    transparent: false,
+    backgroundColor: "#010311"
   };
 }
 
@@ -66,13 +74,13 @@ function getMainWindowOptions() {
 function createMainWindow() {
   const window = new BrowserWindow(getMainWindowOptions());
 
-  // Windows 11: native acrylic desktop blur + rounded corners (no-op elsewhere).
-  applyWindowEffects(window);
-
   window.once("ready-to-show", () => {
     if (process.platform === "darwin") {
       window.setBackgroundColor("#00000000");
       window.setWindowButtonVisibility(false);
+    } else if (process.platform === "win32") {
+      window.setBackgroundMaterial("tabbed");
+      window.setBackgroundColor("#00000000");
     }
     window.show();
   });
