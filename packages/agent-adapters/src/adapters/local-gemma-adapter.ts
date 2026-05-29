@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import type { AgentAdapter, AgentRun, AgentRunEvent, LocalModelState } from "@writer/contracts";
 
@@ -20,19 +20,40 @@ function getGpuLayers(): string {
   return process.env["WRITER_GPU_LAYERS"] ?? "99";
 }
 
-// Returns true when an NVIDIA GPU is reachable.
-// Skipped when WRITER_GPU_LAYERS is explicitly set (caller asserts GPU present).
+// Asks llama-cli which compute devices it can actually load. This is stronger
+// than `nvidia-smi`: it exercises the exact backend path inference will use, so
+// it catches a present-but-unloadable CUDA backend (e.g. ggml-cuda.dll missing
+// its cudart/cublas runtime dependencies), which would otherwise silently fall
+// back to CPU.
+//
+// Returns the list of non-CPU device descriptions reported by llama-cli.
 // WRITER_GPU_LAYERS="0" disables GPU enforcement entirely (dev / CI without GPU).
-async function detectNvidiaGpu(): Promise<boolean> {
-  if (process.env["WRITER_GPU_LAYERS"] !== undefined) return true;
+async function listGpuDevices(binaryPath: string): Promise<string[]> {
   return new Promise((resolve) => {
-    const child = spawn("nvidia-smi", [], {
-      stdio: ["ignore", "ignore", "ignore"],
-      shell: false,
+    let stdout = "";
+    const child = spawn(binaryPath, ["--list-devices"], {
+      cwd: dirname(binaryPath),
+      stdio: ["ignore", "pipe", "ignore"],
       windowsHide: true
     } as Parameters<typeof spawn>[2]);
-    child.on("close", (code: number | null) => resolve(code === 0));
-    child.on("error", () => resolve(false));
+    child.stdout?.on("data", (chunk: Buffer) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.on("error", () => resolve([]));
+    child.on("close", () => {
+      // Output format:
+      //   Available devices:
+      //     CUDA0: NVIDIA RTX ... (12288 MiB, 12000 MiB free)
+      // A CPU-only build prints "Available devices:" with nothing after it.
+      const lines = stdout
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !/^Available devices:?$/i.test(line));
+      // Keep only entries that look like accelerator devices (CUDA/Vulkan/etc),
+      // never a "CPU" pseudo-device some builds emit.
+      const gpu = lines.filter((line) => !/^CPU\b/i.test(line));
+      resolve(gpu);
+    });
   });
 }
 
@@ -127,12 +148,15 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
 
   const layers = getGpuLayers();
   if (layers !== "0") {
-    const gpuOk = await detectNvidiaGpu();
-    if (!gpuOk) {
+    const gpuDevices = await listGpuDevices(binaryPath);
+    if (gpuDevices.length === 0) {
       return buildAdapter({
         available: false,
         setupMessage:
-          "NVIDIA GPU not detected. Install NVIDIA drivers, or set WRITER_GPU_LAYERS=0 to disable GPU enforcement.",
+          "NVIDIA GPU backend could not load, so inference would run on CPU. " +
+          "Most likely the CUDA 12 runtime is missing: place cudart64_12.dll, " +
+          "cublas64_12.dll, and cublasLt64_12.dll next to llama-cli.exe (or install " +
+          "the CUDA 12 Toolkit). Set WRITER_GPU_LAYERS=0 to allow CPU inference.",
         diagnosticCode: "gpu_not_available"
       });
     }
@@ -206,16 +230,19 @@ async function run(
 
   let cancelled = false;
 
+  // Set cwd to the binary's directory so Windows finds ggml-cuda.dll and
+  // other sibling DLLs at process load time via the standard DLL search order.
   const child = spawn(binary, [
     "--model", modelPath,
     "--ctx-size", "8192",
-    "--ngl", getGpuLayers(),
+    "-ngl", getGpuLayers(),
     "--prompt", request.prompt,
     "--no-display-prompt",
     "--single-turn",
     "--simple-io",
     "--log-disable"
   ], {
+    cwd: dirname(binary),
     stdio: ["ignore", "pipe", "pipe"]
   });
 

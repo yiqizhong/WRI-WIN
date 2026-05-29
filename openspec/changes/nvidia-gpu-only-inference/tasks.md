@@ -14,10 +14,18 @@
 ## 3. Adapter: detect() and run()
 
 - [x] 3.1 In `detect()`, after binary + model checks pass, call `detectNvidiaGpu()`; return `available: false` with `gpu_not_available` diagnostic if GPU absent
-- [x] 3.2 In `run()`, insert `"--ngl"` and `getGpuLayers()` into the spawn args array
-- [ ] 3.3 Update adapter unit tests to assert `--ngl 99` is in spawn args and that GPU-absent detection blocks the run
+- [x] 3.2 In `run()`, insert `"-ngl"` (single dash — `--ngl` is rejected by this llama.cpp build) and `getGpuLayers()` into the spawn args array
+- [x] 3.3 Set `cwd: dirname(binary)` on spawn so Windows finds sibling DLLs (ggml-cuda.dll, cudart, cublas) at load time
+- [ ] 3.4 Update adapter unit tests to assert `-ngl 99` is in spawn args and that GPU-absent detection blocks the run
 
-## 4. Verification
+## 4. CUDA runtime (the actual root cause)
 
-- [x] 4.1 Run `npm run typecheck` — clean
-- [x] 4.2 Run `npm run test` — pre-existing failures only (echo adapter + cli-runner Windows issues unrelated to this change)
+- [x] 4.1 Diagnose: ggml-cuda.dll fails LoadLibrary with error 126 — missing cudart64_12.dll + cublas64_12.dll/cublasLt64_12.dll (NVIDIA driver ships nvcuda.dll but not the CUDA *runtime*)
+- [x] 4.2 Detect via `llama-cli --list-devices` (stronger than nvidia-smi: exercises the real backend-load path) — empty list ⇒ `gpu_not_available`
+- [x] 4.3 Add `scripts/install-cuda-runtime.sh` to fetch the 3 CUDA 12 redist DLLs into the llama folder
+- [ ] 4.4 Bundle CUDA redist DLLs in app packaging (deferred — no electron-builder config exists yet)
+
+## 5. Verification
+
+- [x] 5.1 Run `npm run typecheck` — clean
+- [x] 5.2 Direct GPU proof: `llama-cli --list-devices` shows `CUDA0: NVIDIA RTX PRO 3000`; inference ran at 57 tok/s with nvidia-smi showing 95% GPU util, 5.6GB VRAM, llama-cli as a CUDA compute process

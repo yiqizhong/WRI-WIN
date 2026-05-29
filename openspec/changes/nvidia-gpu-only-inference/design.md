@@ -29,12 +29,28 @@ report unavailable with a clear diagnostic rather than silently degrading.
 
 ## Decisions
 
-### D1: Use `nvidia-smi` for GPU detection
+### D0: Real root cause — missing CUDA 12 runtime (added after dogfood)
 
-- **Choice:** Shell out to `nvidia-smi` (exit code check only, no output parsing).
-- **Rationale:** `nvidia-smi` is present on any Windows machine with NVIDIA drivers
-  installed. It's fast (<200ms), requires no extra dependencies, and is the standard
-  diagnostic approach.
+- **Finding:** The "empty rewrite" was NOT primarily a missing `-ngl` flag. The
+  bundled `ggml-cuda.dll` fails to load with Windows error 126
+  (ERROR_MOD_NOT_FOUND) because its dependencies `cudart64_12.dll`,
+  `cublas64_12.dll`, and `cublasLt64_12.dll` are absent. The NVIDIA driver provides
+  `nvcuda.dll` (driver API) but not the CUDA *runtime* libraries.
+- **Consequence:** llama.cpp silently loads zero GPU backends and runs on CPU.
+- **Fix:** Ship the 3 CUDA 12 redist DLLs next to `llama-cli.exe`
+  (`scripts/install-cuda-runtime.sh` for now; app bundling later).
+- **Secondary bug:** the flag must be `-ngl` (single dash); this build rejects
+  `--ngl`. And the spawn needs `cwd: dirname(binary)` so Windows resolves the
+  sibling CUDA DLLs at load time.
+
+### D1: Detect GPU via `llama-cli --list-devices`, not `nvidia-smi`
+
+- **Choice:** Run `llama-cli --list-devices` and require a non-CPU device line.
+- **Rationale:** `nvidia-smi` only proves a driver exists — it passes even when the
+  CUDA *backend* can't load (the exact failure here). `--list-devices` exercises the
+  real backend-load path inference uses, so it catches a present-but-unloadable
+  CUDA backend and prevents silent CPU fallback.
+- **Superseded:** the earlier `nvidia-smi` exit-code approach (kept in git history).
 - **Override:** `WRITER_GPU_LAYERS=0` means "do not enforce GPU" (dev/CI without GPU).
   Any positive integer value means "use that many layers" and skips the nvidia-smi
   check (the caller asserts GPU is present). Default: `"99"`.
