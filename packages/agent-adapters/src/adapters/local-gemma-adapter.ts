@@ -294,12 +294,19 @@ async function run(
 
   const args = [
     "--model", modelPath,
-    "--ctx-size", "8192",
+    "--ctx-size", "4096",
     "-ngl", getGpuLayers(),
     "-cnv",
     "--single-turn",
     "--simple-io",
     "--log-disable",
+    // This Gemma build is a thinking model. Left unrestricted it generates a
+    // long [Start thinking]...[End thinking] trace before the (usually short)
+    // rewrite — hundreds of wasted tokens at ~50 tok/s, the main cause of
+    // perceived slowness. Disable reasoning so it answers directly. Cap output
+    // so a runaway generation can't hang the request.
+    "--reasoning", "off",
+    "-n", "512",
     "--prompt", user
   ];
   if (system) {
