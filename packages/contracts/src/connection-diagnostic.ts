@@ -20,6 +20,7 @@ export const connectionDiagnosticCodeSchema = z.enum([
   "downloading",
   "verifying",
   "install_failed",
+  "gpu_not_available",
   "ready"
 ]);
 

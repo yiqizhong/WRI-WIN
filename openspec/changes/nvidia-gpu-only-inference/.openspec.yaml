@@ -1,0 +1,3 @@
+schema: superpowers-bridge
+name: nvidia-gpu-only-inference
+status: in-progress

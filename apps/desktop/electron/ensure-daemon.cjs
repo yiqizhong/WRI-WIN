@@ -147,6 +147,8 @@ function spawnDaemon() {
   const tsxExecutable = resolveTsxExecutable();
   const child = spawn(tsxExecutable, ["src/index.ts"], {
     cwd: daemonDir,
+    // .cmd files on Windows must be spawned with shell:true
+    shell: process.platform === "win32",
     env: {
       ...process.env,
       WRITER_DAEMON_HOST: daemonHost,

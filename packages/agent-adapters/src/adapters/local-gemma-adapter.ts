@@ -16,6 +16,26 @@ import { commandExists } from "../cli-runner";
 const ADAPTER_ID = "local-gemma";
 const DISPLAY_NAME = "Local Gemma";
 
+function getGpuLayers(): string {
+  return process.env["WRITER_GPU_LAYERS"] ?? "99";
+}
+
+// Returns true when an NVIDIA GPU is reachable.
+// Skipped when WRITER_GPU_LAYERS is explicitly set (caller asserts GPU present).
+// WRITER_GPU_LAYERS="0" disables GPU enforcement entirely (dev / CI without GPU).
+async function detectNvidiaGpu(): Promise<boolean> {
+  if (process.env["WRITER_GPU_LAYERS"] !== undefined) return true;
+  return new Promise((resolve) => {
+    const child = spawn("nvidia-smi", [], {
+      stdio: ["ignore", "ignore", "ignore"],
+      shell: false,
+      windowsHide: true
+    } as Parameters<typeof spawn>[2]);
+    child.on("close", (code: number | null) => resolve(code === 0));
+    child.on("error", () => resolve(false));
+  });
+}
+
 export type LocalGemmaAdapterOptions = {
   getModelState: () => LocalModelState | null;
 };
@@ -105,6 +125,19 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
     });
   }
 
+  const layers = getGpuLayers();
+  if (layers !== "0") {
+    const gpuOk = await detectNvidiaGpu();
+    if (!gpuOk) {
+      return buildAdapter({
+        available: false,
+        setupMessage:
+          "NVIDIA GPU not detected. Install NVIDIA drivers, or set WRITER_GPU_LAYERS=0 to disable GPU enforcement.",
+        diagnosticCode: "gpu_not_available"
+      });
+    }
+  }
+
   return buildAdapter({
     available: true,
     binaryPath,
@@ -176,6 +209,7 @@ async function run(
   const child = spawn(binary, [
     "--model", modelPath,
     "--ctx-size", "8192",
+    "--ngl", getGpuLayers(),
     "--prompt", request.prompt,
     "--no-display-prompt",
     "--single-turn",
