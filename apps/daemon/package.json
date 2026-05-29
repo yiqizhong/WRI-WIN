@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
+    "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
