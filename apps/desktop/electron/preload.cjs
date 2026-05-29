@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("writerDesktop", {
   saveTextFile: (filePath, content) => ipcRenderer.invoke("writer:save-text-file", filePath, content),
   exportPdfFromHtml: (filePath, html) => ipcRenderer.invoke("writer:export-pdf-from-html", filePath, html),
   pickGuidelineFile: () => ipcRenderer.invoke("writer:pick-guideline-file"),
-  pickGlossaryFile: () => ipcRenderer.invoke("writer:pick-glossary-file")
+  pickGlossaryFile: () => ipcRenderer.invoke("writer:pick-glossary-file"),
+  // DEV: live-switch the Win11 backdrop material to tune the look.
+  setBackgroundMaterial: (material) =>
+    ipcRenderer.invoke("writer:set-background-material", material)
 });
 

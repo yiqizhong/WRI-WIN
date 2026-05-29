@@ -51,13 +51,13 @@ function getMainWindowOptions() {
       ...base,
       frame: false,
       /**
-       * Windows 11 DWM Mica Alt ("tabbed") — stronger wallpaper tint than standard Mica.
-       * CSS stacks Figma gradient fill + 8% black overlay + thin gradient stroke on top.
+       * Windows 11 DWM Acrylic ("acrylic") — stronger translucent blur of whatever
+       * is behind the window. CSS stacks Figma gradient fill + black overlay on top.
        * Do NOT set transparent: true; it disables Aero Snap/shadows and breaks material.
        */
       transparent: false,
       backgroundColor: "#00000000",
-      backgroundMaterial: "tabbed",
+      backgroundMaterial: "acrylic",
       roundedCorners: true,
       hasShadow: true,
       acceptFirstMouse: true
@@ -84,7 +84,7 @@ function createMainWindow() {
       window.setBackgroundColor("#00000000");
       window.setWindowButtonVisibility(false);
     } else if (process.platform === "win32") {
-      window.setBackgroundMaterial("tabbed");
+      window.setBackgroundMaterial("acrylic");
       window.setBackgroundColor("#00000000");
       // setBackgroundMaterial resets the DWM border to default gray — re-apply blue last.
       applyBorderColorEffect(window);

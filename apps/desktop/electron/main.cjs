@@ -35,6 +35,16 @@ ipcMain.on("window:maximize", () => {
 ipcMain.on("window:close", () => mainWindow?.close());
 ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
 
+ipcMain.handle("writer:set-background-material", (_event, material) => {
+  if (process.platform !== "win32" || !mainWindow) {
+    return false;
+  }
+  // material: "none" | "mica" | "acrylic" | "tabbed"
+  mainWindow.setBackgroundMaterial(material);
+  mainWindow.setBackgroundColor("#00000000");
+  return true;
+});
+
 ipcMain.handle("writer:open-external", async (_event, url) => {
   await shell.openExternal(url);
   return true;

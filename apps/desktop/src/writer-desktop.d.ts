@@ -21,6 +21,9 @@ declare global {
       exportPdfFromHtml: (filePath: string, html: string) => Promise<string>;
       pickGuidelineFile: () => Promise<{ filename: string; content: string } | null>;
       pickGlossaryFile: () => Promise<{ filename: string; content: string; format: "csv" | "md" } | null>;
+      setBackgroundMaterial?: (
+        material: "none" | "mica" | "acrylic" | "tabbed"
+      ) => Promise<boolean>;
     };
   }
 }

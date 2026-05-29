@@ -8,6 +8,7 @@ import { WRITER_MODAL_HOST_ID } from "@/lib/writer-modal-host";
 import { mastheadConfigForPath } from "./masthead-route";
 import { WriterWindowBackground } from "./WriterWindowBackground";
 import { WindowMasthead } from "./WindowMasthead";
+import { BackdropTuner } from "./BackdropTuner";
 
 type AppShellProps = {
   children: ReactNode;
@@ -29,6 +30,7 @@ export function AppShell({ children }: AppShellProps) {
         <div className="writer-app-viewport__content">{children}</div>
         <div id={WRITER_MODAL_HOST_ID} className="writer-modal-host" />
       </div>
+      <BackdropTuner />
     </WriterWindowBackground>
   );
 }
