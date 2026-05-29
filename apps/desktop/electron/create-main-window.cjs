@@ -2,6 +2,8 @@ const path = require("node:path");
 
 const { BrowserWindow } = require("electron");
 
+const { applyWindowEffects } = require("./windows-window-effects.cjs");
+
 /** @returns {import("electron").BrowserWindowConstructorOptions} */
 function getMainWindowOptions() {
   const webPreferences = {
@@ -44,24 +46,13 @@ function getMainWindowOptions() {
     };
   }
 
-  if (process.platform === "win32") {
-    /**
-     * Windows 11: acrylic background material gives a real frosted-glass desktop
-     * blur (the OS-level DWM blur — CSS backdrop-filter cannot reach desktop pixels).
-     * roundedCorners: false lets CSS border-radius control the shape instead of
-     * the OS drawing its own rounded rect that ignores our gradient frame.
-     */
-    return {
-      ...base,
-      frame: false,
-      transparent: true,
-      backgroundColor: "#00000000",
-      backgroundMaterial: "acrylic",
-      roundedCorners: false,
-      hasShadow: false
-    };
-  }
-
+  /**
+   * Windows/Linux: transparent frameless window. On Windows the real desktop
+   * acrylic blur + rounded corners are applied natively after creation in
+   * applyWindowEffects() (SetWindowCompositionAttribute), since Electron's
+   * backgroundMaterial does not composite the DWM blur into a transparent window.
+   * The translucent CSS gradient tint then sits over the blurred desktop.
+   */
   return {
     ...base,
     frame: false,
@@ -74,6 +65,9 @@ function getMainWindowOptions() {
 /** @returns {import("electron").BrowserWindow} */
 function createMainWindow() {
   const window = new BrowserWindow(getMainWindowOptions());
+
+  // Windows 11: native acrylic desktop blur + rounded corners (no-op elsewhere).
+  applyWindowEffects(window);
 
   window.once("ready-to-show", () => {
     if (process.platform === "darwin") {
