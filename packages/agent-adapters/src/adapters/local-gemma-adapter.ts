@@ -20,32 +20,57 @@ function getGpuLayers(): string {
   return process.env["WRITER_GPU_LAYERS"] ?? "99";
 }
 
+// Splits buildCopywriterPrompt's `full` ("<system>\n\n---\n\n<user>") back into
+// its system and user halves so we can feed them to llama-cli conversation mode.
+// If the separator is absent (other callers), treat the whole thing as user text.
+export function splitCopywriterPrompt(full: string): { system: string; user: string } {
+  const sep = "\n\n---\n\n";
+  const idx = full.indexOf(sep);
+  if (idx === -1) return { system: "", user: full };
+  return { system: full.slice(0, idx).trim(), user: full.slice(idx + sep.length).trim() };
+}
+
 // Extracts the model's response from llama-cli's full stdout.
 // Strips: the startup banner (everything up to and including the prompt-echo
 // line "> <prompt>"), any "[Start thinking]...[End thinking]" reasoning block,
 // and the trailing stats footer ("[ Prompt: ... t/s ]" / "Exiting...").
 // Handles both CRLF and LF line endings.
 export function extractResponse(raw: string, prompt: string): string {
-  let text = raw.replace(/\r\n/g, "\n");
+  // Strip ANSI color codes (conversation mode colorizes the "> " prompt line).
+  // eslint-disable-next-line no-control-regex
+  let text = raw.replace(/\[[0-9;]*m/g, "").replace(/\r\n/g, "\n");
 
-  // Drop everything through the prompt-echo line. The echo is "> <prompt>" on its
-  // own line; match by the first line that starts with "> " and contains the
-  // prompt's first line (prompts may be multi-line).
-  const promptHead = prompt.split("\n")[0]!.trim();
-  const echoIdx = text.indexOf(`> ${promptHead}`);
+  // Cut the trailing stats footer and anything after it.
+  const footerIdx = text.search(/\n\[ Prompt:|\nExiting\.\.\./);
+  if (footerIdx !== -1) text = text.slice(0, footerIdx);
+
+  // This Gemma build is a *thinking* model. Output shape:
+  //   > <echoed user text (possibly multi-line)>
+  //   [Start thinking] ... [End thinking]
+  //   <final answer>
+  // The END of the thinking block is the strongest answer boundary — take
+  // everything after it when present.
+  const endThink = text.search(/\[End thinking\]/i);
+  if (endThink !== -1) {
+    return text.slice(endThink + "[End thinking]".length).trim();
+  }
+
+  // No thinking block: drop everything through the echoed user text. The echo
+  // begins at "> <promptHead>" and spans the full user text, so advance past
+  // the user text's LAST line.
+  const promptLines = prompt.split("\n").map((l) => l.trim()).filter(Boolean);
+  const promptHead = promptLines[0] ?? "";
+  const echoIdx = promptHead ? text.indexOf(`> ${promptHead}`) : -1;
   if (echoIdx !== -1) {
-    const afterEcho = text.indexOf("\n", echoIdx);
+    const lastUserLine = promptLines[promptLines.length - 1] ?? promptHead;
+    const lastIdx = text.indexOf(lastUserLine, echoIdx);
+    const anchor = lastIdx !== -1 ? lastIdx + lastUserLine.length : echoIdx;
+    const afterEcho = text.indexOf("\n", anchor);
     if (afterEcho !== -1) text = text.slice(afterEcho + 1);
   }
 
-  // Remove a thinking/reasoning block if present.
-  text = text.replace(/\[Start thinking\][\s\S]*?\[End thinking\]\s*/i, "");
-  // Some builds open the block but the footer arrives before a matching close.
+  // Defensive: strip a stray unclosed thinking block.
   text = text.replace(/\[Start thinking\][\s\S]*$/i, "");
-
-  // Strip the stats footer and anything after it.
-  const footerIdx = text.search(/\[ Prompt:|\nExiting\.\.\./);
-  if (footerIdx !== -1) text = text.slice(0, footerIdx);
 
   return text.trim();
 }
@@ -260,18 +285,30 @@ async function run(
 
   let cancelled = false;
 
-  // Set cwd to the binary's directory so Windows finds ggml-cuda.dll and
-  // other sibling DLLs at process load time via the standard DLL search order.
-  const child = spawn(binary, [
+  // The prompt arrives as "<system>\n\n---\n\n<user>" (buildCopywriterPrompt's
+  // `full`). Raw --prompt completion makes Gemma *continue* the system text
+  // instead of following it, so we run in conversation mode (-cnv) with the
+  // model's built-in chat template (--jinja, on by default): system via -sys,
+  // user text via --prompt. This is what makes the model instruction-follow.
+  const { system, user } = splitCopywriterPrompt(request.prompt);
+
+  const args = [
     "--model", modelPath,
     "--ctx-size", "8192",
     "-ngl", getGpuLayers(),
-    "--prompt", request.prompt,
-    "--no-display-prompt",
+    "-cnv",
     "--single-turn",
     "--simple-io",
-    "--log-disable"
-  ], {
+    "--log-disable",
+    "--prompt", user
+  ];
+  if (system) {
+    args.push("-sys", system);
+  }
+
+  // Set cwd to the binary's directory so Windows finds ggml-cuda.dll and
+  // other sibling DLLs at process load time via the standard DLL search order.
+  const child = spawn(binary, args, {
     cwd: dirname(binary),
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -309,7 +346,9 @@ async function run(
         raw += (chunk as Buffer).toString("utf8");
       }
 
-      const response = extractResponse(raw, request.prompt);
+      // In conversation mode llama-cli echoes the *user* text (not the full
+      // prompt) on the "> " line, so match against the user half.
+      const response = extractResponse(raw, user);
       if (response) yield makeText(response);
 
       const exitCode = await new Promise<number | null>((resolve) => {
