@@ -12,9 +12,31 @@ import type {
   AgentRunRequest
 } from "../types";
 import { commandExists } from "../cli-runner";
+import { LocalGemmaRuntime } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
 const DISPLAY_NAME = "Local Gemma";
+
+// Single resident process shared across all runs (the model is identical for
+// every session, and VRAM holds one copy). Lazily created on first run.
+let residentRuntime: LocalGemmaRuntime | null = null;
+
+function getResidentRuntime(binary: string, modelPath: string): LocalGemmaRuntime {
+  if (!residentRuntime) {
+    residentRuntime = new LocalGemmaRuntime({ binary, modelPath, gpuLayers: getGpuLayers() });
+  }
+  return residentRuntime;
+}
+
+/** Tear down the resident process. Call from the daemon shutdown path. */
+export function shutdownLocalGemmaRuntime(): void {
+  residentRuntime?.shutdown();
+  residentRuntime = null;
+}
+
+function residentDisabled(): boolean {
+  return process.env["WRITER_LOCAL_NO_RESIDENT"] === "1";
+}
 
 function getGpuLayers(): string {
   return process.env["WRITER_GPU_LAYERS"] ?? "99";
@@ -249,6 +271,67 @@ function failedHandle(runId: string, request: AgentRunRequest, message: string):
   return { run, events: events(), cancel: async () => undefined };
 }
 
+// Runs a turn against the resident process. Returns a handle on success, or
+// null if the runtime couldn't start (caller then falls back to cold spawn).
+async function tryRunResident(
+  runId: string,
+  request: AgentRunRequest,
+  binary: string,
+  modelPath: string,
+  startedAt: string
+): Promise<AgentRunHandle | null> {
+  const { system, user } = splitCopywriterPrompt(request.prompt);
+  const runtime = getResidentRuntime(binary, modelPath);
+
+  let response: string;
+  try {
+    response = await runtime.runTurn(system, user);
+  } catch {
+    // Could not start or the turn failed — let the caller cold-spawn instead.
+    return null;
+  }
+
+  const endedAt = new Date().toISOString();
+  const run: AgentRun = {
+    id: runId,
+    sessionId: request.sessionId,
+    adapterId: ADAPTER_ID,
+    status: response ? "completed" : "failed",
+    prompt: request.prompt,
+    startedAt,
+    endedAt
+  };
+
+  async function* events(): AsyncGenerator<AgentRunEvent> {
+    if (response) {
+      yield {
+        id: `evt-${randomUUID()}`,
+        runId,
+        type: "text",
+        timestamp: endedAt,
+        payload: { text: response, streamDelta: false }
+      };
+      yield {
+        id: `evt-${randomUUID()}`,
+        runId,
+        type: "completed",
+        timestamp: endedAt,
+        payload: {}
+      };
+    } else {
+      yield {
+        id: `evt-${randomUUID()}`,
+        runId,
+        type: "error",
+        timestamp: endedAt,
+        payload: { message: "Local Gemma returned no text." }
+      };
+    }
+  }
+
+  return { run, events: events(), cancel: async () => undefined };
+}
+
 async function run(
   request: AgentRunRequest,
   getModelState: () => LocalModelState | null
@@ -273,6 +356,13 @@ async function run(
 
   const binary = detection.adapter.executablePath;
   const modelPath = modelState.modelPath;
+
+  // Prefer the resident process (model stays warm in VRAM across messages).
+  // Falls back to a fresh per-message spawn if the runtime can't start.
+  if (!residentDisabled()) {
+    const resident = await tryRunResident(runId, request, binary, modelPath, startedAt);
+    if (resident) return resident;
+  }
 
   const run: AgentRun = {
     id: runId,

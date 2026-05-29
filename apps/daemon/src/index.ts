@@ -1,3 +1,5 @@
+import { shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
+
 import { loadDaemonConfig } from "./config";
 import { startGuidelinesWatcher } from "./guidelines/watcher";
 import { createDaemonLogger } from "./logger";
@@ -40,6 +42,7 @@ async function startDaemon() {
 
   const shutdown = async (signal: string) => {
     logger.info("Shutting down daemon", { signal });
+    shutdownLocalGemmaRuntime();
     await server.close();
     process.exit(0);
   };
