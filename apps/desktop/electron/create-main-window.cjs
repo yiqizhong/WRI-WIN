@@ -44,11 +44,30 @@ function getMainWindowOptions() {
     };
   }
 
+  if (process.platform === "win32") {
+    /**
+     * Windows 11: acrylic background material gives a real frosted-glass desktop
+     * blur (the OS-level DWM blur — CSS backdrop-filter cannot reach desktop pixels).
+     * roundedCorners: false lets CSS border-radius control the shape instead of
+     * the OS drawing its own rounded rect that ignores our gradient frame.
+     */
+    return {
+      ...base,
+      frame: false,
+      transparent: true,
+      backgroundColor: "#00000000",
+      backgroundMaterial: "acrylic",
+      roundedCorners: false,
+      hasShadow: false
+    };
+  }
+
   return {
     ...base,
     frame: false,
-    transparent: false,
-    backgroundColor: "#010311"
+    transparent: true,
+    backgroundColor: "#00000000",
+    hasShadow: false
   };
 }
 
