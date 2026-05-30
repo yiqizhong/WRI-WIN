@@ -13,11 +13,14 @@ import { dirname } from "node:path";
 //     then the next ready prompt "> ".
 //   - The turn's response is the text between the ready prompt and the footer.
 
+export type DraftSettings = { enabled: boolean; path: string | null };
+
 export type LocalGemmaRuntimeOptions = {
   binary: string;
   modelPath: string;
   gpuLayers: string;
   contextSize?: number;
+  draftSettings?: DraftSettings;
 };
 
 const READY_PROMPT = /^> ?$/m;
@@ -66,8 +69,6 @@ export function resolveUbatch(envValue: string | undefined): number {
   const n = Number(envValue);
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_UBATCH;
 }
-
-export type DraftSettings = { enabled: boolean; path: string | null };
 
 /**
  * Precedence: env override > storage settings (enabled + path) > null.
@@ -137,6 +138,16 @@ export function isVramLoadFailure(stderr: string): boolean {
   return /out of memory|failed to allocate|cudamalloc|cuda error|vram/i.test(stderr);
 }
 
+/**
+ * Match stderr indicating draft model specifically failed to load (VRAM/alloc error
+ * mentioning --model-draft or draft model). Conservative — requires BOTH a VRAM
+ * marker AND a draft-model mention.
+ */
+export function isDraftLoadFailure(stderr: string): boolean {
+  if (!/--model-draft|model-draft|draft model/i.test(stderr)) return false;
+  return /out of memory|failed to allocate|cudamalloc|cuda error|vram/i.test(stderr);
+}
+
 export class LocalGemmaRuntime {
   private child: ChildProcessWithoutNullStreams | null = null;
   private currentSystem: string | null = null;
@@ -145,6 +156,8 @@ export class LocalGemmaRuntime {
   private kvFallbackUsed = false;
   private stderrBuf = "";
   private readonly kvPinned = process.env["WRITER_LOCAL_KV_TYPE"] !== undefined;
+  private draftFallbackUsed = false;
+  private readonly draftPinned = process.env["WRITER_LOCAL_DRAFT_MODEL"] !== undefined;
   private busy = false;
   private queue: Array<() => void> = [];
   private idleTimer: NodeJS.Timeout | null = null;
@@ -156,6 +169,14 @@ export class LocalGemmaRuntime {
 
   constructor(opts: LocalGemmaRuntimeOptions) {
     this.opts = opts;
+  }
+
+  private effectiveDraftPath(): string | null {
+    if (this.draftFallbackUsed) return null;
+    return resolveDraftModelPath(
+      process.env["WRITER_LOCAL_DRAFT_MODEL"],
+      this.opts.draftSettings ?? { enabled: false, path: null }
+    );
   }
 
   /** True when a process is alive (resident in VRAM). */
@@ -211,7 +232,7 @@ export class LocalGemmaRuntime {
       kvType: this.kvType,
       flashAttn: resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
       ubatch: resolveUbatch(process.env["WRITER_LOCAL_UBATCH"]),
-      draftModelPath: null,  // Task 6 will replace with real resolver
+      draftModelPath: this.effectiveDraftPath(),
       system
     });
     const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });
@@ -269,6 +290,21 @@ export class LocalGemmaRuntime {
     try {
       await this.waitForReady(turnTimeoutMs());
     } catch (err) {
+      // Draft-model fallback: if the draft model caused a VRAM failure and it wasn't
+      // forced via env, retry without it.
+      if (
+        !this.draftPinned &&
+        !this.draftFallbackUsed &&
+        this.effectiveDraftPath() !== null &&
+        isDraftLoadFailure(this.stderrBuf)
+      ) {
+        this.draftFallbackUsed = true;
+        if (this.resident) this.evict();
+        this.spawnProcess(system, sessionId);
+        await this.waitForReady(turnTimeoutMs());
+        console.error("[local-gemma] draft model disabled: load failed (insufficient VRAM)");
+        return;
+      }
       if (!this.kvPinned && !this.kvFallbackUsed && this.kvType === "f16" && isVramLoadFailure(this.stderrBuf)) {
         this.kvFallbackUsed = true;
         this.kvType = "q8_0";

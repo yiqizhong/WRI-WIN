@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveDraftModelPath, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isDraftLoadFailure, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveDraftModelPath, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -218,5 +218,22 @@ describe("buildSpawnArgs draft model", () => {
   it("omits --model-draft when null", () => {
     const args = buildSpawnArgs({ ...base, draftModelPath: null });
     expect(args).not.toContain("--model-draft");
+  });
+});
+
+describe("isDraftLoadFailure", () => {
+  it("matches a llama-cli draft VRAM error line", () => {
+    const stderr = "ggml_cuda_init: failed to allocate VRAM for --model-draft (gemma-4-E4B-draft-Q4_0.gguf)\n";
+    expect(isDraftLoadFailure(stderr)).toBe(true);
+  });
+  it("tolerates CRLF", () => {
+    const stderr = "ggml_cuda: out of memory allocating draft model\r\n";
+    expect(isDraftLoadFailure(stderr)).toBe(true);
+  });
+  it("returns false when only the main model failed (no draft mention)", () => {
+    expect(isDraftLoadFailure("out of memory loading main model")).toBe(false);
+  });
+  it("returns false on unrelated stderr", () => {
+    expect(isDraftLoadFailure("model loaded successfully")).toBe(false);
   });
 });
