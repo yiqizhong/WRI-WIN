@@ -41,6 +41,26 @@
 
 **Branch:** `feat/local-gemma-v1`
 
+## add-speculative-decoding (OpenSpec: `openspec/changes/add-speculative-decoding/`)
+
+**Epic:** [WRI-184](https://linear.app/uicb/issue/WRI-184) — Add speculative decoding to Local Gemma (Gemma 4 draft, lossless decode boost) · _depends on WRI-167 + WRI-173 (both archived)_
+
+| OpenSpec task | Linear | Notes |
+|---|---|---|
+| §1 (1.1–1.3) | [WRI-185](https://linear.app/uicb/issue/WRI-185) | Contracts: optional `draftModel` field on local model manifest |
+| §2 (2.1–2.3) | [WRI-186](https://linear.app/uicb/issue/WRI-186) | Storage: `speculativeDecoding` slice with migration |
+| §3 (3.1–3.2, 3.4) | [WRI-187](https://linear.app/uicb/issue/WRI-187) | Daemon: `installDraftModel` action with SHA verification |
+| §3 (3.3, routes) | [WRI-188](https://linear.app/uicb/issue/WRI-188) | Daemon: `POST /local-model/draft/install` + `PUT /local-model/draft/enabled` |
+| §4 (4.1–4.4) | [WRI-189](https://linear.app/uicb/issue/WRI-189) | Runtime: `resolveDraftModelPath` + `buildSpawnArgs --model-draft` (resident + cold-spawn) |
+| §5 (5.1–5.4) | [WRI-190](https://linear.app/uicb/issue/WRI-190) | Runtime: draft-load fallback + `DraftSettings` threading from daemon |
+| §6 (6.1–6.3) | [WRI-191](https://linear.app/uicb/issue/WRI-191) | Runtime: `parseTurnMetrics` draft acceptance (optional field) |
+| §7 (7.1–7.5) | [WRI-192](https://linear.app/uicb/issue/WRI-192) | Desktop: Speed boost section (install + toggle + banner) |
+| §8 (8.1–8.5) | [WRI-193](https://linear.app/uicb/issue/WRI-193) | Verify: typecheck + tests + strict validate + live GPU benchmark |
+
+**Suggested order:** WRI-185 → WRI-186 → WRI-187 → WRI-188 → WRI-189 → WRI-190 → (WRI-191, WRI-192 in parallel) → WRI-193 → close WRI-184
+
+**Branch:** `feat/local-llm-context-limits` (continues the local-LLM work; may split off when implementation starts)
+
 ## tune-local-inference-speed (OpenSpec: `openspec/changes/tune-local-inference-speed/`)
 
 **Epic:** [WRI-173](https://linear.app/uicb/issue/WRI-173) — Tune local LLM inference speed (Q8, no quality loss) · _blocked by WRI-167_
