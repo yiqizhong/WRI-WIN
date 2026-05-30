@@ -372,9 +372,12 @@ export class LocalGemmaRuntime {
       if (m) {
         if (process.env["WRITER_LOCAL_PERF_LOG"] === "1") {
           const metrics = parseTurnMetrics(m[0]);
+          const tail = metrics.draftAccepted !== null && metrics.draftProposed !== null
+            ? `, draft ${metrics.draftAccepted}/${metrics.draftProposed} accepted`
+            : "";
           console.error(
             `[local-gemma] prompt ${metrics.promptTokensPerSec ?? "?"} t/s, ` +
-            `eval ${metrics.evalTokensPerSec ?? "?"} t/s`
+            `eval ${metrics.evalTokensPerSec ?? "?"} t/s${tail}`
           );
         }
         const slice = this.stdoutBuf.slice(0, m.index);
@@ -398,6 +401,8 @@ function delay(ms: number): Promise<void> {
 export type TurnMetrics = {
   promptTokensPerSec: number | null;
   evalTokensPerSec: number | null;
+  draftAccepted: number | null;
+  draftProposed: number | null;
 };
 
 /**
@@ -413,9 +418,14 @@ export function parseTurnMetrics(footer: string): TurnMetrics {
     const n = Number(m[1]);
     return Number.isFinite(n) ? n : null;
   };
+  const draftPair = /draft[^\]|]*?([\d.]+)\s*\/\s*([\d.]+)/i.exec(footer);
+  const draftAccepted = draftPair ? Number(draftPair[1]) : null;
+  const draftProposed = draftPair ? Number(draftPair[2]) : null;
   return {
     promptTokensPerSec: num(/prompt[^\]|]*?([\d.]+)\s*t\/s/i),
-    evalTokensPerSec: num(/(?:predicted|eval|generation|gen)[^\]|]*?([\d.]+)\s*t\/s/i)
+    evalTokensPerSec: num(/(?:predicted|eval|generation|gen)[^\]|]*?([\d.]+)\s*t\/s/i),
+    draftAccepted: Number.isFinite(draftAccepted as number) ? draftAccepted : null,
+    draftProposed: Number.isFinite(draftProposed as number) ? draftProposed : null
   };
 }
 

@@ -159,30 +159,58 @@ describe("parseTurnMetrics", () => {
     const footer = "[ Prompt: 210.34 t/s | Predicted: 52.10 t/s ]";
     expect(parseTurnMetrics(footer)).toEqual({
       promptTokensPerSec: 210.34,
-      evalTokensPerSec: 52.1
+      evalTokensPerSec: 52.1,
+      draftAccepted: null,
+      draftProposed: null
     });
   });
   it("tolerates eval/generation wording and CRLF", () => {
     const footer = "\r\n[ Prompt: 180 t/s | eval: 49.5 t/s ]\r\n";
     expect(parseTurnMetrics(footer)).toEqual({
       promptTokensPerSec: 180,
-      evalTokensPerSec: 49.5
+      evalTokensPerSec: 49.5,
+      draftAccepted: null,
+      draftProposed: null
     });
   });
   it("returns nulls when the footer is unrecognized", () => {
     expect(parseTurnMetrics("no numbers here")).toEqual({
       promptTokensPerSec: null,
-      evalTokensPerSec: null
+      evalTokensPerSec: null,
+      draftAccepted: null,
+      draftProposed: null
     });
   });
   it("tolerates generation and gen label variants", () => {
     expect(parseTurnMetrics("[ Prompt: 100 t/s | generation: 45.5 t/s ]")).toEqual({
       promptTokensPerSec: 100,
-      evalTokensPerSec: 45.5
+      evalTokensPerSec: 45.5,
+      draftAccepted: null,
+      draftProposed: null
     });
     expect(parseTurnMetrics("[ Prompt: 100 t/s | gen: 45.5 t/s ]")).toEqual({
       promptTokensPerSec: 100,
-      evalTokensPerSec: 45.5
+      evalTokensPerSec: 45.5,
+      draftAccepted: null,
+      draftProposed: null
+    });
+  });
+  it("extracts draft acceptance when present", () => {
+    const footer = "[ Prompt: 200 t/s | eval: 60 t/s | draft: 3.2/4.0 accepted ]";
+    expect(parseTurnMetrics(footer)).toEqual({
+      promptTokensPerSec: 200,
+      evalTokensPerSec: 60,
+      draftAccepted: 3.2,
+      draftProposed: 4.0
+    });
+  });
+  it("draftAccepted/draftProposed are null when absent", () => {
+    const footer = "[ Prompt: 200 t/s | eval: 60 t/s ]";
+    expect(parseTurnMetrics(footer)).toEqual({
+      promptTokensPerSec: 200,
+      evalTokensPerSec: 60,
+      draftAccepted: null,
+      draftProposed: null
     });
   });
 });
