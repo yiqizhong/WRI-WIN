@@ -18,6 +18,29 @@
 
 **Suggested order:** WRI-168 → WRI-169 → WRI-170 → WRI-171 → WRI-172 → close WRI-167
 
+## local-gemma-resident-process (OpenSpec: `openspec/changes/local-gemma-resident-process/`)
+
+**Epic:** [WRI-177](https://linear.app/uicb/issue/WRI-177) — Local Gemma resident process (warm model, turn serialization) — **Done**
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.7) + §2 (2.1–2.3) | [WRI-179](https://linear.app/uicb/issue/WRI-179) | Resident runtime module + adapter integration |
+| §3 (3.1–3.5) + §4 (4.1–4.5) | [WRI-181](https://linear.app/uicb/issue/WRI-181) | Tests + verification (live: 6931 ms cold → ~2.2 s warm) |
+
+**Branch:** `feat/local-gemma-v1`
+
+## nvidia-gpu-only-inference (OpenSpec: `openspec/changes/nvidia-gpu-only-inference/`)
+
+**Epic:** [WRI-178](https://linear.app/uicb/issue/WRI-178) — NVIDIA GPU-only inference for Local Gemma · _2 open tasks (2.3, 3.4 unit tests; 4.4 DLL bundling deferred)_
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.2) + §2 (2.1–2.3) + §3 (3.1–3.4) | [WRI-180](https://linear.app/uicb/issue/WRI-180) | Contracts + GPU detection + adapter spawn args |
+| §4 (4.1–4.4) + §5 (5.1–5.3) | [WRI-182](https://linear.app/uicb/issue/WRI-182) | CUDA runtime fix + output parser |
+| §6 (6.1–6.3) | [WRI-183](https://linear.app/uicb/issue/WRI-183) | Verification — 58 tok/s GPU, parser 1224 chars clean rewrite |
+
+**Branch:** `feat/local-gemma-v1`
+
 ## tune-local-inference-speed (OpenSpec: `openspec/changes/tune-local-inference-speed/`)
 
 **Epic:** [WRI-173](https://linear.app/uicb/issue/WRI-173) — Tune local LLM inference speed (Q8, no quality loss) · _blocked by WRI-167_
