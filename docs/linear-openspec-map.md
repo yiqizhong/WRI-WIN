@@ -4,6 +4,32 @@
 **Team:** Wri (`WRI`)  
 **Active change:** `extract-figma-via-mcp`
 
+## expand-local-context-window (OpenSpec: `openspec/changes/expand-local-context-window/`)
+
+**Epic:** [WRI-167](https://linear.app/uicb/issue/WRI-167) — Expand local LLM context window
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.2) | [WRI-168](https://linear.app/uicb/issue/WRI-168) | Manifest `defaultContext` → 16384 + guard test |
+| §2 (2.1–2.4) | [WRI-169](https://linear.app/uicb/issue/WRI-169) | Token-aware history trimming in review-core (spec: `paste-text-chat`) |
+| §3 (3.1–3.4) | [WRI-170](https://linear.app/uicb/issue/WRI-170) | Ctx size from manifest + FP16-first KV, q8 VRAM fallback (spec: `agent-adapter-runtime`) |
+| §4 (4.1–4.3) | [WRI-171](https://linear.app/uicb/issue/WRI-171) | New-chat zero-context reset via session-keyed restart (spec: `agent-adapter-runtime`) |
+| §5 (5.1–5.4) | [WRI-172](https://linear.app/uicb/issue/WRI-172) | typecheck + tests + `openspec validate --strict` + manual smoke |
+
+**Suggested order:** WRI-168 → WRI-169 → WRI-170 → WRI-171 → WRI-172 → close WRI-167
+
+## tune-local-inference-speed (OpenSpec: `openspec/changes/tune-local-inference-speed/`)
+
+**Epic:** [WRI-173](https://linear.app/uicb/issue/WRI-173) — Tune local LLM inference speed (Q8, no quality loss) · _blocked by WRI-167_
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.4) | [WRI-174](https://linear.app/uicb/issue/WRI-174) | Flash attention + prefill batch on both spawn paths (blocked by WRI-170; extends `buildSpawnArgs`) |
+| §2 (2.1–2.3) | [WRI-175](https://linear.app/uicb/issue/WRI-175) | Opt-in per-turn throughput logging (`WRITER_LOCAL_PERF_LOG`) |
+| §3 (3.1–3.4) | [WRI-176](https://linear.app/uicb/issue/WRI-176) | typecheck + tests + strict validate + live benchmark |
+
+**Suggested order:** WRI-174 → WRI-175 → WRI-176 → close WRI-173 (after WRI-167 lands)
+
 ## extract-figma-via-mcp (OpenSpec: `openspec/changes/extract-figma-via-mcp/`)
 
 **Epic:** [WRI-98](https://linear.app/uicb/issue/WRI-98) — Figma frame review and approved writeback via MCP
