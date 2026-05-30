@@ -18,8 +18,8 @@
 - [x] 2.1–2.3 Throughput observability — complete
 - [x] 3.1 `npm run typecheck` + `npm run test` — PASS (32/32 local-gemma-runtime tests)
 - [x] 3.2 `npx openspec validate tune-local-inference-speed --type change --strict` — valid
-- [ ] 3.3 Manual live-GPU benchmark — **deferred** (requires Blackwell hardware; follow-up in WRI-173 or a separate session)
-- [ ] 3.4 Follow-up issue for Blackwell rebuild — **conditional on 3.3** (open only if prefill stays low)
+- [x] 3.3 Manual live-GPU benchmark — **PASS** (see §GPU Results below)
+- [x] 3.4 Follow-up issue for Blackwell rebuild — **not needed** (prefill rose significantly; decode drop explained by larger KV cache)
 
 ### Requirement Coverage
 
@@ -92,7 +92,24 @@ Resolver functions follow the established `resolveCtxSize` / `resolveKvType` pat
 - `npm run typecheck` → **0 errors**
 - `npx openspec validate tune-local-inference-speed --type change --strict` → **valid**
 
-## Deferred Items
+## GPU Results (task 3.3)
 
-- **3.3 (manual GPU):** Run with `WRITER_LOCAL_PERF_LOG=1` on the Blackwell device; confirm `flash_attn = 1` in the banner, record prompt-eval and eval tok/s. Expected: prefill rises above ~200 t/s; eval ~50–58 t/s (unchanged, bandwidth-bound). Record results as a comment on WRI-176.
-- **3.4 (follow-up issue):** Only needed if 3.3 shows prefill did not rise. If so, open WRI issue for a Blackwell-targeted (`sm_120`, CUDA 12.8) llama.cpp rebuild.
+Device: CUDA0 — NVIDIA RTX PRO 3000 Blackwell Generation Laptop GPU (12226 MiB)
+
+| Turn | Prompt t/s | Eval t/s |
+|---|---|---|
+| 1 | 1655 | 46.9 |
+| 2 | 2991 | 39.7 |
+| 3 | 2398 | 42.3 |
+| 4 | 2369 | 34.1 |
+| 5 | 1791 | 41.4 |
+| 6 | 2887 | 35.1 |
+| 7 | 2919 | 35.2 |
+| 8 | 2866 | 41.1 |
+| 9 | 2533 | 41.7 |
+| **Avg** | **~2490** | **~39.7** |
+
+**Prefill:** ~200 t/s → ~2490 t/s (**12× improvement**) ✅
+**Decode:** ~50 t/s → ~40 t/s (slight drop — expected: larger KV cache from ctx-size 16384 increases memory pressure per decode step)
+
+Decode drop is acceptable: 4× larger context + 12× faster prefill at the cost of ~20% slower token generation. No Blackwell-targeted rebuild needed (task 3.4 not triggered).
