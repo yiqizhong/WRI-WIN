@@ -12,7 +12,7 @@ import type {
   AgentRunRequest
 } from "../types";
 import { commandExists } from "../cli-runner";
-import { LocalGemmaRuntime, resolveCtxSize, resolveDraftModelPath, resolveKvType, resolveFlashAttn, resolveUbatch } from "./local-gemma-runtime";
+import { LocalGemmaRuntime, resolveCtxSize, resolveDraftModelPath, resolveKvType, resolveFlashAttn, resolveUbatch, type DraftSettings } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
 const DISPLAY_NAME = "Local Gemma";
@@ -21,9 +21,20 @@ const DISPLAY_NAME = "Local Gemma";
 // every session, and VRAM holds one copy). Lazily created on first run.
 let residentRuntime: LocalGemmaRuntime | null = null;
 
-function getResidentRuntime(binary: string, modelPath: string, contextSize?: number): LocalGemmaRuntime {
+function getResidentRuntime(
+  binary: string,
+  modelPath: string,
+  contextSize?: number,
+  getDraftSettings?: () => DraftSettings | undefined
+): LocalGemmaRuntime {
   if (!residentRuntime) {
-    residentRuntime = new LocalGemmaRuntime({ binary, modelPath, gpuLayers: getGpuLayers(), contextSize });
+    residentRuntime = new LocalGemmaRuntime({
+      binary,
+      modelPath,
+      gpuLayers: getGpuLayers(),
+      contextSize,
+      draftSettings: getDraftSettings?.() ?? undefined
+    });
   }
   return residentRuntime;
 }
@@ -137,6 +148,7 @@ async function listGpuDevices(binaryPath: string): Promise<string[]> {
 export type LocalGemmaAdapterOptions = {
   getModelState: () => LocalModelState | null;
   contextSize?: number;
+  getDraftSettings?: () => DraftSettings | undefined;
 };
 
 async function getLlamaBinaryPath(): Promise<string | null> {
@@ -280,10 +292,11 @@ async function tryRunResident(
   binary: string,
   modelPath: string,
   startedAt: string,
-  contextSize?: number
+  contextSize?: number,
+  getDraftSettings?: () => DraftSettings | undefined
 ): Promise<AgentRunHandle | null> {
   const { system, user } = splitCopywriterPrompt(request.prompt);
-  const runtime = getResidentRuntime(binary, modelPath, contextSize);
+  const runtime = getResidentRuntime(binary, modelPath, contextSize, getDraftSettings);
 
   let response: string;
   try {
@@ -337,7 +350,8 @@ async function tryRunResident(
 async function run(
   request: AgentRunRequest,
   getModelState: () => LocalModelState | null,
-  contextSize?: number
+  contextSize?: number,
+  getDraftSettings?: () => DraftSettings | undefined
 ): Promise<AgentRunHandle> {
   const runId = `run-${ADAPTER_ID}-${randomUUID()}`;
   const startedAt = new Date().toISOString();
@@ -363,7 +377,7 @@ async function run(
   // Prefer the resident process (model stays warm in VRAM across messages).
   // Falls back to a fresh per-message spawn if the runtime can't start.
   if (!residentDisabled()) {
-    const resident = await tryRunResident(runId, request, binary, modelPath, startedAt, contextSize);
+    const resident = await tryRunResident(runId, request, binary, modelPath, startedAt, contextSize, getDraftSettings);
     if (resident) return resident;
   }
 
@@ -534,7 +548,7 @@ export function createLocalGemmaAdapter(options: LocalGemmaAdapterOptions): Agen
   return {
     id: ADAPTER_ID,
     detect: () => detect(options.getModelState),
-    run: (request) => run(request, options.getModelState, options.contextSize)
+    run: (request) => run(request, options.getModelState, options.contextSize, options.getDraftSettings)
   };
 }
 

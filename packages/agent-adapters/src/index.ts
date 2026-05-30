@@ -6,6 +6,7 @@ export { getCliAdapterConfig, createProviderAdapters, CLI_ADAPTER_IDS } from "./
 export { commandExists, runCliCommand } from "./cli-runner";
 export { createLocalGemmaAdapter, LOCAL_MODEL_ADAPTER_ID, shutdownLocalGemmaRuntime } from "./adapters/local-gemma-adapter";
 export type { LocalGemmaAdapterOptions } from "./adapters/local-gemma-adapter";
+export type { DraftSettings } from "./adapters/local-gemma-runtime";
 export type {
   AgentAdapterImplementation,
   AgentDetectionResult,

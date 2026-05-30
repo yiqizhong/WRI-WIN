@@ -4,6 +4,7 @@ import { mkdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { LocalModelState, LocalModelStatusResponse } from "@writer/contracts";
+import { shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
 
 import type { DaemonState } from "./state";
 import { GEMMA_4_E4B_MANIFEST } from "./local-model-manifest";
@@ -93,6 +94,7 @@ export async function setSpeculativeDecodingEnabled(state: DaemonState, enabled:
     lastError: enabled ? current.lastError : undefined
   });
   await state.store.save();
+  shutdownLocalGemmaRuntime();  // Evict so next run picks up new draftSettings
 }
 
 function buildState(override: Partial<LocalModelState> = {}): LocalModelState {

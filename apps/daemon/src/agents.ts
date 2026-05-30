@@ -16,6 +16,7 @@ import {
 
 import type { DaemonState } from "./state";
 import { GEMMA_4_E4B_MANIFEST } from "./local-model-manifest";
+import { getDraftFilePath } from "./local-models";
 
 const createAgentRunInputSchema = z.object({
   sessionId: z.string().min(1),
@@ -72,7 +73,12 @@ function createDaemonRegistry(state: DaemonState): AgentAdapterRegistry {
   registry.register(
     createLocalGemmaAdapter({
       getModelState: () => state.store.getLocalModel(),
-      contextSize: GEMMA_4_E4B_MANIFEST.defaultContext
+      contextSize: GEMMA_4_E4B_MANIFEST.defaultContext,
+      getDraftSettings: () => {
+        const dec = state.store.getSpeculativeDecoding();
+        const path = dec.enabled ? getDraftFilePath(state) : null;
+        return { enabled: dec.enabled, path };
+      }
     })
   );
 
