@@ -12,7 +12,7 @@ import type {
   AgentRunRequest
 } from "../types";
 import { commandExists } from "../cli-runner";
-import { LocalGemmaRuntime, resolveCtxSize, resolveKvType, resolveFlashAttn, resolveUbatch } from "./local-gemma-runtime";
+import { LocalGemmaRuntime, resolveCtxSize, resolveDraftModelPath, resolveKvType, resolveFlashAttn, resolveUbatch } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
 const DISPLAY_NAME = "Local Gemma";
@@ -387,6 +387,10 @@ async function run(
 
   const ctxSize = resolveCtxSize(process.env["WRITER_LOCAL_CTX_SIZE"], contextSize);
   const kvType = resolveKvType(process.env["WRITER_LOCAL_KV_TYPE"]);
+  const draftPath = resolveDraftModelPath(
+    process.env["WRITER_LOCAL_DRAFT_MODEL"],
+    { enabled: false, path: null }  // settings unavailable on cold-spawn fallback
+  );
 
   const args = [
     "--model", modelPath,
@@ -405,6 +409,7 @@ async function run(
     "-fa", resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
     "-ub", String(resolveUbatch(process.env["WRITER_LOCAL_UBATCH"])),
     ...(kvType !== "f16" ? ["--cache-type-k", kvType, "--cache-type-v", kvType] : []),
+    ...(draftPath ? ["--model-draft", draftPath] : []),
     "-n", "512",
     "--prompt", user
   ];
