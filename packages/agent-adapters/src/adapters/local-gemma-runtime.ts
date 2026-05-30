@@ -77,6 +77,27 @@ export function buildSpawnArgs(input: {
   return args;
 }
 
+export function shouldReuseProcess(input: {
+  resident: boolean;
+  currentSystem: string | null;
+  system: string;
+  currentSessionId: string | null;
+  sessionId: string;
+  turnsHandled: number;
+  maxTurns: number;
+}): boolean {
+  return (
+    input.resident &&
+    input.currentSystem === input.system &&
+    input.currentSessionId === input.sessionId &&
+    input.turnsHandled < input.maxTurns
+  );
+}
+
+export function isVramLoadFailure(stderr: string): boolean {
+  return /out of memory|failed to allocate|cudamalloc|cuda error|vram/i.test(stderr);
+}
+
 export class LocalGemmaRuntime {
   private child: ChildProcessWithoutNullStreams | null = null;
   private currentSystem: string | null = null;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, resolveCtxSize, resolveKvType, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isVramLoadFailure, resolveCtxSize, resolveKvType, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -80,5 +80,39 @@ describe("buildSpawnArgs", () => {
   it("appends -sys only when a system prompt is present", () => {
     expect(buildSpawnArgs({ ...base, kvType: "f16" })).not.toContain("-sys");
     expect(buildSpawnArgs({ ...base, kvType: "f16", system: "You are…" })).toContain("-sys");
+  });
+});
+
+describe("shouldReuseProcess", () => {
+  const ok = {
+    resident: true, currentSystem: "S", system: "S",
+    currentSessionId: "c1", sessionId: "c1", turnsHandled: 3, maxTurns: 50
+  };
+  it("reuses when everything matches", () => {
+    expect(shouldReuseProcess(ok)).toBe(true);
+  });
+  it("restarts on a different conversation (new chat = zero context)", () => {
+    expect(shouldReuseProcess({ ...ok, sessionId: "c2" })).toBe(false);
+  });
+  it("restarts on a system-prompt change", () => {
+    expect(shouldReuseProcess({ ...ok, system: "OTHER" })).toBe(false);
+  });
+  it("restarts when the turn budget is exhausted", () => {
+    expect(shouldReuseProcess({ ...ok, turnsHandled: 50 })).toBe(false);
+  });
+  it("restarts when no process is resident", () => {
+    expect(shouldReuseProcess({ ...ok, resident: false })).toBe(false);
+  });
+});
+
+describe("isVramLoadFailure", () => {
+  it("detects common CUDA/alloc out-of-memory signatures", () => {
+    expect(isVramLoadFailure("ggml_cuda: out of memory")).toBe(true);
+    expect(isVramLoadFailure("failed to allocate CUDA0 buffer")).toBe(true);
+    expect(isVramLoadFailure("cudaMalloc failed: out of memory")).toBe(true);
+  });
+  it("ignores unrelated errors", () => {
+    expect(isVramLoadFailure("model file not found")).toBe(false);
+    expect(isVramLoadFailure("")).toBe(false);
   });
 });
