@@ -736,7 +736,23 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         "/local-models/reset",
         { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
         parseLocalModelStatusResponse
-      )
+      ),
+
+    installDraftModel: (): Promise<{ installed: boolean; reason?: string; path?: string }> =>
+      request(
+        baseUrl,
+        "/local-model/draft/install",
+        { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
+        undefined
+      ) as Promise<{ installed: boolean; reason?: string; path?: string }>,
+
+    setDraftModelEnabled: (enabled: boolean): Promise<{ ok: boolean; enabled: boolean }> =>
+      request(
+        baseUrl,
+        "/local-model/draft/enabled",
+        { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) },
+        undefined
+      ) as Promise<{ ok: boolean; enabled: boolean }>
   };
 }
 

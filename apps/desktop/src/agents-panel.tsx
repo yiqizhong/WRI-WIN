@@ -18,6 +18,8 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import type { DaemonStatusView } from "./daemon-status";
+import { SpeedBoostSection } from "./SpeedBoostSection";
+import type { DraftStatus } from "./SpeedBoostSection";
 import { isAdapterStatusLoading } from "./agents-runtime";
 import {
   formatConnectionDiagnostic,
@@ -248,6 +250,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   } = workspace;
 
   const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<DraftStatus>({ installed: false, enabled: false });
+  const [draftInstalling, setDraftInstalling] = useState(false);
 
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 
@@ -346,6 +350,29 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
       // Status refreshes on next Refresh.
     } finally {
       setLocalModelLoading(null);
+    }
+  }
+
+  async function handleInstallDraft() {
+    setDraftInstalling(true);
+    try {
+      const result = await client.installDraftModel();
+      if (result.installed) {
+        setDraftStatus((prev) => ({ ...prev, installed: true }));
+      }
+    } catch {
+      // Error shows in next status refresh.
+    } finally {
+      setDraftInstalling(false);
+    }
+  }
+
+  async function handleToggleDraft(enabled: boolean) {
+    try {
+      await client.setDraftModelEnabled(enabled);
+      setDraftStatus((prev) => ({ ...prev, enabled }));
+    } catch {
+      // Toggle failure shows on next refresh.
     }
   }
 
@@ -585,6 +612,15 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                     {diagnosticText && adapter.diagnostic?.severity === "error" ? (
                       <ConnectionIssueNotice text={diagnosticText} />
                     ) : null}
+
+                    {adapter.available && (
+                      <SpeedBoostSection
+                        status={draftStatus}
+                        installing={draftInstalling}
+                        onInstall={() => void handleInstallDraft()}
+                        onToggle={(enabled) => void handleToggleDraft(enabled)}
+                      />
+                    )}
                   </GlassCard>
                 );
               })}
