@@ -364,3 +364,22 @@ Root cause: `PlatformStore` accumulates unbounded data (agentRunEvents, auditLog
 | §5 | [WRI-153](https://linear.app/uicb/issue/WRI-153) | Renderer: stabilise onConversationChange with useCallback |
 
 **Suggested order:** WRI-151 → WRI-152 → WRI-153 → close WRI-150
+
+## separate-text-and-figma-audit-workflows (archived OpenSpec: `openspec/changes/archive/2026-05-25-separate-text-and-figma-audit-workflows/`)
+
+**Epic:** [WRI-121](https://linear.app/uicb/issue/WRI-121) — Dedicated Text and Figma Audit workflow entrances
+
+**Status (2026-05-30):** Branch `codex/separate-text-and-figma-audit-workflows` archived **without merge**. Product goals were superseded on `main` by [WRI-126](https://linear.app/uicb/issue/WRI-126) (`/text-copy`) and [WRI-134](https://linear.app/uicb/issue/WRI-134) (`/figma-audit`, `/audits`). OpenSpec artifacts preserved for history only.
+
+Separates the two home-screen jobs without replacing their implemented engines: Text reuses the conversation/attachment flow with mandatory global and optional Product guideline context; Figma Audit reuses review/writeback safety through a Batch Log and independent Detail route.
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.3 | [WRI-122](https://linear.app/uicb/issue/WRI-122) | Optional Text Product contract + batch-level Audit Log contracts and persistence |
+| 2.1–2.4 | [WRI-123](https://linear.app/uicb/issue/WRI-123) | Daemon guideline context, Audit Log API, failed-batch retention, existing writeback safety |
+| 3.1–3.5 | [WRI-124](https://linear.app/uicb/issue/WRI-124) | `/text`, `/figma-audit`, Audit Detail routes; Settings keeps Guidelines and Agents only |
+| 4.1–4.3 | [WRI-125](https://linear.app/uicb/issue/WRI-125) | Documentation, automated verification, manual flow evidence, `/opsx:verify` |
+
+**Dependencies:** Builds on completed [WRI-84](https://linear.app/uicb/issue/WRI-84), [WRI-98](https://linear.app/uicb/issue/WRI-98), and [WRI-112](https://linear.app/uicb/issue/WRI-112).
+
+**Branch order (historical):** WRI-122 → WRI-123 → WRI-124 → WRI-125 → close WRI-121
