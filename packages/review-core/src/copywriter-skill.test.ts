@@ -11,7 +11,8 @@ import {
   normalizeCopyToRewrite,
   parseCopywriterResponse,
   shouldRefuseCopywriterInput,
-  shouldShortCircuitCopywriterInput
+  shouldShortCircuitCopywriterInput,
+  trimHistoryToBudget
 } from "./copywriter-skill";
 
 describe("copywriter-skill", () => {
@@ -227,5 +228,38 @@ describe("estimateTokens", () => {
     expect(estimateTokens("")).toBe(0);
     expect(estimateTokens("abcd")).toBe(1);
     expect(estimateTokens("abcde")).toBe(2);
+  });
+});
+
+describe("trimHistoryToBudget", () => {
+  const msg = (role: "user" | "assistant", text: string) => ({ role, text });
+
+  it("keeps the newest turns and drops the oldest when over budget", () => {
+    const history = [
+      msg("user", "AAAAAAAA"),      // 8 chars -> 2 tokens
+      msg("assistant", "BBBBBBBB"), // 2 tokens
+      msg("user", "CCCCCCCC")       // 2 tokens
+    ];
+    // Budget for 4 tokens keeps only the last two messages (2 + 2).
+    const kept = trimHistoryToBudget(history, 4);
+    expect(kept).toEqual([msg("assistant", "BBBBBBBB"), msg("user", "CCCCCCCC")]);
+  });
+
+  it("returns chronological order", () => {
+    const history = [msg("user", "one"), msg("assistant", "two"), msg("user", "three")];
+    const kept = trimHistoryToBudget(history, 1000);
+    expect(kept).toEqual(history);
+  });
+
+  it("never exceeds the token budget", () => {
+    const history = Array.from({ length: 20 }, (_, i) => msg("user", "x".repeat(40)));
+    const kept = trimHistoryToBudget(history, 30); // each msg ~10 tokens
+    const total = kept.reduce((sum, m) => sum + estimateTokens(m.text), 0);
+    expect(total).toBeLessThanOrEqual(30);
+  });
+
+  it("drops everything when budget is zero or negative", () => {
+    expect(trimHistoryToBudget([msg("user", "hi")], 0)).toEqual([]);
+    expect(trimHistoryToBudget([msg("user", "hi")], -5)).toEqual([]);
   });
 });

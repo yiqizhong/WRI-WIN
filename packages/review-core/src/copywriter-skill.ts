@@ -55,6 +55,22 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+export function trimHistoryToBudget(
+  history: CopywriterMessage[],
+  tokenBudget: number
+): CopywriterMessage[] {
+  if (tokenBudget <= 0) return [];
+  const kept: CopywriterMessage[] = [];
+  let used = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const cost = estimateTokens(history[i]!.text);
+    if (used + cost > tokenBudget) break;
+    used += cost;
+    kept.unshift(history[i]!);
+  }
+  return kept;
+}
+
 function normalizeCopywriterText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
