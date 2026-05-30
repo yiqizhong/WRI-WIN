@@ -52,8 +52,8 @@ Hard constraints:
 
 const HISTORY_LIMIT = 6;
 const DEFAULT_CONTEXT_WINDOW = 16384;
-const OUTPUT_RESERVE_TOKENS = 256;
-const SAFETY_MARGIN_TOKENS = 64;
+const OUTPUT_RESERVE_TOKENS = 512;
+const SAFETY_MARGIN_TOKENS = 256;
 
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);

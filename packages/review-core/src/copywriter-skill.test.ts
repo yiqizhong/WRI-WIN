@@ -229,7 +229,7 @@ describe("buildCopywriterPrompt token budget", () => {
     const prompt = buildCopywriterPrompt({
       userText: "Rewrite: Save changes",
       history: [longTurn("OLDEST"), longTurn("MIDDLE"), longTurn("NEWEST")],
-      contextWindow: 1024
+      contextWindow: 1500
     });
     // The newest long turn survives; the oldest is squeezed out by the budget.
     expect(prompt.user).toContain("NEWEST");
