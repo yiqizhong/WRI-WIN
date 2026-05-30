@@ -12,6 +12,7 @@ export type CopywriterSkillInput = {
   featureName?: string;
   description?: string;
   history?: CopywriterMessage[];
+  contextWindow?: number;
   userText: string;
   rowContext?: string;
 };
@@ -50,6 +51,9 @@ Hard constraints:
 - The only refusal: empty input, or a bare greeting with nothing to rewrite (for example exactly "hi", "hello", "hey", "thanks", "thank you", "thx", "ok", "okay"). Then respond with: "${COPYWRITER_OFF_TOPIC_RESPONSE}"`;
 
 const HISTORY_LIMIT = 6;
+const DEFAULT_CONTEXT_WINDOW = 16384;
+const OUTPUT_RESERVE_TOKENS = 256;
+const SAFETY_MARGIN_TOKENS = 64;
 
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -230,17 +234,27 @@ export function buildCopywriterPrompt(input: CopywriterSkillInput): CopywriterPr
     userSections.push(`Structured row context:\n${input.rowContext.trim()}`);
   }
 
-  const history = filterCopywriterHistory(input.history ?? []).slice(-HISTORY_LIMIT);
+  const copySection = `Copy to rewrite:\n${normalizeCopyToRewrite(input.userText)}`;
+  const respondSection = "Respond with only the rewritten text.";
+
+  const system = systemExtras.length > 0 ? `${SYSTEM_PROMPT}\n\n${systemExtras.join("\n")}` : SYSTEM_PROMPT;
+
+  const contextWindow = input.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  const fixedTokens =
+    estimateTokens(system) + estimateTokens([...userSections, copySection, respondSection].join("\n\n"));
+  const historyBudget =
+    contextWindow - fixedTokens - OUTPUT_RESERVE_TOKENS - SAFETY_MARGIN_TOKENS;
+  const recent = filterCopywriterHistory(input.history ?? []).slice(-HISTORY_LIMIT);
+  const history = trimHistoryToBudget(recent, historyBudget);
   if (history.length > 0) {
     const historyLines = history.map((message) => `${message.role === "user" ? "User" : "Assistant"}: ${message.text}`);
     userSections.push(`Conversation history:\n${historyLines.join("\n")}`);
   }
 
-  userSections.push(`Copy to rewrite:\n${normalizeCopyToRewrite(input.userText)}`);
-  userSections.push("Respond with only the rewritten text.");
+  userSections.push(copySection);
+  userSections.push(respondSection);
 
   const user = userSections.join("\n\n");
-  const system = systemExtras.length > 0 ? `${SYSTEM_PROMPT}\n\n${systemExtras.join("\n")}` : SYSTEM_PROMPT;
   const full = `${system}\n\n---\n\n${user}`;
 
   return { system, user, full };

@@ -223,6 +223,33 @@ describe("copywriter-skill", () => {
   });
 });
 
+describe("buildCopywriterPrompt token budget", () => {
+  it("drops oldest history when a small context window cannot fit it", () => {
+    const longTurn = (label: string) => ({ role: "user" as const, text: `${label} ${"word ".repeat(200)}` });
+    const prompt = buildCopywriterPrompt({
+      userText: "Rewrite: Save changes",
+      history: [longTurn("OLDEST"), longTurn("MIDDLE"), longTurn("NEWEST")],
+      contextWindow: 1024
+    });
+    // The newest long turn survives; the oldest is squeezed out by the budget.
+    expect(prompt.user).toContain("NEWEST");
+    expect(prompt.user).not.toContain("OLDEST");
+  });
+
+  it("keeps all history when the window is large", () => {
+    const prompt = buildCopywriterPrompt({
+      userText: "Rewrite: Save changes",
+      history: [
+        { role: "user", text: "first question" },
+        { role: "assistant", text: "first answer" }
+      ],
+      contextWindow: 16384
+    });
+    expect(prompt.user).toContain("first question");
+    expect(prompt.user).toContain("first answer");
+  });
+});
+
 describe("estimateTokens", () => {
   it("estimates ~1 token per 4 characters, rounding up", () => {
     expect(estimateTokens("")).toBe(0);
