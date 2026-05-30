@@ -175,4 +175,14 @@ describe("parseTurnMetrics", () => {
       evalTokensPerSec: null
     });
   });
+  it("tolerates generation and gen label variants", () => {
+    expect(parseTurnMetrics("[ Prompt: 100 t/s | generation: 45.5 t/s ]")).toEqual({
+      promptTokensPerSec: 100,
+      evalTokensPerSec: 45.5
+    });
+    expect(parseTurnMetrics("[ Prompt: 100 t/s | gen: 45.5 t/s ]")).toEqual({
+      promptTokensPerSec: 100,
+      evalTokensPerSec: 45.5
+    });
+  });
 });

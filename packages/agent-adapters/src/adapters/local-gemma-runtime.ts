@@ -353,7 +353,9 @@ export type TurnMetrics = {
 export function parseTurnMetrics(footer: string): TurnMetrics {
   const num = (re: RegExp): number | null => {
     const m = re.exec(footer);
-    return m ? Number(m[1]) : null;
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
   };
   return {
     promptTokensPerSec: num(/prompt[^\]]*?([\d.]+)\s*t\/s/i),
