@@ -52,11 +52,28 @@ export function resolveKvType(envValue: string | undefined): KvCacheType {
   return envValue === "q8_0" || envValue === "q4_0" || envValue === "f16" ? envValue : "f16";
 }
 
+export type FlashAttn = "on" | "off" | "auto";
+
+const DEFAULT_UBATCH = 1024;
+
+/** env value > default 'on'. Only on/off/auto are valid. */
+export function resolveFlashAttn(envValue: string | undefined): FlashAttn {
+  return envValue === "on" || envValue === "off" || envValue === "auto" ? envValue : "on";
+}
+
+/** env value > default 1024. Only finite positive integers win. */
+export function resolveUbatch(envValue: string | undefined): number {
+  const n = Number(envValue);
+  return Number.isInteger(n) && n > 0 ? n : DEFAULT_UBATCH;
+}
+
 export function buildSpawnArgs(input: {
   modelPath: string;
   ctxSize: number;
   gpuLayers: string;
   kvType: KvCacheType;
+  flashAttn: FlashAttn;
+  ubatch: number;
   system: string;
 }): string[] {
   const args = [
@@ -66,6 +83,8 @@ export function buildSpawnArgs(input: {
     "-cnv",
     "--simple-io",
     "--reasoning", "off",
+    "-fa", input.flashAttn,
+    "-ub", String(input.ubatch),
     "-n", "512",
     "--log-disable"
   ];
@@ -166,7 +185,15 @@ export class LocalGemmaRuntime {
   private spawnProcess(system: string, sessionId: string): void {
     const { binary, modelPath, gpuLayers, contextSize } = this.opts;
     const ctxSize = resolveCtxSize(process.env["WRITER_LOCAL_CTX_SIZE"], contextSize);
-    const args = buildSpawnArgs({ modelPath, ctxSize, gpuLayers, kvType: this.kvType, system });
+    const args = buildSpawnArgs({
+      modelPath,
+      ctxSize,
+      gpuLayers,
+      kvType: this.kvType,
+      flashAttn: resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
+      ubatch: resolveUbatch(process.env["WRITER_LOCAL_UBATCH"]),
+      system
+    });
     const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, isVramLoadFailure, resolveCtxSize, resolveKvType, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isVramLoadFailure, resolveCtxSize, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -59,7 +59,7 @@ describe("resolveKvType", () => {
 });
 
 describe("buildSpawnArgs", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", system: "" };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "" };
 
   it("carries the resolved ctx-size", () => {
     const args = buildSpawnArgs({ ...base, kvType: "f16" });
@@ -102,6 +102,43 @@ describe("shouldReuseProcess", () => {
   });
   it("restarts when no process is resident", () => {
     expect(shouldReuseProcess({ ...ok, resident: false })).toBe(false);
+  });
+});
+
+describe("resolveFlashAttn", () => {
+  it("defaults to on", () => {
+    expect(resolveFlashAttn(undefined)).toBe("on");
+  });
+  it("accepts on/off/auto", () => {
+    expect(resolveFlashAttn("off")).toBe("off");
+    expect(resolveFlashAttn("auto")).toBe("auto");
+    expect(resolveFlashAttn("on")).toBe("on");
+  });
+  it("falls back to on for unrecognized values", () => {
+    expect(resolveFlashAttn("yes")).toBe("on");
+  });
+});
+
+describe("resolveUbatch", () => {
+  it("defaults to 1024", () => {
+    expect(resolveUbatch(undefined)).toBe(1024);
+  });
+  it("accepts a valid positive integer", () => {
+    expect(resolveUbatch("2048")).toBe(2048);
+  });
+  it("falls back to 1024 for invalid values", () => {
+    expect(resolveUbatch("0")).toBe(1024);
+    expect(resolveUbatch("nope")).toBe(1024);
+  });
+});
+
+describe("buildSpawnArgs flash-attn + ubatch", () => {
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "" };
+
+  it("carries -fa and -ub with defaults", () => {
+    const args = buildSpawnArgs({ ...base, flashAttn: "on", ubatch: 1024 });
+    expect(args[args.indexOf("-fa") + 1]).toBe("on");
+    expect(args[args.indexOf("-ub") + 1]).toBe("1024");
   });
 });
 
