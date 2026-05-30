@@ -348,6 +348,7 @@ export { parseWritebackResult, writebackResultSchema } from "./writeback";
 export type { WritebackItemResult, WritebackResult } from "./writeback";
 
 export {
+  draftModelSchema,
   localModelManifestSchema,
   localModelProgressSchema,
   localModelStateSchema,
@@ -357,6 +358,7 @@ export {
   parseLocalModelStatusResponse
 } from "./local-model";
 export type {
+  DraftModelManifest,
   LocalModelManifest,
   LocalModelProgress,
   LocalModelState,

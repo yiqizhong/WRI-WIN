@@ -123,3 +123,30 @@ describe("parseLocalModelStatusResponse", () => {
     expect(() => parseLocalModelStatusResponse({ invalid: true })).toThrow();
   });
 });
+
+describe("draftModel field", () => {
+  it("accepts a manifest without draftModel", () => {
+    const r = localModelManifestSchema.safeParse(VALID_MANIFEST);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.draftModel).toBeUndefined();
+  });
+  it("accepts a valid draftModel", () => {
+    const r = localModelManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      draftModel: {
+        url: "https://example.com/draft.gguf",
+        sha256: "a".repeat(64),
+        sizeBytes: 500_000_000,
+        fileName: "draft.gguf"
+      }
+    });
+    expect(r.success).toBe(true);
+  });
+  it("rejects a draftModel with short sha256", () => {
+    const r = localModelManifestSchema.safeParse({
+      ...VALID_MANIFEST,
+      draftModel: { url: "https://x.com/f", sha256: "short", sizeBytes: 1, fileName: "f" }
+    });
+    expect(r.success).toBe(false);
+  });
+});

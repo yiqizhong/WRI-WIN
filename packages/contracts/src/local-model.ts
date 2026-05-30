@@ -9,6 +9,15 @@ export const localModelStatusSchema = z.enum([
   "failed"
 ]);
 
+export const draftModelSchema = z.object({
+  url: z.string().url(),
+  sha256: z.string().length(64),
+  sizeBytes: z.number().int().positive(),
+  fileName: z.string().min(1)
+});
+
+export type DraftModelManifest = z.infer<typeof draftModelSchema>;
+
 export const localModelManifestSchema = z.object({
   modelId: z.string().min(1),
   displayName: z.string().min(1),
@@ -19,7 +28,8 @@ export const localModelManifestSchema = z.object({
   gated: z.boolean(),
   modelMaxContext: z.number().int().positive(),
   defaultContext: z.number().int().positive(),
-  fileSizeBytes: z.number().int().positive()
+  fileSizeBytes: z.number().int().positive(),
+  draftModel: draftModelSchema.optional()
 });
 
 export const localModelProgressSchema = z.object({
