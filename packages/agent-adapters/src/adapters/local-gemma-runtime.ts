@@ -17,6 +17,7 @@ export type LocalGemmaRuntimeOptions = {
   binary: string;
   modelPath: string;
   gpuLayers: string;
+  contextSize?: number;
 };
 
 const READY_PROMPT = /^> ?$/m;
@@ -101,6 +102,11 @@ export function isVramLoadFailure(stderr: string): boolean {
 export class LocalGemmaRuntime {
   private child: ChildProcessWithoutNullStreams | null = null;
   private currentSystem: string | null = null;
+  private currentSessionId: string | null = null;
+  private kvType: KvCacheType = resolveKvType(process.env["WRITER_LOCAL_KV_TYPE"]);
+  private kvFallbackUsed = false;
+  private stderrBuf = "";
+  private readonly kvPinned = process.env["WRITER_LOCAL_KV_TYPE"] !== undefined;
   private busy = false;
   private queue: Array<() => void> = [];
   private idleTimer: NodeJS.Timeout | null = null;
@@ -140,6 +146,7 @@ export class LocalGemmaRuntime {
     const child = this.child;
     this.child = null;
     this.currentSystem = null;
+    this.currentSessionId = null;
     this.stdoutBuf = "";
     if (child && child.exitCode === null) {
       try {
@@ -156,38 +163,27 @@ export class LocalGemmaRuntime {
     this.evict();
   }
 
-  private spawnProcess(system: string): void {
-    const { binary, modelPath, gpuLayers } = this.opts;
-    const args = [
-      "--model", modelPath,
-      "--ctx-size", "4096",
-      "-ngl", gpuLayers,
-      "-cnv",
-      "--simple-io",
-      "--reasoning", "off",
-      "-n", "512",
-      "--log-disable"
-    ];
-    if (system) {
-      args.push("-sys", system);
-    }
-    const child = spawn(binary, args, {
-      cwd: dirname(binary),
-      stdio: ["pipe", "pipe", "pipe"]
-    });
+  private spawnProcess(system: string, sessionId: string): void {
+    const { binary, modelPath, gpuLayers, contextSize } = this.opts;
+    const ctxSize = resolveCtxSize(process.env["WRITER_LOCAL_CTX_SIZE"], contextSize);
+    const args = buildSpawnArgs({ modelPath, ctxSize, gpuLayers, kvType: this.kvType, system });
+    const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });
     child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
-      this.stdoutBuf += chunk;
-    });
+    child.stderr.setEncoding("utf8");
+    this.stderrBuf = "";
+    child.stdout.on("data", (chunk: string) => { this.stdoutBuf += chunk; });
+    child.stderr.on("data", (chunk: string) => { this.stderrBuf += chunk; });
     child.on("exit", () => {
       if (this.child === child) {
         this.child = null;
         this.currentSystem = null;
+        this.currentSessionId = null;
         this.stdoutBuf = "";
       }
     });
     this.child = child;
     this.currentSystem = system;
+    this.currentSessionId = sessionId;
     this.stdoutBuf = "";
   }
 
@@ -206,17 +202,36 @@ export class LocalGemmaRuntime {
   }
 
   /** Ensure a process is alive for the given system prompt. */
-  private async ensureProcess(system: string): Promise<void> {
-    const reusable =
-      this.resident &&
-      this.currentSystem === system &&
-      this.turnsHandled < LocalGemmaRuntime.MAX_TURNS;
-    if (reusable) return;
-    // System changed, process dead, or context budget reached — restart cleanly.
+  private async ensureProcess(system: string, sessionId: string): Promise<void> {
+    if (
+      shouldReuseProcess({
+        resident: this.resident,
+        currentSystem: this.currentSystem,
+        system,
+        currentSessionId: this.currentSessionId,
+        sessionId,
+        turnsHandled: this.turnsHandled,
+        maxTurns: LocalGemmaRuntime.MAX_TURNS
+      })
+    ) {
+      return;
+    }
     if (this.resident) this.evict();
     this.turnsHandled = 0;
-    this.spawnProcess(system);
-    await this.waitForReady(turnTimeoutMs());
+    this.spawnProcess(system, sessionId);
+    try {
+      await this.waitForReady(turnTimeoutMs());
+    } catch (err) {
+      if (!this.kvPinned && !this.kvFallbackUsed && this.kvType === "f16" && isVramLoadFailure(this.stderrBuf)) {
+        this.kvFallbackUsed = true;
+        this.kvType = "q8_0";
+        if (this.resident) this.evict();
+        this.spawnProcess(system, sessionId);
+        await this.waitForReady(turnTimeoutMs());
+        return;
+      }
+      throw err;
+    }
   }
 
   private acquire(): Promise<void> {
@@ -240,10 +255,10 @@ export class LocalGemmaRuntime {
    * Run one turn. Returns the model's response text for this turn (already
    * stripped of the footer). Throws on timeout or process death.
    */
-  async runTurn(system: string, userText: string): Promise<string> {
+  async runTurn(system: string, userText: string, sessionId: string): Promise<string> {
     await this.acquire();
     try {
-      await this.ensureProcess(system);
+      await this.ensureProcess(system, sessionId);
       this.clearIdleTimer();
 
       // Send the user turn. --simple-io does NOT echo input back, so the
