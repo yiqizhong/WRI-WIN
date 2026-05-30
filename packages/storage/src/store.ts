@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 
 import { randomUUID } from "node:crypto";
 
+import { z } from "zod";
+
 import {
   type AgentRun,
   type AgentRunEvent,
@@ -35,6 +37,11 @@ import {
 } from "@writer/contracts";
 
 import { getPasteTextParseResultPath } from "./paste-text-paths";
+
+const speculativeDecodingStateSchema = z.object({
+  enabled: z.boolean(),
+  lastError: z.string().optional()
+});
 
 export const STORAGE_VERSION = 1;
 
@@ -138,9 +145,12 @@ export class PlatformStore {
               return r.success ? r.data : null;
             })()
           : null,
-        speculativeDecoding:
-          (parsed as { speculativeDecoding?: SpeculativeDecodingState }).speculativeDecoding ??
-          { enabled: false }
+        speculativeDecoding: (() => {
+          const raw = (parsed as { speculativeDecoding?: unknown }).speculativeDecoding;
+          if (!raw) return { enabled: false };
+          const r = speculativeDecodingStateSchema.safeParse(raw);
+          return r.success ? r.data : { enabled: false };
+        })()
       };
 
       const migrated = await this.migrateLoadedSnapshot();
@@ -381,11 +391,11 @@ export class PlatformStore {
   }
 
   getSpeculativeDecoding(): SpeculativeDecodingState {
-    return this.snapshot.speculativeDecoding;
+    return { ...this.snapshot.speculativeDecoding };
   }
 
   setSpeculativeDecoding(value: SpeculativeDecodingState): void {
-    this.snapshot.speculativeDecoding = value;
+    this.snapshot.speculativeDecoding = speculativeDecodingStateSchema.parse(value);
   }
 
   private async migrateLoadedSnapshot(): Promise<boolean> {
