@@ -12,7 +12,7 @@ import type {
   AgentRunRequest
 } from "../types";
 import { commandExists } from "../cli-runner";
-import { LocalGemmaRuntime } from "./local-gemma-runtime";
+import { LocalGemmaRuntime, resolveCtxSize, resolveKvType } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
 const DISPLAY_NAME = "Local Gemma";
@@ -21,9 +21,9 @@ const DISPLAY_NAME = "Local Gemma";
 // every session, and VRAM holds one copy). Lazily created on first run.
 let residentRuntime: LocalGemmaRuntime | null = null;
 
-function getResidentRuntime(binary: string, modelPath: string): LocalGemmaRuntime {
+function getResidentRuntime(binary: string, modelPath: string, contextSize?: number): LocalGemmaRuntime {
   if (!residentRuntime) {
-    residentRuntime = new LocalGemmaRuntime({ binary, modelPath, gpuLayers: getGpuLayers() });
+    residentRuntime = new LocalGemmaRuntime({ binary, modelPath, gpuLayers: getGpuLayers(), contextSize });
   }
   return residentRuntime;
 }
@@ -136,6 +136,7 @@ async function listGpuDevices(binaryPath: string): Promise<string[]> {
 
 export type LocalGemmaAdapterOptions = {
   getModelState: () => LocalModelState | null;
+  contextSize?: number;
 };
 
 async function getLlamaBinaryPath(): Promise<string | null> {
@@ -278,14 +279,15 @@ async function tryRunResident(
   request: AgentRunRequest,
   binary: string,
   modelPath: string,
-  startedAt: string
+  startedAt: string,
+  contextSize?: number
 ): Promise<AgentRunHandle | null> {
   const { system, user } = splitCopywriterPrompt(request.prompt);
-  const runtime = getResidentRuntime(binary, modelPath);
+  const runtime = getResidentRuntime(binary, modelPath, contextSize);
 
   let response: string;
   try {
-    response = await runtime.runTurn(system, user);
+    response = await runtime.runTurn(system, user, request.sessionId);
   } catch {
     // Could not start or the turn failed — let the caller cold-spawn instead.
     return null;
@@ -334,7 +336,8 @@ async function tryRunResident(
 
 async function run(
   request: AgentRunRequest,
-  getModelState: () => LocalModelState | null
+  getModelState: () => LocalModelState | null,
+  contextSize?: number
 ): Promise<AgentRunHandle> {
   const runId = `run-${ADAPTER_ID}-${randomUUID()}`;
   const startedAt = new Date().toISOString();
@@ -360,7 +363,7 @@ async function run(
   // Prefer the resident process (model stays warm in VRAM across messages).
   // Falls back to a fresh per-message spawn if the runtime can't start.
   if (!residentDisabled()) {
-    const resident = await tryRunResident(runId, request, binary, modelPath, startedAt);
+    const resident = await tryRunResident(runId, request, binary, modelPath, startedAt, contextSize);
     if (resident) return resident;
   }
 
@@ -382,9 +385,12 @@ async function run(
   // user text via --prompt. This is what makes the model instruction-follow.
   const { system, user } = splitCopywriterPrompt(request.prompt);
 
+  const ctxSize = resolveCtxSize(process.env["WRITER_LOCAL_CTX_SIZE"], contextSize);
+  const kvType = resolveKvType(process.env["WRITER_LOCAL_KV_TYPE"]);
+
   const args = [
     "--model", modelPath,
-    "--ctx-size", "4096",
+    "--ctx-size", String(ctxSize),
     "-ngl", getGpuLayers(),
     "-cnv",
     "--single-turn",
@@ -396,6 +402,7 @@ async function run(
     // perceived slowness. Disable reasoning so it answers directly. Cap output
     // so a runaway generation can't hang the request.
     "--reasoning", "off",
+    ...(kvType !== "f16" ? ["--cache-type-k", kvType, "--cache-type-v", kvType] : []),
     "-n", "512",
     "--prompt", user
   ];
@@ -520,7 +527,7 @@ export function createLocalGemmaAdapter(options: LocalGemmaAdapterOptions): Agen
   return {
     id: ADAPTER_ID,
     detect: () => detect(options.getModelState),
-    run: (request) => run(request, options.getModelState)
+    run: (request) => run(request, options.getModelState, options.contextSize)
   };
 }
 
