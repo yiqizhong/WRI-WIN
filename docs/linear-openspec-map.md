@@ -309,6 +309,8 @@ Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-co
 
 **Suggested order for remaining motion increment:** WRI-154 → WRI-155 → WRI-149 → close WRI-145.
 
+**Branch disposition (2026-05-30):** Prototype branch `codex/chat-motion-polish` (`6f2c43b`, `74b82ee`) archived without merge. See `openspec/changes/archive/2026-05-30-chat-motion-polish/retrospective.md`. Production motion lives on `main` via WRI-154/WRI-155 (`composer-welcome-send-motion.ts`, expanded `ChatShellView`).
+
 ## figma-audit-redesign (OpenSpec: `openspec/changes/figma-audit-redesign/`)
 
 **Epic:** [WRI-134](https://linear.app/uicb/issue/WRI-134) — Figma Audit Redesign (v2 UX + audit log + workflow modes + screenshots + writeback flow)
