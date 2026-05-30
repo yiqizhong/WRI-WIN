@@ -314,6 +314,13 @@ export class LocalGemmaRuntime {
       if (!this.resident) throw new Error("Local Gemma process exited during generation.");
       const m = TURN_FOOTER.exec(this.stdoutBuf);
       if (m) {
+        if (process.env["WRITER_LOCAL_PERF_LOG"] === "1") {
+          const metrics = parseTurnMetrics(m[0]);
+          console.error(
+            `[local-gemma] prompt ${metrics.promptTokensPerSec ?? "?"} t/s, ` +
+            `eval ${metrics.evalTokensPerSec ?? "?"} t/s`
+          );
+        }
         const slice = this.stdoutBuf.slice(0, m.index);
         // Drop the footer and anything after it from the buffer; the next ready
         // prompt will be discarded at the start of the next turn.
@@ -330,6 +337,28 @@ export class LocalGemmaRuntime {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export type TurnMetrics = {
+  promptTokensPerSec: number | null;
+  evalTokensPerSec: number | null;
+};
+
+/**
+ * Parse llama-cli's per-turn footer, e.g.
+ *   "[ Prompt: 210.34 t/s | Predicted: 52.10 t/s ]"
+ * Generation rate may be labelled Predicted / eval / generation. Returns nulls
+ * for any field that is not present; never throws.
+ */
+export function parseTurnMetrics(footer: string): TurnMetrics {
+  const num = (re: RegExp): number | null => {
+    const m = re.exec(footer);
+    return m ? Number(m[1]) : null;
+  };
+  return {
+    promptTokensPerSec: num(/prompt[^\]]*?([\d.]+)\s*t\/s/i),
+    evalTokensPerSec: num(/(?:predicted|eval|generation|gen)[^\]]*?([\d.]+)\s*t\/s/i)
+  };
 }
 
 /** Strip ANSI codes, leading ready-prompt, and CRLF from a turn slice. */

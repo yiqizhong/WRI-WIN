@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, isVramLoadFailure, resolveCtxSize, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -151,5 +151,28 @@ describe("isVramLoadFailure", () => {
   it("ignores unrelated errors", () => {
     expect(isVramLoadFailure("model file not found")).toBe(false);
     expect(isVramLoadFailure("")).toBe(false);
+  });
+});
+
+describe("parseTurnMetrics", () => {
+  it("extracts prompt and generation tokens/sec from a footer", () => {
+    const footer = "[ Prompt: 210.34 t/s | Predicted: 52.10 t/s ]";
+    expect(parseTurnMetrics(footer)).toEqual({
+      promptTokensPerSec: 210.34,
+      evalTokensPerSec: 52.1
+    });
+  });
+  it("tolerates eval/generation wording and CRLF", () => {
+    const footer = "\r\n[ Prompt: 180 t/s | eval: 49.5 t/s ]\r\n";
+    expect(parseTurnMetrics(footer)).toEqual({
+      promptTokensPerSec: 180,
+      evalTokensPerSec: 49.5
+    });
+  });
+  it("returns nulls when the footer is unrecognized", () => {
+    expect(parseTurnMetrics("no numbers here")).toEqual({
+      promptTokensPerSec: null,
+      evalTokensPerSec: null
+    });
   });
 });
