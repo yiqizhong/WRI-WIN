@@ -18,6 +18,84 @@ export function getModelFilePath(state: DaemonState): string {
   return join(getModelsDir(state), GEMMA_4_E4B_MANIFEST.fileName);
 }
 
+export function getDraftFilePath(state: DaemonState, manifest = GEMMA_4_E4B_MANIFEST): string | null {
+  const draft = manifest.draftModel;
+  if (!draft) return null;
+  return join(getModelsDir(state), draft.fileName);
+}
+
+export type DraftInstallResult =
+  | { installed: false; reason: string }
+  | { installed: true; path: string };
+
+export async function installDraftModel(
+  state: DaemonState,
+  manifest = GEMMA_4_E4B_MANIFEST
+): Promise<DraftInstallResult> {
+  const draft = manifest.draftModel;
+  if (!draft) return { installed: false, reason: "No draft model declared for this model" };
+
+  const modelsDir = getModelsDir(state);
+  const target = join(modelsDir, draft.fileName);
+  const partial = `${target}.partial`;
+
+  // Idempotent: target exists with correct SHA → skip download
+  try {
+    await stat(target);
+    const existingSha = await computeSha256(target);
+    if (existingSha === draft.sha256) return { installed: true, path: target };
+  } catch {
+    // File doesn't exist — fall through to download
+  }
+
+  await mkdir(modelsDir, { recursive: true });
+
+  try {
+    const response = await fetch(draft.url, { redirect: "follow" });
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Draft download failed: HTTP ${response.status}`);
+    }
+
+    const fileStream = createWriteStream(partial);
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Response body is empty");
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        await new Promise<void>((resolve, reject) => {
+          fileStream.write(value, (err) => (err ? reject(err) : resolve()));
+        });
+      }
+    } finally {
+      reader.releaseLock();
+      await new Promise<void>((resolve) => fileStream.end(resolve));
+    }
+
+    const actual = await computeSha256(partial);
+    if (actual !== draft.sha256) {
+      await rm(partial, { force: true });
+      throw new Error(`Draft model SHA mismatch: expected ${draft.sha256}, got ${actual}`);
+    }
+
+    await rename(partial, target);
+    return { installed: true, path: target };
+  } catch (err) {
+    await rm(partial, { force: true });
+    throw err;
+  }
+}
+
+export async function setSpeculativeDecodingEnabled(state: DaemonState, enabled: boolean): Promise<void> {
+  const current = state.store.getSpeculativeDecoding();
+  state.store.setSpeculativeDecoding({
+    enabled,
+    lastError: enabled ? current.lastError : undefined
+  });
+  await state.store.save();
+}
+
 function buildState(override: Partial<LocalModelState> = {}): LocalModelState {
   return {
     status: "not_installed",
