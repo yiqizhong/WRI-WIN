@@ -319,3 +319,51 @@ describe("PlatformStore", () => {
     expect(STORAGE_VERSION).toBe(1);
   });
 });
+
+describe("speculativeDecoding slice", () => {
+  it("defaults to { enabled: false } on a fresh store", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "writer-store-"));
+    const store = new PlatformStore({ dataDir });
+    await store.load();
+    expect(store.getSpeculativeDecoding()).toEqual({ enabled: false });
+  });
+
+  it("persists enabled and lastError across reload", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "writer-store-"));
+    const store = new PlatformStore({ dataDir });
+    await store.load();
+    store.setSpeculativeDecoding({ enabled: true, lastError: "vram" });
+    await store.save();
+
+    const reloaded = new PlatformStore({ dataDir });
+    await reloaded.load();
+    expect(reloaded.getSpeculativeDecoding()).toEqual({ enabled: true, lastError: "vram" });
+  });
+
+  it("migrates a snapshot lacking the slice to the default", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "writer-store-"));
+    // Write a legacy snapshot without speculativeDecoding
+    await writeFile(
+      join(dataDir, "platform-store.json"),
+      JSON.stringify({
+        version: 1,
+        projects: [],
+        activeProjectId: null,
+        sessions: [],
+        auditLog: [],
+        agentRuns: [],
+        agentRunEvents: [],
+        activeAdapterId: null,
+        reviewChanges: [],
+        findings: [],
+        rewrites: [],
+        pasteTextConversations: [],
+        localModel: null
+      }),
+      "utf8"
+    );
+    const store = new PlatformStore({ dataDir });
+    await store.load();
+    expect(store.getSpeculativeDecoding()).toEqual({ enabled: false });
+  });
+});

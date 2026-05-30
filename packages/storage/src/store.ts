@@ -42,6 +42,11 @@ export const AUDIT_LOG_CAP = 10_000;
 
 const TERMINAL_AGENT_RUN_STATUSES = new Set(["completed", "failed", "canceled"]);
 
+export type SpeculativeDecodingState = {
+  enabled: boolean;
+  lastError?: string;
+};
+
 export type PlatformStoreSnapshot = {
   version: number;
   projects: Project[];
@@ -56,6 +61,7 @@ export type PlatformStoreSnapshot = {
   rewrites: RewriteCandidate[];
   pasteTextConversations: PasteTextConversation[];
   localModel: LocalModelState | null;
+  speculativeDecoding: SpeculativeDecodingState;
 };
 
 export type PlatformStoreOptions = {
@@ -89,7 +95,8 @@ export class PlatformStore {
       findings: [],
       rewrites: [],
       pasteTextConversations: [],
-      localModel: null
+      localModel: null,
+      speculativeDecoding: { enabled: false }
     };
   }
 
@@ -130,7 +137,10 @@ export class PlatformStore {
               const r = localModelStateSchema.safeParse(parsed.localModel);
               return r.success ? r.data : null;
             })()
-          : null
+          : null,
+        speculativeDecoding:
+          (parsed as { speculativeDecoding?: SpeculativeDecodingState }).speculativeDecoding ??
+          { enabled: false }
       };
 
       const migrated = await this.migrateLoadedSnapshot();
@@ -368,6 +378,14 @@ export class PlatformStore {
 
   clearLocalModel(): void {
     this.snapshot.localModel = null;
+  }
+
+  getSpeculativeDecoding(): SpeculativeDecodingState {
+    return this.snapshot.speculativeDecoding;
+  }
+
+  setSpeculativeDecoding(value: SpeculativeDecodingState): void {
+    this.snapshot.speculativeDecoding = value;
   }
 
   private async migrateLoadedSnapshot(): Promise<boolean> {
