@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCopywriterPrompt,
+  estimateTokens,
   filterCopywriterHistory,
   isCopywriterBareGreeting,
   isCopywriterMetaOutput,
@@ -218,5 +219,13 @@ describe("copywriter-skill", () => {
     });
 
     expect(prompt.full).not.toContain("Feature context:");
+  });
+});
+
+describe("estimateTokens", () => {
+  it("estimates ~1 token per 4 characters, rounding up", () => {
+    expect(estimateTokens("")).toBe(0);
+    expect(estimateTokens("abcd")).toBe(1);
+    expect(estimateTokens("abcde")).toBe(2);
   });
 });

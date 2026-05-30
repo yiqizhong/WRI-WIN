@@ -51,6 +51,10 @@ Hard constraints:
 
 const HISTORY_LIMIT = 6;
 
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 function normalizeCopywriterText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
