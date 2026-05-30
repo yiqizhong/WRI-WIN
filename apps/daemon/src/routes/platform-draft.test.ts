@@ -121,5 +121,19 @@ describe("draft model routes", () => {
       await handlePlatformRequest(req, res, state);
       expect(res.statusCode).toBe(400);
     });
+
+    it("returns 400 on malformed JSON body", async () => {
+      // Simulate a request with invalid JSON bytes
+      const rawBytes = Buffer.from("{invalid json");
+      const req = {
+        method: "PUT",
+        url: "/local-model/draft/enabled",
+        [Symbol.asyncIterator]: async function* () { yield rawBytes; }
+      } as unknown as IncomingMessage;
+      const res = makeResponse();
+
+      await handlePlatformRequest(req, res, state);
+      expect(res.statusCode).toBe(400);
+    });
   });
 });

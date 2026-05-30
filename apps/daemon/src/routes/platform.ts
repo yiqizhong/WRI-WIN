@@ -394,7 +394,13 @@ export async function handlePlatformRequest(
   }
 
   if (request.method === "PUT" && path === "/local-model/draft/enabled") {
-    const body = await readJsonBody(request);
+    let body: unknown;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      invalidRequest(response, "Invalid JSON body");
+      return true;
+    }
     const parsed = z.object({ enabled: z.boolean() }).safeParse(body);
     if (!parsed.success) {
       invalidRequest(response, "enabled must be boolean");
