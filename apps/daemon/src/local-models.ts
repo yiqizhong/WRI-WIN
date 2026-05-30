@@ -87,6 +87,32 @@ export async function installDraftModel(
   }
 }
 
+export type DraftModelStatus = {
+  installed: boolean;
+  enabled: boolean;
+  lastError?: string;
+};
+
+export async function getDraftModelStatus(
+  state: DaemonState,
+  manifest = GEMMA_4_E4B_MANIFEST
+): Promise<DraftModelStatus> {
+  const specDecoding = state.store.getSpeculativeDecoding();
+  const draftPath = getDraftFilePath(state, manifest);
+
+  let installed = false;
+  if (draftPath) {
+    try {
+      await stat(draftPath);
+      installed = true;
+    } catch {
+      installed = false;
+    }
+  }
+
+  return { installed, enabled: specDecoding.enabled, lastError: specDecoding.lastError };
+}
+
 export async function setSpeculativeDecodingEnabled(state: DaemonState, enabled: boolean): Promise<void> {
   const current = state.store.getSpeculativeDecoding();
   state.store.setSpeculativeDecoding({

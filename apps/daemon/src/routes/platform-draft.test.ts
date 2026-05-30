@@ -69,6 +69,34 @@ describe("draft model routes", () => {
     await state.store.load();
   });
 
+  describe("GET /local-model/draft/status", () => {
+    it("returns installed:false and enabled:false by default", async () => {
+      const req = makeRequest("GET", "/local-model/draft/status");
+      const res = makeResponse();
+
+      const handled = await handlePlatformRequest(req, res, state);
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
+      const body = res.getBody() as { installed: boolean; enabled: boolean };
+      expect(body.installed).toBe(false);
+      expect(body.enabled).toBe(false);
+    });
+
+    it("reflects enabled:true after toggling speculative decoding on", async () => {
+      state.store.setSpeculativeDecoding({ enabled: true });
+      await state.store.save();
+
+      const req = makeRequest("GET", "/local-model/draft/status");
+      const res = makeResponse();
+
+      await handlePlatformRequest(req, res, state);
+
+      const body = res.getBody() as { installed: boolean; enabled: boolean };
+      expect(body.enabled).toBe(true);
+    });
+  });
+
   describe("POST /local-model/draft/install", () => {
     it("returns installed:false when manifest has no draftModel", async () => {
       const req = makeRequest("POST", "/local-model/draft/install");

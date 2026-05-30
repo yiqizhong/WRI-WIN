@@ -29,6 +29,7 @@ import {
   startFigmaMcpAuth,
   startAgentRun,
   installDraftModel,
+  getDraftModelStatus,
   setSpeculativeDecodingEnabled,
   type DaemonState
 } from "../state";
@@ -380,6 +381,11 @@ export async function handlePlatformRequest(
     } catch (error) {
       invalidRequest(response, error instanceof Error ? error.message : "Failed to reset model.");
     }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/local-model/draft/status") {
+    sendJson(response, 200, await getDraftModelStatus(state));
     return true;
   }
 

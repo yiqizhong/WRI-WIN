@@ -30,6 +30,7 @@ import { createPermissionRequest, executeTool, getToolList } from "./tools";
 import { ensureDefaultWorkspace } from "./workspace";
 import {
   getLocalModelStatus,
+  getDraftModelStatus,
   initLocalModelState,
   resetModelDownload,
   startModelDownload,
@@ -125,6 +126,7 @@ export {
   smokeFigmaRead,
   smokeFigmaWrite,
   getLocalModelStatus,
+  getDraftModelStatus,
   startModelDownload,
   resetModelDownload,
   installDraftModel,

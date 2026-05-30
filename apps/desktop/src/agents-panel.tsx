@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, RotateCw } from "lucide-react";
 import {
   type AgentAdapter,
@@ -252,6 +252,11 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<DraftStatus>({ installed: false, enabled: false });
   const [draftInstalling, setDraftInstalling] = useState(false);
+
+  useEffect(() => {
+    if (!connected) return;
+    void client.getDraftModelStatus().then(setDraftStatus).catch(() => undefined);
+  }, [connected, client]);
 
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 

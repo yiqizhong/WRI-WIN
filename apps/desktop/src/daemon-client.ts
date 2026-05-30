@@ -738,6 +738,14 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseLocalModelStatusResponse
       ),
 
+    getDraftModelStatus: (): Promise<{ installed: boolean; enabled: boolean; lastError?: string }> =>
+      request(
+        baseUrl,
+        "/local-model/draft/status",
+        undefined,
+        undefined
+      ) as Promise<{ installed: boolean; enabled: boolean; lastError?: string }>,
+
     installDraftModel: (): Promise<{ installed: boolean; reason?: string; path?: string }> =>
       request(
         baseUrl,
