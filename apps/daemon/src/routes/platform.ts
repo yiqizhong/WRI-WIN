@@ -1,5 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
+import { z } from "zod";
+
 import { getQueryParam, readJsonBody } from "../http";
 import {
   cancelAgentRun,
@@ -26,6 +28,8 @@ import {
   smokeFigmaWrite,
   startFigmaMcpAuth,
   startAgentRun,
+  installDraftModel,
+  setSpeculativeDecodingEnabled,
   type DaemonState
 } from "../state";
 import { invalidRequest, notFound, permissionDenied, serviceUnavailable } from "../errors";
@@ -375,6 +379,32 @@ export async function handlePlatformRequest(
       sendJson(response, 200, getLocalModelStatus(state));
     } catch (error) {
       invalidRequest(response, error instanceof Error ? error.message : "Failed to reset model.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/local-model/draft/install") {
+    try {
+      const result = await installDraftModel(state);
+      sendJson(response, 200, result);
+    } catch (error) {
+      invalidRequest(response, error instanceof Error ? error.message : "Failed to install draft model.");
+    }
+    return true;
+  }
+
+  if (request.method === "PUT" && path === "/local-model/draft/enabled") {
+    const body = await readJsonBody(request);
+    const parsed = z.object({ enabled: z.boolean() }).safeParse(body);
+    if (!parsed.success) {
+      invalidRequest(response, "enabled must be boolean");
+      return true;
+    }
+    try {
+      await setSpeculativeDecodingEnabled(state, parsed.data.enabled);
+      sendJson(response, 200, { ok: true, enabled: parsed.data.enabled });
+    } catch (error) {
+      invalidRequest(response, error instanceof Error ? error.message : "Failed to update speculative decoding.");
     }
     return true;
   }

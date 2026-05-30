@@ -32,7 +32,9 @@ import {
   getLocalModelStatus,
   initLocalModelState,
   resetModelDownload,
-  startModelDownload
+  startModelDownload,
+  installDraftModel,
+  setSpeculativeDecodingEnabled
 } from "./local-models";
 
 export type DaemonState = {
@@ -125,6 +127,8 @@ export {
   getLocalModelStatus,
   startModelDownload,
   resetModelDownload,
+  installDraftModel,
+  setSpeculativeDecodingEnabled,
   type AgentRunResult
 };
 
