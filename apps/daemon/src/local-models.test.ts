@@ -208,6 +208,42 @@ describe("installDraftModel", () => {
     vi.unstubAllGlobals();
   });
 
+  it("downloads, verifies SHA, and installs successfully on fresh download", async () => {
+    const draftContent = "fake draft model content for happy path";
+    const correctSha = createHash("sha256").update(draftContent).digest("hex");
+    const manifest = {
+      ...GEMMA_4_E4B_MANIFEST,
+      draftModel: {
+        url: "https://example.com/draft.gguf",
+        sha256: correctSha,
+        sizeBytes: draftContent.length,
+        fileName: "draft.gguf"
+      }
+    };
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(draftContent));
+          controller.close();
+        }
+      }),
+      headers: new Headers({ "content-length": String(draftContent.length) })
+    }));
+
+    const result = await installDraftModel(state, manifest);
+    expect(result.installed).toBe(true);
+    if (result.installed) {
+      expect(result.path).toContain("draft.gguf");
+      // Verify the file actually exists on disk
+      await expect(stat(result.path)).resolves.toBeDefined();
+    }
+
+    vi.unstubAllGlobals();
+  });
+
   it("is idempotent when target file exists with correct SHA", async () => {
     const draftContent = "fake draft model content";
     const correctSha = createHash("sha256").update(draftContent).digest("hex");

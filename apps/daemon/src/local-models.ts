@@ -52,7 +52,7 @@ export async function installDraftModel(
 
   try {
     const response = await fetch(draft.url, { redirect: "follow" });
-    if (!response.ok && response.status !== 206) {
+    if (response.status !== 200 && response.status !== 206) {
       throw new Error(`Draft download failed: HTTP ${response.status}`);
     }
 
@@ -75,7 +75,6 @@ export async function installDraftModel(
 
     const actual = await computeSha256(partial);
     if (actual !== draft.sha256) {
-      await rm(partial, { force: true });
       throw new Error(`Draft model SHA mismatch: expected ${draft.sha256}, got ${actual}`);
     }
 
