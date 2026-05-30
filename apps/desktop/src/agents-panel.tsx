@@ -360,13 +360,16 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
 
   async function handleInstallDraft() {
     setDraftInstalling(true);
+    setDraftStatus((prev) => ({ ...prev, lastError: undefined }));
     try {
       const result = await client.installDraftModel();
       if (result.installed) {
-        setDraftStatus((prev) => ({ ...prev, installed: true }));
+        setDraftStatus((prev) => ({ ...prev, installed: true, lastError: undefined }));
+      } else {
+        setDraftStatus((prev) => ({ ...prev, lastError: result.reason ?? "Draft model could not be installed." }));
       }
-    } catch {
-      // Error shows in next status refresh.
+    } catch (err) {
+      setDraftStatus((prev) => ({ ...prev, lastError: err instanceof Error ? err.message : "Install failed." }));
     } finally {
       setDraftInstalling(false);
     }

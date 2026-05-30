@@ -34,7 +34,7 @@ export async function installDraftModel(
   manifest = GEMMA_4_E4B_MANIFEST
 ): Promise<DraftInstallResult> {
   const draft = manifest.draftModel;
-  if (!draft) return { installed: false, reason: "No draft model declared for this model" };
+  if (!draft) return { installed: false, reason: "Draft model not yet available — no official Gemma 4 E4B draft GGUF has been published. Use WRITER_LOCAL_DRAFT_MODEL env override to point to a compatible draft." };
 
   const modelsDir = getModelsDir(state);
   const target = join(modelsDir, draft.fileName);
