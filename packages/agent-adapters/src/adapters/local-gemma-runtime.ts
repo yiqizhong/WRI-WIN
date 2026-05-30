@@ -358,8 +358,8 @@ export function parseTurnMetrics(footer: string): TurnMetrics {
     return Number.isFinite(n) ? n : null;
   };
   return {
-    promptTokensPerSec: num(/prompt[^\]]*?([\d.]+)\s*t\/s/i),
-    evalTokensPerSec: num(/(?:predicted|eval|generation|gen)[^\]]*?([\d.]+)\s*t\/s/i)
+    promptTokensPerSec: num(/prompt[^\]|]*?([\d.]+)\s*t\/s/i),
+    evalTokensPerSec: num(/(?:predicted|eval|generation|gen)[^\]|]*?([\d.]+)\s*t\/s/i)
   };
 }
 
