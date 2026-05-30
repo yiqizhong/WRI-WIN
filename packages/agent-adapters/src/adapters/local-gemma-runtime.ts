@@ -67,6 +67,21 @@ export function resolveUbatch(envValue: string | undefined): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_UBATCH;
 }
 
+export type DraftSettings = { enabled: boolean; path: string | null };
+
+/**
+ * Precedence: env override > storage settings (enabled + path) > null.
+ * Pure: no I/O.
+ */
+export function resolveDraftModelPath(
+  envValue: string | undefined,
+  settings: DraftSettings
+): string | null {
+  if (envValue && envValue.length > 0) return envValue;
+  if (settings.enabled && settings.path) return settings.path;
+  return null;
+}
+
 export function buildSpawnArgs(input: {
   modelPath: string;
   ctxSize: number;
@@ -74,6 +89,7 @@ export function buildSpawnArgs(input: {
   kvType: KvCacheType;
   flashAttn: FlashAttn;
   ubatch: number;
+  draftModelPath: string | null;
   system: string;
 }): string[] {
   const args = [
@@ -90,6 +106,9 @@ export function buildSpawnArgs(input: {
   ];
   if (input.kvType !== "f16") {
     args.push("--cache-type-k", input.kvType, "--cache-type-v", input.kvType);
+  }
+  if (input.draftModelPath) {
+    args.push("--model-draft", input.draftModelPath);
   }
   if (input.system) {
     args.push("-sys", input.system);
@@ -192,6 +211,7 @@ export class LocalGemmaRuntime {
       kvType: this.kvType,
       flashAttn: resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
       ubatch: resolveUbatch(process.env["WRITER_LOCAL_UBATCH"]),
+      draftModelPath: null,  // Task 6 will replace with real resolver
       system
     });
     const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });

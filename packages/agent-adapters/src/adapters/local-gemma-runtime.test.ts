@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveDraftModelPath, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -59,7 +59,7 @@ describe("resolveKvType", () => {
 });
 
 describe("buildSpawnArgs", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "" };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null };
 
   it("carries the resolved ctx-size", () => {
     const args = buildSpawnArgs({ ...base, kvType: "f16" });
@@ -133,7 +133,7 @@ describe("resolveUbatch", () => {
 });
 
 describe("buildSpawnArgs flash-attn + ubatch", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "" };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "", draftModelPath: null as string | null };
 
   it("carries -fa and -ub with defaults", () => {
     const args = buildSpawnArgs({ ...base, flashAttn: "on", ubatch: 1024 });
@@ -184,5 +184,39 @@ describe("parseTurnMetrics", () => {
       promptTokensPerSec: 100,
       evalTokensPerSec: 45.5
     });
+  });
+});
+
+describe("resolveDraftModelPath", () => {
+  it("returns env path when set, regardless of settings", () => {
+    expect(resolveDraftModelPath("/env.gguf", { enabled: false, path: "/s.gguf" })).toBe("/env.gguf");
+    expect(resolveDraftModelPath("/env.gguf", { enabled: true,  path: "/s.gguf" })).toBe("/env.gguf");
+  });
+  it("returns settings path when env unset, toggle on, path present", () => {
+    expect(resolveDraftModelPath(undefined, { enabled: true, path: "/s.gguf" })).toBe("/s.gguf");
+  });
+  it("returns null when toggle off", () => {
+    expect(resolveDraftModelPath(undefined, { enabled: false, path: "/s.gguf" })).toBeNull();
+  });
+  it("returns null when toggle on but path missing", () => {
+    expect(resolveDraftModelPath(undefined, { enabled: true, path: null })).toBeNull();
+  });
+  it("returns null when both undefined", () => {
+    expect(resolveDraftModelPath(undefined, { enabled: false, path: null })).toBeNull();
+  });
+});
+
+describe("buildSpawnArgs draft model", () => {
+  const base = {
+    modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const,
+    flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null
+  };
+  it("appends --model-draft when set", () => {
+    const args = buildSpawnArgs({ ...base, draftModelPath: "/d.gguf" });
+    expect(args[args.indexOf("--model-draft") + 1]).toBe("/d.gguf");
+  });
+  it("omits --model-draft when null", () => {
+    const args = buildSpawnArgs({ ...base, draftModelPath: null });
+    expect(args).not.toContain("--model-draft");
   });
 });
