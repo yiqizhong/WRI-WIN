@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, resolveCtxSize, resolveKvType, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -29,5 +29,56 @@ describe("stripTurn", () => {
 
   it("returns trimmed plain text when no markers are present", () => {
     expect(stripTurn("  Just the answer.  ")).toBe("Just the answer.");
+  });
+});
+
+describe("resolveCtxSize", () => {
+  it("prefers a valid env override", () => {
+    expect(resolveCtxSize("32768", 16384)).toBe(32768);
+  });
+  it("falls back to the option default when env is invalid or unset", () => {
+    expect(resolveCtxSize(undefined, 16384)).toBe(16384);
+    expect(resolveCtxSize("not-a-number", 16384)).toBe(16384);
+    expect(resolveCtxSize("0", 16384)).toBe(16384);
+  });
+  it("falls back to 16384 when no option default is given", () => {
+    expect(resolveCtxSize(undefined, undefined)).toBe(16384);
+  });
+});
+
+describe("resolveKvType", () => {
+  it("returns the env value when supported", () => {
+    expect(resolveKvType("q8_0")).toBe("q8_0");
+    expect(resolveKvType("q4_0")).toBe("q4_0");
+    expect(resolveKvType("f16")).toBe("f16");
+  });
+  it("defaults to f16 when unset or unsupported", () => {
+    expect(resolveKvType(undefined)).toBe("f16");
+    expect(resolveKvType("bogus")).toBe("f16");
+  });
+});
+
+describe("buildSpawnArgs", () => {
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", system: "" };
+
+  it("carries the resolved ctx-size", () => {
+    const args = buildSpawnArgs({ ...base, kvType: "f16" });
+    const i = args.indexOf("--ctx-size");
+    expect(args[i + 1]).toBe("16384");
+  });
+  it("omits cache-type flags for f16 (llama.cpp default)", () => {
+    const args = buildSpawnArgs({ ...base, kvType: "f16" });
+    expect(args).not.toContain("--cache-type-k");
+  });
+  it("adds cache-type flags for quantized KV", () => {
+    const args = buildSpawnArgs({ ...base, kvType: "q8_0" });
+    const k = args.indexOf("--cache-type-k");
+    const v = args.indexOf("--cache-type-v");
+    expect(args[k + 1]).toBe("q8_0");
+    expect(args[v + 1]).toBe("q8_0");
+  });
+  it("appends -sys only when a system prompt is present", () => {
+    expect(buildSpawnArgs({ ...base, kvType: "f16" })).not.toContain("-sys");
+    expect(buildSpawnArgs({ ...base, kvType: "f16", system: "You are…" })).toContain("-sys");
   });
 });

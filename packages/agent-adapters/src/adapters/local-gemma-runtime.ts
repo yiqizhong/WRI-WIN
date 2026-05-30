@@ -36,6 +36,47 @@ function turnTimeoutMs(): number {
   return Number.isFinite(n) && n > 0 ? n : 120_000;
 }
 
+export type KvCacheType = "f16" | "q8_0" | "q4_0";
+
+const DEFAULT_CTX_SIZE = 16384;
+
+export function resolveCtxSize(envValue: string | undefined, optionDefault: number | undefined): number {
+  const fromEnv = Number(envValue);
+  if (Number.isInteger(fromEnv) && fromEnv > 0) return fromEnv;
+  if (optionDefault && Number.isInteger(optionDefault) && optionDefault > 0) return optionDefault;
+  return DEFAULT_CTX_SIZE;
+}
+
+export function resolveKvType(envValue: string | undefined): KvCacheType {
+  return envValue === "q8_0" || envValue === "q4_0" || envValue === "f16" ? envValue : "f16";
+}
+
+export function buildSpawnArgs(input: {
+  modelPath: string;
+  ctxSize: number;
+  gpuLayers: string;
+  kvType: KvCacheType;
+  system: string;
+}): string[] {
+  const args = [
+    "--model", input.modelPath,
+    "--ctx-size", String(input.ctxSize),
+    "-ngl", input.gpuLayers,
+    "-cnv",
+    "--simple-io",
+    "--reasoning", "off",
+    "-n", "512",
+    "--log-disable"
+  ];
+  if (input.kvType !== "f16") {
+    args.push("--cache-type-k", input.kvType, "--cache-type-v", input.kvType);
+  }
+  if (input.system) {
+    args.push("-sys", input.system);
+  }
+  return args;
+}
+
 export class LocalGemmaRuntime {
   private child: ChildProcessWithoutNullStreams | null = null;
   private currentSystem: string | null = null;
