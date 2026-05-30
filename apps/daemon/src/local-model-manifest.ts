@@ -14,7 +14,7 @@ export const GEMMA_4_E4B_MANIFEST: LocalModelManifest = {
   expectedSha256: "fb8f0c032de00b18c710824af3c7e5777c71e5fb60b13f13575f0a9e92ddecd0",
   gated: false,
   modelMaxContext: 131072,
-  defaultContext: 8192,
+  defaultContext: 16384,
   fileSizeBytes: 8_600_000_000
 };
 
