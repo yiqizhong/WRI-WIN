@@ -70,6 +70,21 @@ export function resolveUbatch(envValue: string | undefined): number {
   return Number.isInteger(n) && n > 0 ? n : DEFAULT_UBATCH;
 }
 
+const VALID_SPEC_TYPES = ["none", "ngram-simple", "ngram-mod", "ngram-map-k", "ngram-map-k4v", "ngram-cache"] as const;
+export type SpecType = (typeof VALID_SPEC_TYPES)[number];
+
+/**
+ * env value > default 'ngram-simple'.
+ * 'none' disables speculative decoding entirely.
+ * Only valid spec types are accepted; anything else falls back to the default.
+ */
+export function resolveSpecType(envValue: string | undefined): SpecType {
+  if (envValue && (VALID_SPEC_TYPES as readonly string[]).includes(envValue)) {
+    return envValue as SpecType;
+  }
+  return "ngram-simple";
+}
+
 /**
  * Precedence: env override > storage settings (enabled + path) > null.
  * Pure: no I/O.
@@ -91,6 +106,7 @@ export function buildSpawnArgs(input: {
   flashAttn: FlashAttn;
   ubatch: number;
   draftModelPath: string | null;
+  specType: SpecType;
   system: string;
 }): string[] {
   const args = [
@@ -110,6 +126,9 @@ export function buildSpawnArgs(input: {
   }
   if (input.draftModelPath) {
     args.push("--model-draft", input.draftModelPath);
+  }
+  if (input.specType !== "none") {
+    args.push("--spec-type", input.specType);
   }
   if (input.system) {
     args.push("-sys", input.system);
@@ -233,6 +252,7 @@ export class LocalGemmaRuntime {
       flashAttn: resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
       ubatch: resolveUbatch(process.env["WRITER_LOCAL_UBATCH"]),
       draftModelPath: this.effectiveDraftPath(),
+      specType: resolveSpecType(process.env["WRITER_LOCAL_SPEC_TYPE"]),
       system
     });
     const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });

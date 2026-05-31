@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildSpawnArgs, isDraftLoadFailure, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveDraftModelPath, resolveFlashAttn, resolveKvType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
+import { buildSpawnArgs, isDraftLoadFailure, isVramLoadFailure, parseTurnMetrics, resolveCtxSize, resolveDraftModelPath, resolveFlashAttn, resolveKvType, resolveSpecType, resolveUbatch, shouldReuseProcess, stripTurn } from "./local-gemma-runtime";
 
 // Pure parsing of a single resident-mode turn slice. The stateful process
 // lifecycle (spawn reuse, idle eviction, crash recovery, serialization) is
@@ -59,7 +59,7 @@ describe("resolveKvType", () => {
 });
 
 describe("buildSpawnArgs", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const };
 
   it("carries the resolved ctx-size", () => {
     const args = buildSpawnArgs({ ...base, kvType: "f16" });
@@ -133,7 +133,7 @@ describe("resolveUbatch", () => {
 });
 
 describe("buildSpawnArgs flash-attn + ubatch", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "", draftModelPath: null as string | null };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const };
 
   it("carries -fa and -ub with defaults", () => {
     const args = buildSpawnArgs({ ...base, flashAttn: "on", ubatch: 1024 });
@@ -237,7 +237,8 @@ describe("resolveDraftModelPath", () => {
 describe("buildSpawnArgs draft model", () => {
   const base = {
     modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const,
-    flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null
+    flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null,
+    specType: "ngram-simple" as const
   };
   it("appends --model-draft when set", () => {
     const args = buildSpawnArgs({ ...base, draftModelPath: "/d.gguf" });
@@ -263,5 +264,42 @@ describe("isDraftLoadFailure", () => {
   });
   it("returns false on unrelated stderr", () => {
     expect(isDraftLoadFailure("model loaded successfully")).toBe(false);
+  });
+});
+
+describe("resolveSpecType", () => {
+  it("defaults to ngram-simple when unset", () => {
+    expect(resolveSpecType(undefined)).toBe("ngram-simple");
+  });
+  it("accepts valid spec types", () => {
+    expect(resolveSpecType("none")).toBe("none");
+    expect(resolveSpecType("ngram-mod")).toBe("ngram-mod");
+    expect(resolveSpecType("ngram-map-k")).toBe("ngram-map-k");
+    expect(resolveSpecType("ngram-map-k4v")).toBe("ngram-map-k4v");
+    expect(resolveSpecType("ngram-cache")).toBe("ngram-cache");
+  });
+  it("falls back to ngram-simple for unrecognized values", () => {
+    expect(resolveSpecType("invalid")).toBe("ngram-simple");
+    expect(resolveSpecType("")).toBe("ngram-simple");
+  });
+});
+
+describe("buildSpawnArgs specType", () => {
+  const base = {
+    modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const,
+    flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null,
+    specType: "ngram-simple" as const
+  };
+  it("appends --spec-type when not none", () => {
+    const args = buildSpawnArgs(base);
+    expect(args[args.indexOf("--spec-type") + 1]).toBe("ngram-simple");
+  });
+  it("omits --spec-type when none", () => {
+    const args = buildSpawnArgs({ ...base, specType: "none" });
+    expect(args).not.toContain("--spec-type");
+  });
+  it("passes ngram-mod correctly", () => {
+    const args = buildSpawnArgs({ ...base, specType: "ngram-mod" });
+    expect(args[args.indexOf("--spec-type") + 1]).toBe("ngram-mod");
   });
 });
