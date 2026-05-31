@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "writer-desktop",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--workspace", "@writer/desktop", "run", "dev:renderer"],
+      "port": 5173
+    }
+  ]
+}
