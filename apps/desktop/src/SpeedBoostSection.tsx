@@ -69,7 +69,7 @@ export function SpeedBoostSection({ status, installing, onInstall, onToggle }: S
       )}
 
       {showBanner && status.lastError && (
-        <InlineAlert kind="error" title="Speed boost disabled" subtitle={status.lastError} />
+        <InlineAlert kind="error" title="Not available" subtitle={status.lastError} />
       )}
     </section>
   );
