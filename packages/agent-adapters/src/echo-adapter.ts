@@ -1,12 +1,26 @@
 import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { constants } from "node:fs";
+import { platform } from "node:os";
 
 import type { AgentAdapter, AgentRun, AgentRunEvent } from "@writer/contracts";
 
 import type { AgentAdapterImplementation, AgentDetectionResult, AgentRunHandle, AgentRunRequest } from "./types";
 
-const ECHO_PATH = "/bin/echo";
+const isWindows = platform() === "win32";
+
+// Windows has no `/bin/echo`; the shell builtin reached via `cmd /c echo`
+// is the equivalent. Detection probes for the launcher binary that is always
+// present on each platform.
+const ECHO_PATH = isWindows
+  ? `${process.env.SystemRoot ?? "C:\\Windows"}\\System32\\cmd.exe`
+  : "/bin/echo";
+
+function buildEchoSpawn(prompt: string): { command: string; args: string[] } {
+  return isWindows
+    ? { command: ECHO_PATH, args: ["/c", "echo", prompt] }
+    : { command: ECHO_PATH, args: [prompt] };
+}
 
 export function createEchoAdapter(): AgentAdapterImplementation {
   return {
@@ -49,7 +63,8 @@ async function runEcho(request: AgentRunRequest): Promise<AgentRunHandle> {
     startedAt
   };
 
-  const child = spawn(ECHO_PATH, [request.prompt], { stdio: ["ignore", "pipe", "pipe"] });
+  const { command, args } = buildEchoSpawn(request.prompt);
+  const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
   const events: AgentRunEvent[] = [];
   let cancelled = false;
 

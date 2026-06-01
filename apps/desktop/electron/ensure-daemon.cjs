@@ -135,6 +135,11 @@ function resolveTsxExecutable() {
 
 function spawnDaemon() {
   const tsxExecutable = resolveTsxExecutable();
+  // On Windows the tsx launcher is a `.cmd` shim, which node's spawn cannot
+  // execute directly (it fails with EINVAL). Route it through the shell there.
+  // Safe to do here: the arguments are fixed and trusted (no user input), so
+  // there is nothing to inject.
+  const useShell = process.platform === "win32";
   const child = spawn(tsxExecutable, ["src/index.ts"], {
     cwd: daemonDir,
     env: {
@@ -145,7 +150,14 @@ function spawnDaemon() {
       WRITER_DAEMON_API_REVISION: expectedApiRevision
     },
     stdio: ["ignore", "pipe", "pipe"],
-    detached: false
+    detached: false,
+    shell: useShell
+  });
+
+  child.on("error", (error) => {
+    // Without this handler a spawn failure (e.g. EINVAL launching the tsx
+    // shim) is swallowed and the daemon silently never starts.
+    log("Managed daemon failed to spawn", { message: error.message });
   });
 
   child.stdout?.on("data", (chunk) => {

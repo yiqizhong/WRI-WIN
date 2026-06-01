@@ -8,7 +8,8 @@ import {
   LLM_PROVIDER_PLACEHOLDERS,
   MCP_SERVER_PLACEHOLDERS,
   mergeLlmAdapters,
-  mergeMcpServers
+  mergeMcpServers,
+  resolveActiveAfterLoad
 } from "./agents-runtime";
 
 describe("agents-runtime", () => {
@@ -88,6 +89,38 @@ describe("agents-runtime", () => {
     const merged = mergeMcpServers(MCP_SERVER_PLACEHOLDERS, []);
     expect(merged).toHaveLength(1);
     expect(merged[0]?.id).toBe("figma");
+  });
+
+  describe("resolveActiveAfterLoad", () => {
+    it("uses the loaded active id when the user has not chosen yet", () => {
+      const next = resolveActiveAfterLoad({
+        loadedActiveId: "cursor-agent",
+        currentActiveId: null,
+        userHasChosen: false
+      });
+      expect(next).toBe("cursor-agent");
+    });
+
+    it("keeps the user's selection when a background load resolves later", () => {
+      // The race: user picked devin; a slow listAgents started before the
+      // click resolves afterwards carrying the load-time fallback (cursor).
+      // The user's choice must win.
+      const next = resolveActiveAfterLoad({
+        loadedActiveId: "cursor-agent",
+        currentActiveId: "devin",
+        userHasChosen: true
+      });
+      expect(next).toBe("devin");
+    });
+
+    it("still applies a load that agrees with the user's selection", () => {
+      const next = resolveActiveAfterLoad({
+        loadedActiveId: "devin",
+        currentActiveId: "devin",
+        userHasChosen: true
+      });
+      expect(next).toBe("devin");
+    });
   });
 
   it("applyAgentAdapterList updates active adapter id", () => {

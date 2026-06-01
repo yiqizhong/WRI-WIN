@@ -14,6 +14,7 @@ import {
   LLM_PROVIDER_PLACEHOLDERS,
   MCP_SERVER_PLACEHOLDERS,
   mergeMcpServers,
+  resolveActiveAfterLoad,
   type AgentsLoadState
 } from "./agents-runtime";
 
@@ -98,6 +99,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [parsedFigmaScope, setParsedFigmaScope] = useState<string | null>(null);
   const [llmAdapters, setLlmAdapters] = useState<AgentAdapter[]>(LLM_PROVIDER_PLACEHOLDERS);
   const [activeAdapterId, setActiveAdapterId] = useState<string | null>(null);
+  // Set once the user explicitly picks a provider, so a slow background
+  // listAgents() that resolves afterwards can't clobber their choice.
+  const userChoseAdapterRef = useRef(false);
   const [agentsLoadState, setAgentsLoadState] = useState<AgentsLoadState>("idle");
   const [agentsRefreshing, setAgentsRefreshing] = useState(false);
   const [mcpServers, setMcpServers] = useState<McpServer[]>(MCP_SERVER_PLACEHOLDERS);
@@ -418,6 +422,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   async function setActiveLlmAdapter(adapterId: string) {
     const previousAdapterId = activeAdapterId;
+    // Mark the explicit choice before awaiting so an in-flight background load
+    // that resolves later won't overwrite it (see resolveActiveAfterLoad).
+    userChoseAdapterRef.current = true;
     setActiveAdapterId(adapterId);
 
     try {
@@ -511,7 +518,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
 
         setLlmAdapters((current) => applyAgentAdapterList(current, agentList).adapters);
-        setActiveAdapterId(agentList.activeAdapterId);
+        setActiveAdapterId((current) =>
+          resolveActiveAfterLoad({
+            loadedActiveId: agentList.activeAdapterId,
+            currentActiveId: current,
+            userHasChosen: userChoseAdapterRef.current
+          })
+        );
         setMcpServers((current) => mergeMcpServers(current, mcpList.servers));
         setAgentsLoadState("ready");
         setMcpLoadState("ready");
