@@ -41,6 +41,15 @@ export {
  */
 const DEFAULT_DEVIN_MODEL = "swe-1.6";
 
+/**
+ * Temporary product gate: pin all Devin runs to the team-default SWE 1.6 tier
+ * (no personal ACU on the Dell Windsurf plan). Re-enable model picker in the
+ * Agents UI when this flag is false.
+ */
+export const DEVIN_MODEL_TEMPORARILY_PINNED = true;
+
+export const PINNED_DEVIN_MODEL_ID = DEFAULT_DEVIN_MODEL;
+
 /** Curated Devin models shown in Writer — order matches the Agents UI grouping. */
 export const DEVIN_CURATED_MODEL_IDS = [
   "claude-sonnet-4.6",
@@ -65,7 +74,7 @@ const DEVIN_MODEL_DISPLAY_LABELS: Record<(typeof DEVIN_CURATED_MODEL_IDS)[number
   "gpt-5.4": "ChatGPT 5.4",
   "gpt-5.4-mini": "ChatGPT 5.4 mini",
   "gpt-5.5": "ChatGPT 5.5",
-  "swe-1.6": "SWE 1.6"
+  "swe-1.6": "SWE 1.6 (free)"
 };
 
 export function getDevinCuratedModelOptions(): string[] {
@@ -83,6 +92,9 @@ export function getDevinModelDisplayLabels(): Record<string, string> {
 }
 
 export function normalizeDevinModelId(modelId: string): string {
+  if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+    return PINNED_DEVIN_MODEL_ID;
+  }
   const trimmed = modelId.trim();
   return (DEVIN_CURATED_MODEL_IDS as readonly string[]).includes(trimmed)
     ? trimmed
@@ -132,6 +144,9 @@ export async function getDevinRuntimeOptions(_executable = "devin"): Promise<Dev
 }
 
 export function resolveDevinModelId(): string {
+  if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+    return PINNED_DEVIN_MODEL_ID;
+  }
   const persisted = runtimeSettings.modelId?.trim();
   if (persisted) {
     return normalizeDevinModelId(persisted);
@@ -199,7 +214,9 @@ export const devinCliConfig: CliAdapterConfig = {
   needsAuthMessage: "Run `devin` and complete `/login` before using Devin in Writer.",
   buildRunArgs: buildDevinArgs,
   buildSmokeArgs: buildDevinArgs,
-  probeAuth: probeDevinAuth
+  probeAuth: probeDevinAuth,
+  /** Guideline generation runs semantic + final Devin passes with large prompts. */
+  runTimeoutMs: 300_000
 };
 
 export function createDevinAdapter() {

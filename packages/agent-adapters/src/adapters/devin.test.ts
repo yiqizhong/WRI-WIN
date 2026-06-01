@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  DEVIN_MODEL_TEMPORARILY_PINNED,
   getDevinCuratedModelOptions,
   getDevinModelDisplayLabel,
   getDevinReasoningProfile,
@@ -25,12 +26,20 @@ describe("Devin runtime settings", () => {
   it("prefers persisted model over DEVIN_MODEL", () => {
     process.env.DEVIN_MODEL = "env-model";
     setDevinRuntimeSettings({ modelId: "gpt-5.4" });
+    if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+      expect(resolveDevinModelId()).toBe("swe-1.6");
+      return;
+    }
     expect(resolveDevinModelId()).toBe("gpt-5.4");
   });
 
   it("falls back to DEVIN_MODEL, then default model", () => {
     setDevinRuntimeSettings({});
     process.env.DEVIN_MODEL = "env-model";
+    if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+      expect(resolveDevinModelId()).toBe("swe-1.6");
+      return;
+    }
     expect(resolveDevinModelId()).toBe("env-model");
 
     delete process.env.DEVIN_MODEL;
@@ -41,6 +50,10 @@ describe("Devin runtime settings", () => {
     setDevinRuntimeSettings({ modelId: "swe-1.6", reasoningPreference: "high" });
     expect(getDevinRuntimeSettings().reasoningCapabilityStatus).toBe("applied");
 
+    if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+      return;
+    }
+
     setDevinRuntimeSettings({ modelId: "claude-sonnet-4.6", reasoningPreference: "high" });
     expect(getDevinRuntimeSettings().reasoningCapabilityStatus).toBe("mapped");
 
@@ -49,6 +62,12 @@ describe("Devin runtime settings", () => {
   });
 
   it("normalizes Claude Sonnet reasoning to supported tiers", () => {
+    if (DEVIN_MODEL_TEMPORARILY_PINNED) {
+      setDevinRuntimeSettings({ modelId: "claude-sonnet-4.6", reasoningPreference: "medium" });
+      expect(getDevinRuntimeSettings().reasoningPreference).toBe("medium");
+      return;
+    }
+
     setDevinRuntimeSettings({ modelId: "claude-sonnet-4.6", reasoningPreference: "medium" });
     expect(getDevinRuntimeSettings().reasoningPreference).toBe("high");
   });
@@ -68,13 +87,14 @@ describe("Devin runtime settings", () => {
     ]);
     expect(getDevinModelDisplayLabel("claude-sonnet-4.6")).toBe("Claude Sonnet 4.6");
     expect(getDevinModelDisplayLabel("gpt-5.4-mini")).toBe("ChatGPT 5.4 mini");
-    expect(getDevinModelDisplayLabel("swe-1.6")).toBe("SWE 1.6");
+    expect(getDevinModelDisplayLabel("swe-1.6")).toBe("SWE 1.6 (free)");
   });
 
   it("falls back unknown persisted models to swe-1.6", () => {
     setDevinRuntimeSettings({ modelId: "swe-1.6-fast" });
     expect(resolveDevinModelId()).toBe("swe-1.6");
     expect(normalizeDevinModelId("swe-1.5")).toBe("swe-1.6");
+    expect(normalizeDevinModelId("gpt-5.4")).toBe("swe-1.6");
   });
 });
 

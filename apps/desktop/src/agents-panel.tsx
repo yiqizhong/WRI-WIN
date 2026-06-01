@@ -24,7 +24,12 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import type { DaemonStatusView } from "./daemon-status";
-import { resolveDevinModelLabel, resolveDevinModelOptions } from "./devin-model-options";
+import {
+  DEVIN_DEFAULT_MODEL_ID,
+  DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED,
+  resolveDevinModelLabel,
+  resolveDevinModelOptions
+} from "./devin-model-options";
 import { isAdapterStatusLoading } from "./agents-runtime";
 import {
   formatConnectionDiagnostic,
@@ -439,9 +444,16 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         <WriterFormField label="Model">
                           {devinModelOptions.length > 0 ? (
                             <WriterFormSelect
-                              value={devinModelId}
-                              disabled={!connected || devinSettingsBusy}
-                              displayValue={resolveDevinModelLabel(devinModelId, devinModelLabels)}
+                              value={devinModelId || DEVIN_DEFAULT_MODEL_ID}
+                              disabled={
+                                !connected ||
+                                devinSettingsBusy ||
+                                DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED
+                              }
+                              displayValue={resolveDevinModelLabel(
+                                devinModelId || DEVIN_DEFAULT_MODEL_ID,
+                                devinModelLabels
+                              )}
                               options={devinModelOptions.map((model) => ({
                                 value: model,
                                 label: resolveDevinModelLabel(model, devinModelLabels)
@@ -456,8 +468,12 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             />
                           ) : (
                             <WriterFormInput
-                              value={devinModelId}
-                              disabled={!connected || devinSettingsBusy}
+                              value={devinModelId || DEVIN_DEFAULT_MODEL_ID}
+                              disabled={
+                                !connected ||
+                                devinSettingsBusy ||
+                                DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED
+                              }
                               onChange={(event) => setDevinModelId(event.target.value)}
                               onBlur={() => void saveDevinSettings()}
                               placeholder="swe-1.6"

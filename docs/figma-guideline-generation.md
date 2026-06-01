@@ -47,11 +47,13 @@ When semantic or final LLM stages degrade, `ok` remains `true`, four files are s
 
 1. Extract text nodes from the Figma session scope.
 2. Build a capped candidate package (`<= 500`) with normalized text, occurrence counts, page/frame context, category distribution, and coverage metadata.
-3. Attempt semantic analysis with the active LLM adapter when available.
-4. If semantic analysis fails, degrade safely to deterministic clustering and mark fallback metadata.
-5. Attempt final guideline draft generation with the active LLM adapter when available.
+3. **Batched semantic analysis** (when an LLM adapter is available): split selected samples into batches of **100**, run Devin once per batch with only that batch’s JSON in the prompt, merge batch results (terminology, duplicates, observations, evidence), then optionally run one **synthesis** pass on the merged analysis when there were multiple successful Devin batches.
+4. If a batch’s Devin output is invalid, that batch alone falls back to deterministic clustering; other batches stay on Devin. If every batch fails, the full package uses deterministic semantic analysis.
+5. Attempt final guideline draft generation with the active LLM adapter using merged `semanticAnalysis` plus a compact evidence summary (not the full 500-sample payload).
 6. If final generation fails, degrade to a deterministic draft while still rendering four downloadable files.
 7. Render `background.md`, `glossary.csv`, `writing-guide.md`, and `generation-summary.md`.
+
+This design keeps each Devin prompt bounded (~100 samples) so large frames (e.g. 500 candidates) are analyzed in full without the old “skip semantic LLM” or aggressive truncation shortcuts.
 
 ## Devin Settings
 

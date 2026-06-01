@@ -187,8 +187,107 @@ export type FigmaGuidelineStarterPackSummary = z.infer<typeof figmaGuidelineStar
 export type FigmaGuidelineGenerationRequest = z.infer<typeof figmaGuidelineGenerationRequestSchema>;
 export type FigmaGuidelineGenerationResponse = z.infer<typeof figmaGuidelineGenerationResponseSchema>;
 
+const GUIDELINE_CANDIDATE_CATEGORIES = [
+  "headline",
+  "body",
+  "cta",
+  "label",
+  "navigation",
+  "form",
+  "other"
+] as const;
+
+function emptyCandidateCategoryDistribution(): Record<
+  (typeof GUIDELINE_CANDIDATE_CATEGORIES)[number],
+  number
+> {
+  return {
+    headline: 0,
+    body: 0,
+    cta: 0,
+    label: 0,
+    navigation: 0,
+    form: 0,
+    other: 0
+  };
+}
+
+/** Backfills fields dropped by older daemons or partial JSON payloads before Zod parse. */
+export function normalizeGuidelineCandidatePackage(payload: unknown): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return payload;
+  }
+
+  const pkg = payload as Record<string, unknown>;
+  const samples = Array.isArray(pkg.samples) ? pkg.samples : [];
+  const hasCoverageMetadata =
+    pkg.coverageMetadata !== undefined &&
+    pkg.coverageMetadata !== null &&
+    typeof pkg.coverageMetadata === "object" &&
+    !Array.isArray(pkg.coverageMetadata);
+
+  if (hasCoverageMetadata) {
+    return pkg;
+  }
+
+  const uniquePages = new Set<string>();
+  const uniqueFrames = new Set<string>();
+  const categoryDistribution = emptyCandidateCategoryDistribution();
+
+  for (const sample of samples) {
+    if (!sample || typeof sample !== "object" || Array.isArray(sample)) {
+      continue;
+    }
+    const row = sample as Record<string, unknown>;
+    if (typeof row.pageName === "string" && row.pageName.trim()) {
+      uniquePages.add(row.pageName.trim());
+    }
+    if (typeof row.frameName === "string" && row.frameName.trim()) {
+      uniqueFrames.add(row.frameName.trim());
+    }
+    const category = row.category;
+    if (
+      typeof category === "string" &&
+      (GUIDELINE_CANDIDATE_CATEGORIES as readonly string[]).includes(category)
+    ) {
+      categoryDistribution[category as (typeof GUIDELINE_CANDIDATE_CATEGORIES)[number]] += 1;
+    } else {
+      categoryDistribution.other += 1;
+    }
+  }
+
+  const totalCandidates =
+    typeof pkg.totalCandidates === "number" ? pkg.totalCandidates : samples.length;
+  const selectedCandidates =
+    typeof pkg.selectedCandidates === "number"
+      ? pkg.selectedCandidates
+      : Math.min(samples.length, Math.max(30, Math.floor(samples.length * 0.35)));
+
+  const existingDistribution =
+    pkg.categoryDistribution &&
+    typeof pkg.categoryDistribution === "object" &&
+    !Array.isArray(pkg.categoryDistribution)
+      ? (pkg.categoryDistribution as Record<string, number>)
+      : null;
+
+  return {
+    ...pkg,
+    maxCandidates: typeof pkg.maxCandidates === "number" ? pkg.maxCandidates : 500,
+    totalCandidates,
+    selectedCandidates,
+    categoryDistribution: existingDistribution ?? categoryDistribution,
+    coverageMetadata: {
+      pageCount: uniquePages.size,
+      frameCount: uniqueFrames.size,
+      uniquePages: [...uniquePages].sort(),
+      uniqueFrames: [...uniqueFrames].sort()
+    },
+    samples
+  };
+}
+
 export function parseGuidelineCandidatePackage(payload: unknown): GuidelineCandidatePackage {
-  return guidelineCandidatePackageSchema.parse(payload);
+  return guidelineCandidatePackageSchema.parse(normalizeGuidelineCandidatePackage(payload));
 }
 
 export function parseSemanticAnalysis(payload: unknown): SemanticAnalysis {
@@ -208,5 +307,12 @@ export function parseFigmaGuidelineGenerationRequest(payload: unknown): FigmaGui
 }
 
 export function parseFigmaGuidelineGenerationResponse(payload: unknown): FigmaGuidelineGenerationResponse {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const body = { ...(payload as Record<string, unknown>) };
+    if (body.candidatePackage !== undefined) {
+      body.candidatePackage = normalizeGuidelineCandidatePackage(body.candidatePackage);
+    }
+    return figmaGuidelineGenerationResponseSchema.parse(body);
+  }
   return figmaGuidelineGenerationResponseSchema.parse(payload);
 }

@@ -4,6 +4,7 @@ import { devinProviderSettingsSchema } from "./devin-provider";
 import {
   figmaGuidelineGenerationRequestSchema,
   figmaGuidelineGenerationResponseSchema,
+  parseFigmaGuidelineGenerationResponse,
   parseGenerationSummary,
   parseSemanticAnalysis,
   semanticAnalysisSchema
@@ -95,5 +96,43 @@ describe("guideline generation contracts", () => {
     });
     expect(response.ok).toBe(true);
     expect(response.files).toHaveLength(4);
+  });
+
+  it("normalizes candidate packages missing coverageMetadata", () => {
+    const response = parseFigmaGuidelineGenerationResponse({
+      ok: true,
+      sessionId: "sess-1",
+      diagnostics: [],
+      candidatePackage: {
+        maxCandidates: 500,
+        totalCandidates: 1,
+        selectedCandidates: 1,
+        categoryDistribution: {
+          headline: 0,
+          body: 0,
+          cta: 1,
+          label: 0,
+          navigation: 0,
+          form: 0,
+          other: 0
+        },
+        samples: [
+          {
+            sampleId: "sample-1",
+            nodeId: "1",
+            text: "Continue",
+            normalizedText: "continue",
+            category: "cta",
+            framePath: "Checkout / Frame 1",
+            pageName: "Checkout",
+            frameName: "Frame 1",
+            occurrenceCount: 1
+          }
+        ]
+      }
+    });
+
+    expect(response.candidatePackage?.coverageMetadata.pageCount).toBe(1);
+    expect(response.candidatePackage?.coverageMetadata.frameCount).toBe(1);
   });
 });

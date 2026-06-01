@@ -2,6 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { resolveDevinModelId } from "@writer/agent-adapters";
 import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
@@ -105,5 +106,18 @@ describe("agent discovery and runs", () => {
     const reloaded = getDevinProviderSettings(state);
     expect(reloaded.modelId).toBe("swe-1.6");
     expect(reloaded.reasoningPreference).toBe("high");
+  });
+
+  it("reports pinned swe-1.6 even when store still holds another curated model", async () => {
+    const state = await createTestState();
+    state.store.setDevinProviderSettings({
+      modelId: "gpt-5.4",
+      reasoningPreference: "medium",
+      reasoningCapabilityStatus: "unsupported"
+    });
+
+    const settings = getDevinProviderSettings(state);
+    expect(settings.modelId).toBe("swe-1.6");
+    expect(resolveDevinModelId()).toBe("swe-1.6");
   });
 });

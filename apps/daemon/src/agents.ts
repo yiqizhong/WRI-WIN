@@ -195,9 +195,13 @@ export async function setActiveAdapter(state: DaemonState, input: unknown): Prom
 
 export function getDevinProviderSettings(state: DaemonState): DevinProviderSettings {
   applyDevinSettingsFromStore(state);
+  const effective = getDevinRuntimeSettings();
+  const stored = state.store.getDevinProviderSettings();
   return {
-    ...getDevinRuntimeSettings(),
-    ...state.store.getDevinProviderSettings()
+    ...stored,
+    modelId: effective.modelId,
+    reasoningPreference: effective.reasoningPreference,
+    reasoningCapabilityStatus: effective.reasoningCapabilityStatus
   };
 }
 

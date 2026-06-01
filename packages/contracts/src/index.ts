@@ -302,6 +302,7 @@ export {
   guidelineCandidatePackageSchema,
   guidelineCandidateSampleSchema,
   guidelineCoverageMetadataSchema,
+  normalizeGuidelineCandidatePackage,
   parseFigmaGuidelineDraft,
   parseFigmaGuidelineGenerationRequest,
   parseFigmaGuidelineGenerationResponse,

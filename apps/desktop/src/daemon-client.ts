@@ -98,10 +98,29 @@ function throwDaemonResponseError(response: Response, payload: unknown): never {
 }
 
 function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (timeoutMs <= 0) {
+    return fetch(url, init);
+  }
 
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(
+      new DOMException(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`, "TimeoutError")
+    );
+  }, timeoutMs);
+
+  return fetch(url, { ...init, signal: controller.signal })
+    .catch((error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") {
+        const seconds = Math.round(timeoutMs / 1000);
+        throw new DaemonClientError(
+          "timeout",
+          `The request took longer than ${seconds} seconds and was cancelled. If you were generating guidelines, wait and try again — Devin analysis can take several minutes.`
+        );
+      }
+      throw error;
+    })
+    .finally(() => clearTimeout(timer));
 }
 
 async function request<T>(
@@ -371,7 +390,7 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify(input)
         },
         parseFigmaGuidelineGenerationResponse,
-        180_000
+        0
       ) as Promise<FigmaGuidelineGenerationResponse>,
 
     exportSpreadsheet: (input: { sessionId: string; outputPath: string; mapping?: Record<string, unknown> }) =>

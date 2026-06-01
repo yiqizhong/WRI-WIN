@@ -1,4 +1,9 @@
 /** Curated Devin models — keep in sync with packages/agent-adapters/src/adapters/devin.ts */
+export const DEVIN_DEFAULT_MODEL_ID = "swe-1.6";
+
+/** When true, the Agents panel shows the model picker but does not allow changes. */
+export const DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED = true;
+
 export const DEVIN_CURATED_MODEL_IDS = [
   "claude-sonnet-4.6",
   "claude-opus-4.7",
@@ -22,7 +27,7 @@ export const DEVIN_MODEL_LABELS: Record<(typeof DEVIN_CURATED_MODEL_IDS)[number]
   "gpt-5.4": "ChatGPT 5.4",
   "gpt-5.4-mini": "ChatGPT 5.4 mini",
   "gpt-5.5": "ChatGPT 5.5",
-  "swe-1.6": "SWE 1.6"
+  "swe-1.6": "SWE 1.6 (free)"
 };
 
 export function resolveDevinModelOptions(_apiOptions: string[]): string[] {

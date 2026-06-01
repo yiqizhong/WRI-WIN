@@ -5,7 +5,10 @@ import {
   buildGuidelineCandidatePackage
 } from "@writer/review-core";
 
-import { generateFigmaGuideline } from "./guideline-generation";
+import {
+  compactCandidatePackageForLlmPrompt,
+  generateFigmaGuideline
+} from "./guideline-generation";
 import type { DaemonState } from "./state";
 
 vi.mock("./agents", () => ({
@@ -104,9 +107,16 @@ describe("generateFigmaGuideline", () => {
 
     vi.mocked(startAgentRun)
       .mockResolvedValueOnce({
-        events: [{ type: "message", payload: { text: '{"selectedSampleIds":["sample-1"],"duplicateGroups":[],"terminology":[],"observations":[],"selectedEvidence":[],"coverageGaps":[],"confidenceNotes":[]}' } }]
+        events: [
+          {
+            type: "message",
+            payload: {
+              text: '{"selectedSampleIds":["sample-1"],"duplicateGroups":[],"terminology":[],"observations":[],"selectedEvidence":[],"coverageGaps":[],"confidenceNotes":[]}'
+            }
+          }
+        ]
       } as never)
-      .mockResolvedValue({
+      .mockResolvedValueOnce({
         events: [{ type: "message", payload: { text: "not json" } }]
       } as never);
 
@@ -114,6 +124,70 @@ describe("generateFigmaGuideline", () => {
     expect(result.ok).toBe(true);
     expect(result.files).toHaveLength(4);
     expect(result.diagnostics.some((item) => item.includes("Final LLM generation failed"))).toBe(true);
+  });
+
+  it("truncates candidate samples in LLM prompts", () => {
+    const candidatePackage = buildGuidelineCandidatePackage(
+      Array.from({ length: 90 }, (_, index) => ({
+        id: String(index),
+        characters: `Label ${index}`,
+        path: ["Page", `Frame ${index}`]
+      })),
+      90
+    );
+
+    const compact = compactCandidatePackageForLlmPrompt(candidatePackage, 72);
+    expect(compact.samples).toHaveLength(72);
+    expect(compact.promptNote).toMatch(/first 72/);
+  });
+
+  it("runs semantic analysis in batches of 100 and merges before final generation", async () => {
+    vi.mocked(extractFigmaTextNodesViaMcp).mockResolvedValue({
+      ok: true,
+      extraction: {
+        nodes: Array.from({ length: 150 }, (_, index) => ({
+          id: String(index),
+          characters: `Button ${index}`,
+          path: ["Page", `Frame ${index % 5}`]
+        }))
+      }
+    } as never);
+
+    const semanticJson =
+      '{"selectedSampleIds":[],"duplicateGroups":[],"terminology":["Save"],"observations":[{"category":"cta","note":"Short labels","confidence":0.8}],"selectedEvidence":[],"coverageGaps":[],"confidenceNotes":[]}';
+
+    const draftJson = JSON.stringify({
+      background: "Background",
+      glossary: [{ term: "Save", definition: "Primary action", examples: ["Save"] }],
+      writingRules: [{ title: "Be concise", description: "Keep CTAs short.", examples: ["Save"] }],
+      generationNotes: ["Batch test"]
+    });
+
+    let callCount = 0;
+    vi.mocked(startAgentRun).mockImplementation(async () => {
+      callCount += 1;
+      if (callCount <= 2) {
+        return {
+          events: [{ type: "message", payload: { text: semanticJson } }]
+        } as never;
+      }
+      if (callCount === 3) {
+        return {
+          events: [{ type: "message", payload: { text: semanticJson } }]
+        } as never;
+      }
+      return {
+        events: [{ type: "message", payload: { text: draftJson } }]
+      } as never;
+    });
+
+    const result = await generateFigmaGuideline(mockState(), { sessionId: "sess-1" });
+    expect(result.ok).toBe(true);
+    expect(callCount).toBeGreaterThanOrEqual(4);
+    expect(result.diagnostics?.some((item) => item.includes("2/2 batches"))).toBe(true);
+    expect(
+      result.diagnostics?.some((item) => item.includes("final Devin synthesis pass"))
+    ).toBe(true);
   });
 
   it("never trusts malformed semantic analysis JSON", async () => {

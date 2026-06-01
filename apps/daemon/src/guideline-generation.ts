@@ -2,6 +2,7 @@ import {
   figmaGuidelineDraftSchema,
   figmaGuidelineGenerationRequestSchema,
   figmaGuidelineGenerationResponseSchema,
+  normalizeGuidelineCandidatePackage,
   parseFigmaReviewScope,
   semanticAnalysisSchema,
   type AgentRunEvent,
@@ -17,13 +18,39 @@ import {
   buildGuidelineCandidatePackage,
   buildGuidelineGenerationSummary,
   buildGuidelineStarterPackSummary,
+  buildCandidatePackageForBatch,
+  chunkGuidelineCandidateSamples,
   extractFigmaTextNodesViaMcp,
+  filterSemanticAnalysisToSampleIds,
+  GUIDELINE_SEMANTIC_BATCH_SIZE,
+  mergeSemanticAnalyses,
   renderGuidelineStarterPack
 } from "@writer/review-core";
 
 import { startAgentRun } from "./agents";
 import { createFigmaMcpCaller } from "./figma-mcp-caller";
 import type { DaemonState } from "./state";
+
+/** Evidence summary sent to final Devin pass (full package stats, capped evidence list). */
+const FINAL_PROMPT_EVIDENCE_LIMIT = 80;
+
+export function compactCandidatePackageForLlmPrompt(
+  candidatePackage: GuidelineCandidatePackage,
+  sampleLimit = FINAL_PROMPT_EVIDENCE_LIMIT
+): Record<string, unknown> {
+  return {
+    maxCandidates: candidatePackage.maxCandidates,
+    totalCandidates: candidatePackage.totalCandidates,
+    selectedCandidates: candidatePackage.selectedCandidates,
+    categoryDistribution: candidatePackage.categoryDistribution,
+    coverageMetadata: candidatePackage.coverageMetadata,
+    samples: candidatePackage.samples.slice(0, sampleLimit),
+    promptNote:
+      sampleLimit < candidatePackage.samples.length
+        ? `Including first ${sampleLimit} samples for grounding; semanticAnalysis.selectedEvidence lists the merged set.`
+        : undefined
+  };
+}
 
 export async function generateFigmaGuideline(
   state: DaemonState,
@@ -72,14 +99,25 @@ export async function generateFigmaGuideline(
   let semanticAnalysis = buildDeterministicSemanticAnalysis(candidatePackage);
 
   if (llmAdapterId) {
-    const llmSemantic = await trySemanticAnalysisByLlm(
+    const batched = await trySemanticAnalysisBatched(
       state,
       parsed.sessionId,
       llmAdapterId,
       candidatePackage
     );
-    if (llmSemantic) {
-      semanticAnalysis = llmSemantic;
+    if (batched) {
+      semanticAnalysis = batched.analysis;
+      diagnostics.push(
+        `Semantic analysis: ${batched.llmBatchCount}/${batched.batchCount} batches via Devin (${GUIDELINE_SEMANTIC_BATCH_SIZE} samples per batch).`
+      );
+      if (batched.deterministicBatchCount > 0) {
+        diagnostics.push(
+          `Semantic analysis fallback on ${batched.deterministicBatchCount} batch(es) after invalid Devin JSON.`
+        );
+      }
+      if (batched.synthesized) {
+        diagnostics.push("Merged batch results refined with a final Devin synthesis pass.");
+      }
     } else {
       semanticAnalysis = buildDeterministicSemanticAnalysis(candidatePackage, {
         stage: "semantic_analysis",
@@ -142,7 +180,7 @@ export async function generateFigmaGuideline(
   return figmaGuidelineGenerationResponseSchema.parse({
     ok: true,
     sessionId: parsed.sessionId,
-    candidatePackage,
+    candidatePackage: normalizeGuidelineCandidatePackage(candidatePackage),
     semanticAnalysis,
     generationSummary,
     files,
@@ -180,47 +218,207 @@ function requireSession(state: DaemonState, sessionId: string): ReviewSession {
   return session;
 }
 
-async function trySemanticAnalysisByLlm(
+type BatchedSemanticResult = {
+  analysis: SemanticAnalysis;
+  batchCount: number;
+  llmBatchCount: number;
+  deterministicBatchCount: number;
+  synthesized: boolean;
+};
+
+async function trySemanticAnalysisBatched(
   state: DaemonState,
   sessionId: string,
   adapterId: string,
   candidatePackage: GuidelineCandidatePackage
+): Promise<BatchedSemanticResult | null> {
+  const sampleBatches = chunkGuidelineCandidateSamples(candidatePackage.samples);
+  if (sampleBatches.length === 0) {
+    return null;
+  }
+
+  const batchCount = sampleBatches.length;
+  const parts: SemanticAnalysis[] = [];
+  let llmBatchCount = 0;
+  let deterministicBatchCount = 0;
+
+  for (let batchIndex = 0; batchIndex < sampleBatches.length; batchIndex += 1) {
+    const batchSamples = sampleBatches[batchIndex]!;
+    const batchPackage = buildCandidatePackageForBatch(
+      candidatePackage,
+      batchSamples,
+      batchIndex,
+      batchCount
+    );
+    const validSampleIds = new Set(batchSamples.map((sample) => sample.sampleId));
+
+    let partial =
+      (await trySemanticAnalysisBatchByLlm(
+        state,
+        sessionId,
+        adapterId,
+        candidatePackage,
+        batchPackage,
+        batchIndex,
+        batchCount
+      )) ??
+      (await trySemanticAnalysisBatchByLlm(
+        state,
+        sessionId,
+        adapterId,
+        candidatePackage,
+        batchPackage,
+        batchIndex,
+        batchCount,
+        true
+      ));
+
+    if (partial) {
+      llmBatchCount += 1;
+      parts.push(filterSemanticAnalysisToSampleIds(partial, validSampleIds));
+      continue;
+    }
+
+    deterministicBatchCount += 1;
+    parts.push(
+      buildDeterministicSemanticAnalysis(batchPackage, {
+        stage: "semantic_analysis",
+        reason: `batch_${batchIndex + 1}_llm_failed`,
+        limitations: [`Batch ${batchIndex + 1}/${batchCount} used deterministic clustering.`]
+      })
+    );
+  }
+
+  let merged = mergeSemanticAnalyses({
+    candidatePackage,
+    parts,
+    llmBatchCount,
+    deterministicBatchCount,
+    batchCount
+  });
+
+  let synthesized = false;
+  if (batchCount > 1 && llmBatchCount > 0) {
+    const refined = await trySemanticSynthesisByLlm(
+      state,
+      sessionId,
+      adapterId,
+      candidatePackage,
+      merged
+    );
+    if (refined) {
+      merged = refined;
+      synthesized = true;
+    }
+  }
+
+  return {
+    analysis: merged,
+    batchCount,
+    llmBatchCount,
+    deterministicBatchCount,
+    synthesized
+  };
+}
+
+async function trySemanticAnalysisBatchByLlm(
+  state: DaemonState,
+  sessionId: string,
+  adapterId: string,
+  fullPackage: GuidelineCandidatePackage,
+  batchPackage: ReturnType<typeof buildCandidatePackageForBatch>,
+  batchIndex: number,
+  batchCount: number,
+  isRetry = false
 ): Promise<SemanticAnalysis | null> {
   const prompt = [
-    "You are extracting semantic analysis for UX writing evidence.",
+    "You are extracting semantic analysis for UX writing evidence from ONE batch of a larger Figma scan.",
+    `This is batch ${batchIndex + 1} of ${batchCount} (${batchPackage.batchSampleCount} samples; ${fullPackage.totalCandidates} total across all batches).`,
+    "Only reference sampleIds that appear in this batch's samples array.",
     "Return STRICT JSON with keys:",
     "selectedSampleIds, duplicateGroups, terminology, observations, selectedEvidence, coverageGaps, confidenceNotes.",
     "observations items must include category, note, confidence (0-1).",
     "selectedEvidence items must include sampleId and reason.",
     "No markdown, no prose.",
+    isRetry ? "Previous output was invalid JSON. Return only valid JSON matching the schema." : "",
     "",
-    "Candidate package JSON:",
-    JSON.stringify(candidatePackage)
+    "Batch candidate package JSON:",
+    JSON.stringify(batchPackage)
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const response = await startAgentRun(state, {
+      sessionId,
+      adapterId,
+      prompt
+    });
+    const raw = collectRunText(response.events);
+    const json = tryExtractJson(raw);
+    if (!json) {
+      return null;
+    }
+    return semanticAnalysisSchema.parse({
+      ...json,
+      status: "applied"
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function trySemanticSynthesisByLlm(
+  state: DaemonState,
+  sessionId: string,
+  adapterId: string,
+  candidatePackage: GuidelineCandidatePackage,
+  merged: SemanticAnalysis
+): Promise<SemanticAnalysis | null> {
+  const prompt = [
+    "You are merging batched UX writing semantic analysis into one final analysis for a Figma guideline starter pack.",
+    "Refine terminology (dedupe, rank by importance), merge duplicate observations, and keep the strongest selectedEvidence.",
+    "Return STRICT JSON with the same keys as the input:",
+    "selectedSampleIds, duplicateGroups, terminology, observations, selectedEvidence, coverageGaps, confidenceNotes.",
+    "Only use sampleIds that exist in allowedSampleIds.",
+    "No markdown, no prose.",
+    "",
+    "allowedSampleIds:",
+    JSON.stringify(candidatePackage.samples.map((sample) => sample.sampleId)),
+    "",
+    "Merged batch analysis JSON:",
+    JSON.stringify(merged),
+    "",
+    "Package coverage:",
+    JSON.stringify({
+      totalCandidates: candidatePackage.totalCandidates,
+      categoryDistribution: candidatePackage.categoryDistribution,
+      coverageMetadata: candidatePackage.coverageMetadata
+    })
   ].join("\n");
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await startAgentRun(state, {
-        sessionId,
-        adapterId,
-        prompt:
-          attempt === 0
-            ? prompt
-            : `${prompt}\n\nPrevious output was invalid JSON. Return only valid JSON matching the schema.`
-      });
-      const raw = collectRunText(response.events);
-      const json = tryExtractJson(raw);
-      if (!json) continue;
-      return semanticAnalysisSchema.parse({
+  try {
+    const response = await startAgentRun(state, {
+      sessionId,
+      adapterId,
+      prompt
+    });
+    const raw = collectRunText(response.events);
+    const json = tryExtractJson(raw);
+    if (!json) {
+      return null;
+    }
+    const validSampleIds = new Set(candidatePackage.samples.map((sample) => sample.sampleId));
+    return filterSemanticAnalysisToSampleIds(
+      semanticAnalysisSchema.parse({
         ...json,
         status: "applied"
-      });
-    } catch {
-      // retry once
-    }
+      }),
+      validSampleIds
+    );
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 async function tryFinalGenerationByLlm(
@@ -243,33 +441,24 @@ async function tryFinalGenerationByLlm(
     JSON.stringify(semanticAnalysis),
     "",
     "Candidate package JSON:",
-    JSON.stringify({
-      coverageMetadata: candidatePackage.coverageMetadata,
-      categoryDistribution: candidatePackage.categoryDistribution,
-      samples: candidatePackage.samples.slice(0, 120)
-    })
+    JSON.stringify(compactCandidatePackageForLlmPrompt(candidatePackage))
   ].join("\n");
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await startAgentRun(state, {
-        sessionId,
-        adapterId,
-        prompt:
-          attempt === 0
-            ? prompt
-            : `${prompt}\n\nPrevious output was invalid. Return only valid JSON for the draft object.`
-      });
-      const raw = collectRunText(response.events);
-      const json = tryExtractJson(raw);
-      if (!json) continue;
-      return figmaGuidelineDraftSchema.parse(json);
-    } catch {
-      // retry once
+  try {
+    const response = await startAgentRun(state, {
+      sessionId,
+      adapterId,
+      prompt
+    });
+    const raw = collectRunText(response.events);
+    const json = tryExtractJson(raw);
+    if (!json) {
+      return null;
     }
+    return figmaGuidelineDraftSchema.parse(json);
+  } catch {
+    return null;
   }
-
-  return null;
 }
 
 function collectRunText(events: AgentRunEvent[]): string {
