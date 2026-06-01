@@ -1,5 +1,5 @@
 import { access, mkdir, rm, unlink, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 
 import type { GuidelineLayer } from "@writer/contracts";
 
@@ -56,7 +56,7 @@ async function exists(path: string): Promise<boolean> {
 function assertInsideDir(targetPath: string, rootDir: string): boolean {
   const normalizedRoot = resolve(rootDir);
   const normalizedTarget = resolve(targetPath);
-  return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(normalizedRoot + "/");
+  return normalizedTarget === normalizedRoot || normalizedTarget.startsWith(normalizedRoot + sep);
 }
 
 function productDir(rootDir: string, productId: string): string | null {

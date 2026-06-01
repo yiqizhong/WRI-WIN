@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 
 import { guidelineSchema, type Guideline } from "@writer/contracts";
 import matter from "gray-matter";
@@ -89,7 +90,7 @@ export class MarkdownImporter implements Importer {
 
     const proseBody = body.search(/^##\s+/m) === -1 ? body.trim() : body.slice(0, body.search(/^##\s+/m)).trim();
 
-    const baseName = filePath.split("/").pop()?.replace(/\.md$/i, "") ?? "guideline";
+    const baseName = basename(filePath).replace(/\.md$/i, "") || "guideline";
     const payload = {
       id: typeof frontmatter.id === "string" ? frontmatter.id : baseName,
       name: typeof frontmatter.name === "string" ? frontmatter.name : baseName,

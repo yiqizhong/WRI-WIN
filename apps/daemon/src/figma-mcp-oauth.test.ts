@@ -13,7 +13,8 @@ describe("figma oauth provider", () => {
     const provider = createFigmaOAuthProvider({ storePath });
 
     expect(provider.redirectUrl).toBe(FIGMA_MCP_OAUTH_REDIRECT_URL);
-    expect(provider.clientMetadata.client_name).toBe("Claude Code (figma)");
+    // Figma's OAuth allowlist only accepts the bare "Claude Code" client name.
+    expect(provider.clientMetadata.client_name).toBe("Claude Code");
 
     await provider.saveClientInformation!({ client_id: "client-123" });
     await provider.saveTokens({ access_token: "access", token_type: "Bearer" });

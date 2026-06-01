@@ -62,7 +62,16 @@ describe("autoConnectFigmaMcp", () => {
 
     expect(figma.enabled).toBe(true);
     expect(figma.status).toBe("connected");
-    expect(figma.tools).toEqual([{ name: "get_metadata" }]);
+    // Tools are the canonical Figma set merged with whatever the server lists,
+    // so the full callable surface (incl. write/design tools the server omits
+    // from tools/list) is exposed, not just the listed `get_metadata`.
+    expect(figma.tools).toEqual(
+      expect.arrayContaining([
+        { name: "get_metadata" },
+        { name: "use_figma" },
+        { name: "generate_figma_design" }
+      ])
+    );
     expect(state.mcp.figmaClient).toBe(fakeClient);
   });
 
