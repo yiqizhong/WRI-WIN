@@ -12,7 +12,11 @@ import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { ZodError } from "zod";
 
 import { DaemonClientError } from "../daemon-client";
-import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
+import {
+  WorkflowGlassPanel,
+  WorkflowScreenShell,
+  WorkflowSessionPanel
+} from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
 
 export function FigmaGuidelineGeneratorScreen() {
@@ -78,7 +82,7 @@ export function FigmaGuidelineGeneratorScreen() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="figma-audit-page flex h-full min-h-0 flex-col overflow-hidden">
       <WriterPageSubheader
         title="Generate writing guidelines"
         backTo="/"
@@ -96,51 +100,55 @@ export function FigmaGuidelineGeneratorScreen() {
 
       <div className="writer-page-content-inset writer-content-fade-in flex min-h-0 flex-1 flex-col overflow-hidden">
         <WorkflowScreenShell className="writer-page-subheader-content-gap min-h-0 flex-1 overflow-y-auto pb-5">
-          <p className="writer-home-section-description max-w-2xl">
-            Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
-            appears in the Guidelines Log (often 3–8 minutes with Devin).
-          </p>
+          <WorkflowSessionPanel className="min-h-0">
+            <div className="flex flex-col gap-4">
+            <p className="writer-home-section-description">
+              Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
+              appears in the Guidelines Log (often 3–8 minutes with Devin).
+            </p>
 
-          <WriterFormField label="Product name" htmlFor="guide-product-name">
-            <WriterFormInput
-              id="guide-product-name"
-              value={productName}
-              onChange={(event) => setProductName(event.target.value)}
-              placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
-              disabled={starting}
-            />
-          </WriterFormField>
+            <WriterFormField label="Product name" htmlFor="guide-product-name">
+              <WriterFormInput
+                id="guide-product-name"
+                value={productName}
+                onChange={(event) => setProductName(event.target.value)}
+                placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
+                disabled={starting}
+              />
+            </WriterFormField>
 
-          {!daemonConnected ? (
-            <InlineAlert
-              kind="warning"
-              title="Daemon unavailable"
-              subtitle="Reconnect to Writer's local service before generating guidelines."
-            />
-          ) : null}
+            {!daemonConnected ? (
+              <InlineAlert
+                kind="warning"
+                title="Daemon unavailable"
+                subtitle="Reconnect to Writer's local service before generating guidelines."
+              />
+            ) : null}
 
-          {error ? (
-            <InlineAlert kind="error" title="Request failed" subtitle={error} onClose={() => setError(null)} />
-          ) : null}
+            {error ? (
+              <InlineAlert kind="error" title="Request failed" subtitle={error} onClose={() => setError(null)} />
+            ) : null}
 
-          <WorkflowGlassPanel title="Figma source">
-            <div className="grid gap-4">
-              <WriterFormField label="Figma frame URL" htmlFor="guide-figma-url">
-                <WriterFormInput
-                  id="guide-figma-url"
-                  value={figmaUrl}
-                  onChange={(event) => setFigmaUrl(event.target.value)}
-                  placeholder="https://www.figma.com/design/..."
-                  disabled={starting}
-                />
-              </WriterFormField>
-              <div className="flex justify-end">
-                <WriterPrimaryButton disabled={!canSubmit} onClick={() => void handleGenerate()}>
-                  {starting ? "Starting…" : "Generate starter pack"}
-                </WriterPrimaryButton>
+            <WorkflowGlassPanel title="Figma source">
+              <div className="grid gap-4">
+                <WriterFormField label="Figma frame URL" htmlFor="guide-figma-url">
+                  <WriterFormInput
+                    id="guide-figma-url"
+                    value={figmaUrl}
+                    onChange={(event) => setFigmaUrl(event.target.value)}
+                    placeholder="https://www.figma.com/design/..."
+                    disabled={starting}
+                  />
+                </WriterFormField>
+                <div className="flex justify-end">
+                  <WriterPrimaryButton disabled={!canSubmit} onClick={() => void handleGenerate()}>
+                    {starting ? "Starting…" : "Generate starter pack"}
+                  </WriterPrimaryButton>
+                </div>
               </div>
+            </WorkflowGlassPanel>
             </div>
-          </WorkflowGlassPanel>
+          </WorkflowSessionPanel>
         </WorkflowScreenShell>
       </div>
     </div>

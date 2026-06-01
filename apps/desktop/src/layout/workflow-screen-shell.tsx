@@ -55,6 +55,21 @@ export function WorkflowPageIntro({
   return <WriterSectionHeader title={title} description={description} actions={actions} />;
 }
 
+/** Same centered column width as the Session panel on Figma Audit (`figma-audit-session-slot`). */
+export function WorkflowSessionPanel({
+  children,
+  className
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("figma-audit-stage", className)}>
+      <div className="figma-audit-session-slot">{children}</div>
+    </div>
+  );
+}
+
 export function WorkflowGlassPanel({
   title,
   description,
