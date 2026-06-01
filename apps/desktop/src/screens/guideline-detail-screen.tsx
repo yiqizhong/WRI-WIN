@@ -8,18 +8,22 @@ import { Badge } from "@/components/ui/badge";
 import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { downloadTextFile } from "@/lib/download-text-file";
-import { formatProductDisplayName } from "@/lib/writer-product-display";
-
+import { GuidelineGenerationProgressPanel } from "../components/guideline-generation-progress-panel";
+import { DaemonClientError } from "../daemon-client";
 import {
   auditRunStatusBadgeClassName,
   deriveGuidelineRunStatus,
   formatAuditCreatedDate,
+  formatGuidelineProductName,
   readGuidelineGenerationScope
 } from "../guideline-run-status";
+import { readGuidelineProgressView } from "../guideline-generation-progress";
 import { WorkflowGlassPanel } from "../layout/workflow-screen-shell";
 import { WriterPageStack } from "../layout/writer-grid";
 import { syncScrollEdgeMask } from "../lib/sync-scroll-edge-mask";
 import { useWorkspace } from "../workspace-context";
+
+const GUIDELINE_DETAIL_POLL_INTERVAL_MS = 2000;
 
 type GuidelineDetailLoadState = "loading" | "ready" | "error";
 
@@ -95,35 +99,77 @@ export function GuidelineDetailScreen() {
     }
 
     let cancelled = false;
-    setLoadState("loading");
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-    void daemonClient
-      .getSession(sessionId)
-      .then((loaded) => {
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function startPolling() {
+      if (pollTimer) {
+        return;
+      }
+
+      pollTimer = setInterval(() => {
+        void refresh().then((loaded) => {
+          if (cancelled || !loaded) {
+            return;
+          }
+
+          if (readGuidelineGenerationScope(loaded)?.inFlight !== true) {
+            stopPolling();
+          }
+        });
+      }, GUIDELINE_DETAIL_POLL_INTERVAL_MS);
+    }
+
+    async function refresh(): Promise<ReviewSession | null> {
+      try {
+        const loaded = await daemonClient.getSession(sessionId);
+
         if (cancelled) {
-          return;
+          return null;
         }
 
         if (loaded.projectId !== workspaceProjectId) {
           setLoadState("error");
           setErrorMessage("Session not found in this workspace.");
-          return;
+          return null;
         }
 
         setSession(loaded);
         setLoadState("ready");
-      })
-      .catch((error: unknown) => {
+        setErrorMessage(null);
+        return loaded;
+      } catch (error: unknown) {
         if (cancelled) {
-          return;
+          return null;
         }
 
         setLoadState("error");
-        setErrorMessage(error instanceof Error ? error.message : "Could not load session.");
-      });
+        setErrorMessage(
+          error instanceof DaemonClientError ? error.message : "Could not load session."
+        );
+        return null;
+      }
+    }
+
+    void refresh().then((loaded) => {
+      if (cancelled || !loaded) {
+        return;
+      }
+
+      if (readGuidelineGenerationScope(loaded)?.inFlight === true) {
+        startPolling();
+      }
+    });
 
     return () => {
       cancelled = true;
+      stopPolling();
     };
   }, [daemonClient, sessionId, workspaceProjectId]);
 
@@ -149,25 +195,20 @@ export function GuidelineDetailScreen() {
 
   const status = deriveGuidelineRunStatus(session);
   const generation = readGuidelineGenerationScope(session);
+  const progress = readGuidelineProgressView(session);
   const files = generation?.files ?? [];
-  const title = session.featureName ?? "Guideline run";
+  const productName = formatGuidelineProductName(session);
 
   return (
-    <GuidelineDetailPageShell title={title} scrollSyncKey={session.id}>
+    <GuidelineDetailPageShell title={productName} scrollSyncKey={session.id}>
       <div className="flex flex-wrap items-center gap-3 text-sm text-[#e5f1ff]/80">
         <Badge variant="outline" className={auditRunStatusBadgeClassName(status.variant)}>
           {status.label}
         </Badge>
         <span>Created {formatAuditCreatedDate(session.createdAt)}</span>
-        {session.productId ? (
-          <span>Product {formatProductDisplayName(session.productId)}</span>
-        ) : null}
-        <span>Mode {session.mode ?? "single_frame"}</span>
       </div>
 
-      {session.description ? (
-        <p className="writer-home-section-description max-w-2xl">{session.description}</p>
-      ) : null}
+      {progress ? <GuidelineGenerationProgressPanel progress={progress} /> : null}
 
       {generation?.ok === false || session.diagnostic ? (
         <InlineAlert

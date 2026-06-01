@@ -159,6 +159,12 @@ export const figmaGuidelineGenerationRequestSchema = z.object({
   maxCandidates: z.number().int().positive().max(500).default(500)
 });
 
+/** Desktop calls when the generate request fails before the daemon finishes. */
+export const figmaGuidelineGenerationAbandonRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  message: z.string().min(1).optional()
+});
+
 export const figmaGuidelineGenerationResponseSchema = z.object({
   ok: z.boolean(),
   sessionId: z.string().min(1),
@@ -185,6 +191,9 @@ export type FigmaGuidelineDraft = z.infer<typeof figmaGuidelineDraftSchema>;
 export type FigmaGuidelineGeneratedFile = z.infer<typeof figmaGuidelineGeneratedFileSchema>;
 export type FigmaGuidelineStarterPackSummary = z.infer<typeof figmaGuidelineStarterPackSummarySchema>;
 export type FigmaGuidelineGenerationRequest = z.infer<typeof figmaGuidelineGenerationRequestSchema>;
+export type FigmaGuidelineGenerationAbandonRequest = z.infer<
+  typeof figmaGuidelineGenerationAbandonRequestSchema
+>;
 export type FigmaGuidelineGenerationResponse = z.infer<typeof figmaGuidelineGenerationResponseSchema>;
 
 const GUIDELINE_CANDIDATE_CATEGORIES = [

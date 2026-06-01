@@ -17,7 +17,8 @@ import { useWorkspace } from "../workspace-context";
 
 export function FigmaGuidelineGeneratorScreen() {
   const navigate = useNavigate();
-  const { daemonClient, daemonConnected, workspaceReady, workspaceProjectId } = useWorkspace();
+  const { daemonClient, daemonConnected, workspaceReady, workspaceProjectId, runGuidelineGeneration } =
+    useWorkspace();
   const [productName, setProductName] = useState("");
   const [productNamePlaceholderIndex, setProductNamePlaceholderIndex] = useState(0);
   const [figmaUrl, setFigmaUrl] = useState("");
@@ -55,19 +56,13 @@ export function FigmaGuidelineGeneratorScreen() {
         description: `Writing guidelines for ${trimmedProductName}.`
       });
 
+      // Start the daemon request before navigation so the run is not dropped on route change.
+      const generationTask = runGuidelineGeneration(session.id);
+
       navigate("/guide/log");
       setStarting(false);
 
-      void daemonClient
-        .generateFigmaGuideline({
-          sessionId: session.id,
-          maxCandidates: 500
-        })
-        .catch((err) => {
-          console.error(
-            err instanceof Error ? err.message : "Guideline generation failed after navigation."
-          );
-        });
+      void generationTask;
     } catch (err) {
       const message =
         err instanceof DaemonClientError

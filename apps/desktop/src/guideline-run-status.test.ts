@@ -4,7 +4,7 @@ import type { ReviewSession } from "@writer/contracts";
 
 import {
   deriveGuidelineRunStatus,
-  formatGuidelineFilesDisplay,
+  formatGuidelineProductName,
   isFigmaGuidelineSession
 } from "./guideline-run-status";
 
@@ -72,22 +72,47 @@ describe("guideline-run-status", () => {
         })
       ).label
     ).toBe("Fail");
-  });
 
-  it("formats file count for the log table", () => {
     expect(
-      formatGuidelineFilesDisplay(
+      deriveGuidelineRunStatus(
         session({
-          id: "files",
+          id: "running",
+          status: "running",
           scope: {
-            guidelineGeneration: {
-              ok: true,
-              completedAt: "2026-06-01T12:00:00.000Z",
-              fileNames: ["a.md", "b.md", "c.md", "d.md"]
-            }
+            guidelineGeneration: { inFlight: true, startedAt: "2026-06-01T12:00:00.000Z" }
           }
         })
+      ).label
+    ).toBe("In Progress");
+
+    expect(
+      deriveGuidelineRunStatus(
+        session({
+          id: "orphan",
+          status: "draft",
+          scope: {}
+        })
       )
-    ).toBe("4 files");
+    ).toEqual({ label: "Not started", variant: "pending" });
+  });
+
+  it("shows the generator product name in the log table", () => {
+    expect(
+      formatGuidelineProductName(
+        session({
+          id: "product",
+          featureName: "DDPM"
+        })
+      )
+    ).toBe("DDPM");
+
+    expect(
+      formatGuidelineProductName(
+        session({
+          id: "from-description",
+          description: "Writing guidelines for DAMA."
+        })
+      )
+    ).toBe("DAMA");
   });
 });

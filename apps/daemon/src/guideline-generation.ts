@@ -1,5 +1,6 @@
 import {
   figmaGuidelineDraftSchema,
+  figmaGuidelineGenerationAbandonRequestSchema,
   figmaGuidelineGenerationRequestSchema,
   figmaGuidelineGenerationResponseSchema,
   normalizeGuidelineCandidatePackage,
@@ -52,12 +53,40 @@ export function compactCandidatePackageForLlmPrompt(
   };
 }
 
+export async function abandonFigmaGuidelineGeneration(
+  state: DaemonState,
+  input: unknown
+): Promise<{ ok: true; sessionId: string }> {
+  const parsed = figmaGuidelineGenerationAbandonRequestSchema.parse(input);
+  const session = requireSession(state, parsed.sessionId);
+  const scope = (session.scope ?? {}) as Record<string, unknown>;
+  const existing = scope.guidelineGeneration as Record<string, unknown> | undefined;
+
+  if (existing && typeof existing.completedAt === "string") {
+    return { ok: true, sessionId: parsed.sessionId };
+  }
+
+  await persistGuidelineGenerationSession(
+    state,
+    session,
+    failureResponse(parsed.sessionId, {
+      code: "service_unavailable",
+      severity: "error",
+      message: parsed.message ?? "Guideline generation did not complete.",
+      recoveryAction: "Return to Generate writing guidelines and start a new run."
+    })
+  );
+
+  return { ok: true, sessionId: parsed.sessionId };
+}
+
 export async function generateFigmaGuideline(
   state: DaemonState,
   input: unknown
 ): Promise<FigmaGuidelineGenerationResponse> {
   const parsed = figmaGuidelineGenerationRequestSchema.parse(input);
-  const session = requireSession(state, parsed.sessionId);
+  let session = requireSession(state, parsed.sessionId);
+  session = await markGuidelineGenerationStarted(state, session);
 
   async function finish(response: FigmaGuidelineGenerationResponse): Promise<FigmaGuidelineGenerationResponse> {
     await persistGuidelineGenerationSession(state, session, response);
@@ -77,6 +106,10 @@ export async function generateFigmaGuideline(
 
   const scope = (session.scope ?? {}) as Record<string, unknown>;
   const figmaScope = parseFigmaReviewScope(scope.suggestedScope ?? scope);
+  session = await updateGuidelineGenerationProgress(state, session, {
+    stage: "extracting_figma",
+    message: "Reading text from Figma…"
+  });
   const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state));
 
   if (!extraction.ok) {
@@ -103,14 +136,23 @@ export async function generateFigmaGuideline(
     );
   }
 
+  session = await updateGuidelineGenerationProgress(state, session, {
+    stage: "building_candidates",
+    message: `Prepared ${candidatePackage.selectedCandidates} copy samples.`
+  });
+
   const diagnostics: string[] = [];
   const llmAdapterId = parsed.adapterId ?? state.store.getActiveAdapterId() ?? undefined;
   let semanticAnalysis = buildDeterministicSemanticAnalysis(candidatePackage);
 
   if (llmAdapterId) {
+    session = await updateGuidelineGenerationProgress(state, session, {
+      stage: "semantic_analysis",
+      message: "Running semantic analysis…"
+    });
     const batched = await trySemanticAnalysisBatched(
       state,
-      parsed.sessionId,
+      session,
       llmAdapterId,
       candidatePackage
     );
@@ -143,6 +185,11 @@ export async function generateFigmaGuideline(
     });
     diagnostics.push("No active adapter available; deterministic semantic analysis used.");
   }
+
+  session = await updateGuidelineGenerationProgress(state, session, {
+    stage: "generating_files",
+    message: "Drafting background, glossary, and writing guide…"
+  });
 
   let draft: FigmaGuidelineDraft;
   let finalGenerationDegraded = false;
@@ -177,6 +224,11 @@ export async function generateFigmaGuideline(
     ]
   );
 
+  session = await updateGuidelineGenerationProgress(state, session, {
+    stage: "rendering_files",
+    message: "Rendering downloadable files…"
+  });
+
   const starterSummary = buildGuidelineStarterPackSummary({
     sourceLabel: session.featureName ?? `Session ${session.id}`,
     scopeLabel: figmaScope.kind === "frame" ? "Single frame" : "Figma scope",
@@ -197,6 +249,73 @@ export async function generateFigmaGuideline(
       diagnostics
     })
   );
+}
+
+type GuidelineProgressStage =
+  | "extracting_figma"
+  | "building_candidates"
+  | "semantic_analysis"
+  | "generating_files"
+  | "rendering_files";
+
+type GuidelineProgressUpdate = {
+  stage: GuidelineProgressStage;
+  message?: string;
+  batchIndex?: number;
+  batchTotal?: number;
+};
+
+async function markGuidelineGenerationStarted(
+  state: DaemonState,
+  session: ReviewSession
+): Promise<ReviewSession> {
+  return updateGuidelineGenerationProgress(state, session, {
+    stage: "extracting_figma",
+    message: "Starting guideline generation…"
+  });
+}
+
+async function updateGuidelineGenerationProgress(
+  state: DaemonState,
+  session: ReviewSession,
+  progress: GuidelineProgressUpdate
+): Promise<ReviewSession> {
+  const scope = { ...(session.scope ?? {}) } as Record<string, unknown>;
+  const previous = (scope.guidelineGeneration ?? {}) as Record<string, unknown>;
+  const guidelineGeneration: Record<string, unknown> = {
+    ...previous,
+    inFlight: true,
+    startedAt: typeof previous.startedAt === "string" ? previous.startedAt : new Date().toISOString(),
+    progressStage: progress.stage,
+    progressMessage: progress.message,
+    progressBatchIndex: progress.batchIndex,
+    progressBatchTotal: progress.batchTotal
+  };
+
+  if (progress.message === undefined) {
+    delete guidelineGeneration.progressMessage;
+  }
+  if (progress.batchIndex === undefined) {
+    delete guidelineGeneration.progressBatchIndex;
+  }
+  if (progress.batchTotal === undefined) {
+    delete guidelineGeneration.progressBatchTotal;
+  }
+
+  const updated: ReviewSession = {
+    ...session,
+    status: "running",
+    scope: {
+      ...scope,
+      workflow: "figma_guideline_generation",
+      guidelineGeneration
+    },
+    updatedAt: new Date().toISOString()
+  };
+
+  state.store.upsertSession(updated);
+  await state.store.save();
+  return updated;
 }
 
 async function persistGuidelineGenerationSession(
@@ -274,7 +393,7 @@ type BatchedSemanticResult = {
 
 async function trySemanticAnalysisBatched(
   state: DaemonState,
-  sessionId: string,
+  session: ReviewSession,
   adapterId: string,
   candidatePackage: GuidelineCandidatePackage
 ): Promise<BatchedSemanticResult | null> {
@@ -287,8 +406,16 @@ async function trySemanticAnalysisBatched(
   const parts: SemanticAnalysis[] = [];
   let llmBatchCount = 0;
   let deterministicBatchCount = 0;
+  let activeSession = session;
 
   for (let batchIndex = 0; batchIndex < sampleBatches.length; batchIndex += 1) {
+    activeSession = await updateGuidelineGenerationProgress(state, activeSession, {
+      stage: "semantic_analysis",
+      message: `Analyzing batch ${batchIndex + 1} of ${batchCount}…`,
+      batchIndex: batchIndex + 1,
+      batchTotal: batchCount
+    });
+
     const batchSamples = sampleBatches[batchIndex]!;
     const batchPackage = buildCandidatePackageForBatch(
       candidatePackage,
@@ -301,7 +428,7 @@ async function trySemanticAnalysisBatched(
     let partial =
       (await trySemanticAnalysisBatchByLlm(
         state,
-        sessionId,
+        activeSession.id,
         adapterId,
         candidatePackage,
         batchPackage,
@@ -310,7 +437,7 @@ async function trySemanticAnalysisBatched(
       )) ??
       (await trySemanticAnalysisBatchByLlm(
         state,
-        sessionId,
+        activeSession.id,
         adapterId,
         candidatePackage,
         batchPackage,
@@ -345,9 +472,15 @@ async function trySemanticAnalysisBatched(
 
   let synthesized = false;
   if (batchCount > 1 && llmBatchCount > 0) {
+    activeSession = await updateGuidelineGenerationProgress(state, activeSession, {
+      stage: "semantic_analysis",
+      message: "Synthesizing batch results…",
+      batchIndex: batchCount,
+      batchTotal: batchCount
+    });
     const refined = await trySemanticSynthesisByLlm(
       state,
-      sessionId,
+      activeSession.id,
       adapterId,
       candidatePackage,
       merged

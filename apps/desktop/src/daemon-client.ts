@@ -393,6 +393,13 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         0
       ) as Promise<FigmaGuidelineGenerationResponse>,
 
+    abandonFigmaGuidelineGeneration: (input: { sessionId: string; message?: string }) =>
+      request<{ ok: true; sessionId: string }>(baseUrl, "/guidelines/generate/figma/abandon", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
     exportSpreadsheet: (input: { sessionId: string; outputPath: string; mapping?: Record<string, unknown> }) =>
       request<{ outputPath: string; rowCount: number }>(baseUrl, "/spreadsheet/export", {
         method: "POST",

@@ -5,13 +5,12 @@ import type { ReviewSession } from "@writer/contracts";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/writer/glass-card";
 import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
-import { formatProductDisplayName } from "@/lib/writer-product-display";
 
 import {
   auditRunStatusBadgeClassName,
   deriveGuidelineRunStatus,
   formatAuditCreatedDate,
-  formatGuidelineFilesDisplay,
+  formatGuidelineProductName,
   hasInProgressGuideline,
   sortFigmaGuidelineSessions
 } from "../guideline-run-status";
@@ -127,11 +126,8 @@ export function GuidelinesListScreen() {
                 <table className="writer-audits-log-table writer-home-text w-full text-left text-sm">
                   <thead className="border-b border-white/10 text-[#e5f1ff]/70">
                     <tr>
-                      <th className="writer-audits-log-table__feature px-4 py-3 font-normal">Feature</th>
-                      <th className="px-4 py-3 font-normal">Product</th>
-                      <th className="px-4 py-3 font-normal">Mode</th>
+                      <th className="writer-audits-log-table__feature px-4 py-3 font-normal">Product</th>
                       <th className="px-4 py-3 font-normal">Status</th>
-                      <th className="px-4 py-3 font-normal">Files</th>
                       <th className="px-4 py-3 font-normal">Created</th>
                       <th className="px-4 py-3" />
                     </tr>
@@ -139,7 +135,7 @@ export function GuidelinesListScreen() {
                   <tbody>
                     {sessions.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-[#e5f1ff]/60">
+                        <td colSpan={4} className="px-4 py-8 text-center text-[#e5f1ff]/60">
                           No guideline generations yet.
                         </td>
                       </tr>
@@ -153,18 +149,13 @@ export function GuidelinesListScreen() {
                           className="border-b border-white/5 transition-colors hover:bg-white/5"
                         >
                           <td className="writer-audits-log-table__feature px-4 py-3">
-                            {session.featureName}
+                            {formatGuidelineProductName(session)}
                           </td>
-                          <td className="px-4 py-3">
-                            {session.productId ? formatProductDisplayName(session.productId) : "—"}
-                          </td>
-                          <td className="px-4 py-3">{session.mode ?? "single_frame"}</td>
                           <td className="px-4 py-3">
                             <Badge variant="outline" className={auditRunStatusBadgeClassName(status.variant)}>
                               {status.label}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3">{formatGuidelineFilesDisplay(session)}</td>
                           <td className="px-4 py-3">{formatAuditCreatedDate(session.createdAt)}</td>
                           <td className="px-4 py-3">
                             <Link

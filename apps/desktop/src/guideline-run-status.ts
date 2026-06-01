@@ -4,8 +4,14 @@ import type { AuditRunStatus } from "./audit-run-status";
 import { auditRunStatusBadgeClassName, formatAuditCreatedDate } from "./audit-run-status";
 
 export type GuidelineGenerationScopeRecord = {
-  ok: boolean;
-  completedAt: string;
+  ok?: boolean;
+  completedAt?: string;
+  startedAt?: string;
+  inFlight?: boolean;
+  progressStage?: string;
+  progressMessage?: string;
+  progressBatchIndex?: number;
+  progressBatchTotal?: number;
   fileNames?: string[];
   files?: Array<{ name: string; mimeType: string; content: string }>;
 };
@@ -20,11 +26,15 @@ export function readGuidelineGenerationScope(
   }
 
   const parsed = record as GuidelineGenerationScopeRecord;
-  if (typeof parsed.ok !== "boolean" || typeof parsed.completedAt !== "string") {
-    return undefined;
+  if (parsed.inFlight === true) {
+    return parsed;
   }
 
-  return parsed;
+  if (typeof parsed.ok === "boolean" && typeof parsed.completedAt === "string") {
+    return parsed;
+  }
+
+  return undefined;
 }
 
 export function isFigmaGuidelineSession(session: ReviewSession): boolean {
@@ -45,15 +55,27 @@ export function sortFigmaGuidelineSessions(sessions: ReviewSession[]): ReviewSes
 export function deriveGuidelineRunStatus(session: ReviewSession): AuditRunStatus {
   const generation = readGuidelineGenerationScope(session);
 
+  if (generation?.inFlight === true) {
+    return { label: "In Progress", variant: "in_progress" };
+  }
+
   if (generation?.ok === true) {
     return { label: "Done", variant: "done" };
   }
 
-  if (generation?.ok === false || session.diagnostic) {
+  if (generation?.ok === false) {
     return { label: "Fail", variant: "failed" };
   }
 
-  if (session.status === "draft" || session.status === "running" || session.status === "reviewing") {
+  if (session.diagnostic) {
+    return { label: "Fail", variant: "failed" };
+  }
+
+  if (session.status === "draft") {
+    return { label: "Not started", variant: "pending" };
+  }
+
+  if (session.status === "running" || session.status === "reviewing") {
     return { label: "In Progress", variant: "in_progress" };
   }
 
@@ -64,22 +86,22 @@ export function deriveGuidelineRunStatus(session: ReviewSession): AuditRunStatus
   return { label: "Fail", variant: "failed" };
 }
 
-export function formatGuidelineFilesDisplay(session: ReviewSession): string {
-  const generation = readGuidelineGenerationScope(session);
-  if (!generation) {
-    return "—";
+/** Product name from the generator form (stored on session.featureName). */
+export function formatGuidelineProductName(session: ReviewSession): string {
+  const fromFeature = session.featureName?.trim();
+  if (fromFeature) {
+    return fromFeature;
   }
 
-  if (!generation.ok) {
-    return "—";
+  const description = session.description?.trim();
+  if (description?.startsWith("Writing guidelines for ")) {
+    const parsed = description.slice("Writing guidelines for ".length).replace(/\.$/, "").trim();
+    if (parsed) {
+      return parsed;
+    }
   }
 
-  const count = generation.fileNames?.length ?? generation.files?.length ?? 0;
-  if (count === 0) {
-    return "—";
-  }
-
-  return count === 1 ? "1 file" : `${count} files`;
+  return "—";
 }
 
 export function hasInProgressGuideline(sessions: ReviewSession[]): boolean {

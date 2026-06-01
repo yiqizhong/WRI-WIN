@@ -17,7 +17,7 @@ import {
   listReviewChanges,
   transitionReviewChange
 } from "../review";
-import { generateFigmaGuideline } from "../guideline-generation";
+import { abandonFigmaGuidelineGeneration, generateFigmaGuideline } from "../guideline-generation";
 import {
   createPasteTextConversation,
   getPasteTextConversation,
@@ -144,6 +144,23 @@ export async function handleReviewRequest(
       }
 
       invalidRequest(response, "Invalid context payload.", "Provide sessionId.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/guidelines/generate/figma/abandon") {
+    try {
+      sendJson(response, 200, await abandonFigmaGuidelineGeneration(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+      invalidRequest(
+        response,
+        "Invalid guideline abandon payload.",
+        "Provide sessionId and an optional message."
+      );
     }
     return true;
   }

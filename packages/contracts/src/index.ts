@@ -293,6 +293,7 @@ export {
   figmaGuidelineDraftSchema,
   figmaGuidelineGeneratedFileNameSchema,
   figmaGuidelineGeneratedFileSchema,
+  figmaGuidelineGenerationAbandonRequestSchema,
   figmaGuidelineGenerationRequestSchema,
   figmaGuidelineGenerationResponseSchema,
   figmaGuidelineGlossaryEntrySchema,
