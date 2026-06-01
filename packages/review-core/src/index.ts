@@ -64,6 +64,14 @@ export {
   normalizeReviewChangeSurface,
   normalizeReviewChangesSurface
 } from "./surface-review-change";
+export {
+  buildDeterministicGuidelineDraft,
+  buildDeterministicSemanticAnalysis,
+  buildGuidelineCandidatePackage,
+  buildGuidelineGenerationSummary,
+  buildGuidelineStarterPackSummary
+} from "./guideline-generation";
+export { renderGuidelineStarterPack } from "./guideline-generator-renderer";
 export { classifySeverity, formatRationale, isLowConfidence } from "./severity";
 export {
   buildCopywriterPrompt,

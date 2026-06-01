@@ -151,7 +151,7 @@ describe("daemon integration smoke", () => {
     testState.mcp.figmaClient = {
       connect: async () => ({ ok: true }),
       listTools: async () => [{ name: "get_metadata" }],
-      callTool: async (name: string) => {
+      callTool: async (name: string, _args: Record<string, unknown>) => {
         if (name === "get_metadata") {
           return {
             ok: true,
@@ -161,8 +161,18 @@ describe("daemon integration smoke", () => {
           };
         }
 
-        return { ok: false, diagnostic: { code: "unsupported", message: "unsupported" } };
-      }
+        return {
+          ok: false,
+          diagnostic: {
+            code: "tool_not_found",
+            severity: "error",
+            message: "unsupported",
+            recoveryAction: "Use a supported Figma MCP tool."
+          }
+        };
+      },
+      finishAuth: async () => ({ ok: true }),
+      close: async () => undefined
     };
 
     const parseRes = await fetch(`${baseUrl}/figma/parse-url`, {

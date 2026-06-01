@@ -1,4 +1,4 @@
-import { ChevronRight, MessageCircle } from "lucide-react";
+import { BookOpen, ChevronRight, MessageCircle } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -120,6 +120,16 @@ export function HomeScreen() {
               </WorkflowCardIcon>
             }
             onClick={() => navigate("/figma-audit")}
+          />
+          <WorkflowCard
+            type="Guide"
+            description="Generate background, glossary, and writing-guide files from Figma copy."
+            icon={
+              <WorkflowCardIcon>
+                <BookOpen className="size-7 text-[#e5f1ff]/75" strokeWidth={1.25} aria-hidden />
+              </WorkflowCardIcon>
+            }
+            onClick={() => navigate("/guide")}
           />
           <WorkflowCard
             type="Chat"

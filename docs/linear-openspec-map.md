@@ -385,3 +385,20 @@ Separates the two home-screen jobs without replacing their implemented engines: 
 **Dependencies:** Builds on completed [WRI-84](https://linear.app/uicb/issue/WRI-84), [WRI-98](https://linear.app/uicb/issue/WRI-98), and [WRI-112](https://linear.app/uicb/issue/WRI-112).
 
 **Branch order (historical):** WRI-122 → WRI-123 → WRI-124 → WRI-125 → close WRI-121
+
+## enhance-figma-guideline-generation-quality (planned in Linear)
+
+**Epic:** [WRI-202](https://linear.app/uicb/issue/WRI-202) — Figma Guideline Generation Quality Upgrade
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.4 | [WRI-203](https://linear.app/uicb/issue/WRI-203) | Shared contracts: semantic analysis + Devin settings |
+| 2.1–2.5 | [WRI-204](https://linear.app/uicb/issue/WRI-204) | Persisted Devin model/reasoning settings + daemon APIs |
+| 3.1–3.4 | [WRI-205](https://linear.app/uicb/issue/WRI-205) | Desktop controls for Devin model/reasoning |
+| 4.1–4.4 | [WRI-206](https://linear.app/uicb/issue/WRI-206) | 500-sample candidate package assembly |
+| 5.1–5.5 | [WRI-207](https://linear.app/uicb/issue/WRI-207) | LLM semantic analysis stage |
+| 6.1–6.4 | [WRI-208](https://linear.app/uicb/issue/WRI-208) | Evidence-grounded generation + enriched summary |
+| 7.1–7.2 | [WRI-209](https://linear.app/uicb/issue/WRI-209) | Desktop diagnostics |
+| 8.1–8.5 | [WRI-210](https://linear.app/uicb/issue/WRI-210) | Verification + docs |
+
+**Suggested order:** WRI-203 → WRI-204 → WRI-205 → WRI-206 → WRI-207 → WRI-208 → WRI-209 → WRI-210 → close WRI-202

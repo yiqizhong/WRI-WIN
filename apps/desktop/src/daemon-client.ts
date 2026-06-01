@@ -21,6 +21,7 @@ import {
   parsePasteTextMessageResult,
   parseProject,
   parseProjectList,
+  parseFigmaGuidelineGenerationResponse,
   parseListPageFramesResponse,
   parseReviewSession,
   parseReviewSessionList,
@@ -40,6 +41,7 @@ import {
   type GuidelinesTree,
   type GuidelineSnapshot,
   type ProductPackage,
+  type FigmaGuidelineGenerationResponse,
   type ParsedFigmaUrl,
   type PasteTextConversation,
   type PasteTextMessageResult,
@@ -358,6 +360,19 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         },
         parseReviewSession
       ),
+
+    generateFigmaGuideline: (input: { sessionId: string; adapterId?: string; maxCandidates?: number }) =>
+      request(
+        baseUrl,
+        "/guidelines/generate/figma",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseFigmaGuidelineGenerationResponse,
+        180_000
+      ) as Promise<FigmaGuidelineGenerationResponse>,
 
     exportSpreadsheet: (input: { sessionId: string; outputPath: string; mapping?: Record<string, unknown> }) =>
       request<{ outputPath: string; rowCount: number }>(baseUrl, "/spreadsheet/export", {

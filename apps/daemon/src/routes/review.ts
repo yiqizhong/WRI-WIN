@@ -17,6 +17,7 @@ import {
   listReviewChanges,
   transitionReviewChange
 } from "../review";
+import { generateFigmaGuideline } from "../guideline-generation";
 import {
   createPasteTextConversation,
   getPasteTextConversation,
@@ -143,6 +144,23 @@ export async function handleReviewRequest(
       }
 
       invalidRequest(response, "Invalid context payload.", "Provide sessionId.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/guidelines/generate/figma") {
+    try {
+      sendJson(response, 200, await generateFigmaGuideline(state, await readJsonBody(request)));
+    } catch (error) {
+      if (error instanceof Error && error.message === "Session not found") {
+        notFound(response, error.message);
+        return true;
+      }
+      invalidRequest(
+        response,
+        "Invalid Figma guideline generation payload.",
+        "Provide sessionId and optional adapterId/maxCandidates."
+      );
     }
     return true;
   }

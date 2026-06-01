@@ -287,6 +287,53 @@ export type {
 } from "./devin-provider";
 
 export {
+  candidateCategoryDistributionSchema,
+  degradedPathSchema,
+  degradedPathStageSchema,
+  figmaGuidelineDraftSchema,
+  figmaGuidelineGeneratedFileNameSchema,
+  figmaGuidelineGeneratedFileSchema,
+  figmaGuidelineGenerationRequestSchema,
+  figmaGuidelineGenerationResponseSchema,
+  figmaGuidelineGlossaryEntrySchema,
+  figmaGuidelineStarterPackSummarySchema,
+  generationSummarySchema,
+  guidelineCandidateCategorySchema,
+  guidelineCandidatePackageSchema,
+  guidelineCandidateSampleSchema,
+  guidelineCoverageMetadataSchema,
+  parseFigmaGuidelineDraft,
+  parseFigmaGuidelineGenerationRequest,
+  parseFigmaGuidelineGenerationResponse,
+  parseGenerationSummary,
+  parseGuidelineCandidatePackage,
+  parseSemanticAnalysis,
+  selectedEvidenceSchema,
+  semanticAnalysisSchema,
+  semanticAnalysisStatusSchema,
+  semanticDuplicateGroupSchema,
+  semanticObservationSchema
+} from "./guideline-generation";
+export type {
+  DegradedPath,
+  FigmaGuidelineDraft,
+  FigmaGuidelineGeneratedFile,
+  FigmaGuidelineGenerationRequest,
+  FigmaGuidelineGenerationResponse,
+  FigmaGuidelineGlossaryEntry,
+  FigmaGuidelineStarterPackSummary,
+  GenerationSummary,
+  GuidelineCandidateCategory,
+  GuidelineCandidatePackage,
+  GuidelineCandidateSample,
+  GuidelineCoverageMetadata,
+  SelectedEvidence,
+  SemanticAnalysis,
+  SemanticDuplicateGroup,
+  SemanticObservation
+} from "./guideline-generation";
+
+export {
   figmaReviewScopeSchema,
   figmaScopeKindSchema,
   parseFigmaReviewScope,
