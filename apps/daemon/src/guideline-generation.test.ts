@@ -31,6 +31,9 @@ import { startAgentRun } from "./agents";
 import { extractFigmaTextNodesViaMcp } from "@writer/review-core";
 
 function mockState(overrides?: Partial<DaemonState>): DaemonState {
+  const upsertSession = vi.fn((session: { id: string }) => session);
+  const save = vi.fn(async () => undefined);
+
   return {
     store: {
       listSessions: () => ({
@@ -48,6 +51,8 @@ function mockState(overrides?: Partial<DaemonState>): DaemonState {
           }
         ]
       }),
+      upsertSession,
+      save,
       getActiveAdapterId: () => "devin"
     },
     ...overrides
@@ -85,8 +90,11 @@ describe("generateFigmaGuideline", () => {
 
     vi.mocked(startAgentRun).mockRejectedValue(new Error("offline"));
 
-    const result = await generateFigmaGuideline(mockState(), { sessionId: "sess-1" });
+    const state = mockState();
+    const result = await generateFigmaGuideline(state, { sessionId: "sess-1" });
     expect(result.ok).toBe(true);
+    expect(state.store.upsertSession).toHaveBeenCalled();
+    expect(state.store.save).toHaveBeenCalled();
     expect(result.files?.map((file) => file.name)).toEqual([
       "background.md",
       "glossary.csv",

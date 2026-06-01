@@ -59,13 +59,20 @@ export async function generateFigmaGuideline(
   const parsed = figmaGuidelineGenerationRequestSchema.parse(input);
   const session = requireSession(state, parsed.sessionId);
 
+  async function finish(response: FigmaGuidelineGenerationResponse): Promise<FigmaGuidelineGenerationResponse> {
+    await persistGuidelineGenerationSession(state, session, response);
+    return response;
+  }
+
   if (session.sourceType !== "figma") {
-    return failureResponse(parsed.sessionId, {
+    return finish(
+      failureResponse(parsed.sessionId, {
       code: "not_configured",
       severity: "warning",
       message: "Session is not a Figma review session.",
       recoveryAction: "Start a Figma session before generating guidelines."
-    });
+      })
+    );
   }
 
   const scope = (session.scope ?? {}) as Record<string, unknown>;
@@ -73,7 +80,7 @@ export async function generateFigmaGuideline(
   const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state));
 
   if (!extraction.ok) {
-    return failureResponse(parsed.sessionId, extraction.diagnostic);
+    return finish(failureResponse(parsed.sessionId, extraction.diagnostic));
   }
 
   const candidatePackage = buildGuidelineCandidatePackage(
@@ -86,12 +93,14 @@ export async function generateFigmaGuideline(
   );
 
   if (candidatePackage.totalCandidates === 0) {
-    return failureResponse(parsed.sessionId, {
-      code: "tool_not_found",
-      severity: "warning",
-      message: "No usable text samples were found in the selected Figma scope.",
-      recoveryAction: "Choose a frame or page that contains UI copy, then try again."
-    });
+    return finish(
+      failureResponse(parsed.sessionId, {
+        code: "tool_not_found",
+        severity: "warning",
+        message: "No usable text samples were found in the selected Figma scope.",
+        recoveryAction: "Choose a frame or page that contains UI copy, then try again."
+      })
+    );
   }
 
   const diagnostics: string[] = [];
@@ -177,15 +186,52 @@ export async function generateFigmaGuideline(
   });
   const files = renderGuidelineStarterPack({ draft, summary: starterSummary });
 
-  return figmaGuidelineGenerationResponseSchema.parse({
-    ok: true,
-    sessionId: parsed.sessionId,
-    candidatePackage: normalizeGuidelineCandidatePackage(candidatePackage),
-    semanticAnalysis,
-    generationSummary,
-    files,
-    diagnostics
+  return finish(
+    figmaGuidelineGenerationResponseSchema.parse({
+      ok: true,
+      sessionId: parsed.sessionId,
+      candidatePackage: normalizeGuidelineCandidatePackage(candidatePackage),
+      semanticAnalysis,
+      generationSummary,
+      files,
+      diagnostics
+    })
+  );
+}
+
+async function persistGuidelineGenerationSession(
+  state: DaemonState,
+  session: ReviewSession,
+  response: FigmaGuidelineGenerationResponse
+): Promise<void> {
+  const scope = { ...(session.scope ?? {}) } as Record<string, unknown>;
+  const guidelineGeneration: Record<string, unknown> = {
+    ok: response.ok,
+    completedAt: new Date().toISOString(),
+    fileNames: response.files?.map((file) => file.name)
+  };
+
+  if (response.ok && response.files) {
+    guidelineGeneration.files = response.files.map((file) => ({
+      name: file.name,
+      mimeType: file.mimeType,
+      content: file.content
+    }));
+  }
+
+  state.store.upsertSession({
+    ...session,
+    status: response.ok ? "completed" : "canceled",
+    diagnostic: response.ok ? session.diagnostic : (response.diagnostic ?? session.diagnostic),
+    scope: {
+      ...scope,
+      workflow: "figma_guideline_generation",
+      guidelineGeneration
+    },
+    updatedAt: new Date().toISOString()
   });
+
+  await state.store.save();
 }
 
 function failureResponse(

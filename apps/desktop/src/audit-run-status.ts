@@ -115,5 +115,14 @@ export function deriveWritebackDisplay(session: ReviewSession): WritebackDisplay
 }
 
 export function isFigmaAuditSession(session: ReviewSession): boolean {
+  const scope = session.scope as Record<string, unknown> | undefined;
+  if (scope?.workflow === "figma_guideline_generation") {
+    return false;
+  }
+
+  if (session.description?.startsWith("Writing guidelines for")) {
+    return false;
+  }
+
   return session.sourceType === "figma" && Boolean(session.featureName);
 }
