@@ -272,6 +272,21 @@ export {
 export type { RewriteCandidate, RewriteCandidateList } from "./rewrite-candidate";
 
 export {
+  devinProviderSettingsSchema,
+  devinRuntimeOptionsSchema,
+  devinReasoningCapabilityStatusSchema,
+  devinReasoningPreferenceSchema,
+  parseDevinProviderSettings,
+  parseDevinRuntimeOptions
+} from "./devin-provider";
+export type {
+  DevinProviderSettings,
+  DevinRuntimeOptions,
+  DevinReasoningCapabilityStatus,
+  DevinReasoningPreference
+} from "./devin-provider";
+
+export {
   figmaReviewScopeSchema,
   figmaScopeKindSchema,
   parseFigmaReviewScope,

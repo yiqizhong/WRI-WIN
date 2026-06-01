@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
-import { getAgentAdapterList, setActiveAdapter, smokeAgentAdapter, startAgentRun } from "./agents";
+import {
+  getAgentAdapterList,
+  getDevinProviderSettings,
+  setActiveAdapter,
+  smokeAgentAdapter,
+  startAgentRun,
+  updateDevinProviderSettings
+} from "./agents";
 import { createProject, createSession } from "./state";
 import type { DaemonState } from "./state";
 
@@ -81,5 +88,22 @@ describe("agent discovery and runs", () => {
     expect(result.run.status).toBe("completed");
     expect(result.events.some((event) => event.type === "text")).toBe(true);
     expect(state.store.getAgentRun(result.run.id)?.status).toBe("completed");
+  });
+
+  it("persists devin provider settings and reports capability status", async () => {
+    const state = await createTestState();
+
+    const updated = await updateDevinProviderSettings(state, {
+      modelId: "swe-1.6-fast",
+      reasoningPreference: "high"
+    });
+
+    expect(updated.modelId).toBe("swe-1.6");
+    expect(updated.reasoningPreference).toBe("high");
+    expect(updated.reasoningCapabilityStatus).toBe("applied");
+
+    const reloaded = getDevinProviderSettings(state);
+    expect(reloaded.modelId).toBe("swe-1.6");
+    expect(reloaded.reasoningPreference).toBe("high");
   });
 });

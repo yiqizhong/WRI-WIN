@@ -1,12 +1,30 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import type { AgentAdapterList, AgentRun, AgentRunEvent, AgentSmokeResult, AgentAdapter } from "@writer/contracts";
-import { isLlmProviderAdapterId } from "@writer/contracts";
+import type {
+  AgentAdapter,
+  AgentAdapterList,
+  AgentRun,
+  AgentRunEvent,
+  AgentSmokeResult,
+  DevinProviderSettings,
+  DevinRuntimeOptions
+} from "@writer/contracts";
+import {
+  devinProviderSettingsSchema,
+  isLlmProviderAdapterId
+} from "@writer/contracts";
 import {
   createDefaultAgentRegistry,
   detectCliAdapter,
   getCliAdapterConfig,
+  getDevinReasoningProfile,
+  getDevinRuntimeOptions,
+  getDevinRuntimeSettings,
+  normalizeDevinModelId,
+  normalizeDevinReasoningPreference,
+  resolveDevinModelId,
+  setDevinRuntimeSettings,
   smokeCliAdapter,
   type AgentAdapterRegistry,
   type AgentRunHandle
@@ -26,6 +44,11 @@ const setActiveAdapterInputSchema = z.object({
 
 const smokeAdapterInputSchema = z.object({
   adapterId: z.string().min(1)
+});
+
+const setDevinSettingsInputSchema = z.object({
+  modelId: z.string().min(1).optional(),
+  reasoningPreference: devinProviderSettingsSchema.shape.reasoningPreference.optional()
 });
 
 export type AgentRunResult = {
@@ -56,10 +79,12 @@ export async function getAgentAdapterList(
   state: DaemonState,
   options?: { force?: boolean }
 ): Promise<AgentAdapterList> {
+  applyDevinSettingsFromStore(state);
   const registry = getRegistry();
-  const adapters = (
+  let adapters = (
     await Promise.all(registry.list().map((impl) => impl.detect(options).then((result) => result.adapter)))
   ).filter((adapter) => isLlmProviderAdapterId(adapter.id));
+  adapters = attachDevinSettingsMetadata(state, adapters);
   let storedActive = state.store.getActiveAdapterId();
 
   if (storedActive && !isLlmProviderAdapterId(storedActive)) {
@@ -107,6 +132,7 @@ async function resolveAdapterForRun(
 }
 
 export async function refreshAgentDetection(state: DaemonState): Promise<AgentAdapterList> {
+  applyDevinSettingsFromStore(state);
   // Bypass cache — this entry point is wired to the explicit "Refresh
   // detection" affordance, so the user is telling us the underlying state
   // (installs, login) may have changed.
@@ -115,6 +141,7 @@ export async function refreshAgentDetection(state: DaemonState): Promise<AgentAd
 
 export async function smokeAgentAdapter(state: DaemonState, input: unknown): Promise<AgentSmokeResult> {
   const parsed = smokeAdapterInputSchema.parse(input);
+  applyDevinSettingsFromStore(state);
   const config = getCliAdapterConfig(parsed.adapterId);
 
   if (!config) {
@@ -166,7 +193,50 @@ export async function setActiveAdapter(state: DaemonState, input: unknown): Prom
   return getAgentAdapterList(state);
 }
 
+export function getDevinProviderSettings(state: DaemonState): DevinProviderSettings {
+  applyDevinSettingsFromStore(state);
+  return {
+    ...getDevinRuntimeSettings(),
+    ...state.store.getDevinProviderSettings()
+  };
+}
+
+export async function getDevinProviderOptions(state: DaemonState): Promise<DevinRuntimeOptions> {
+  applyDevinSettingsFromStore(state);
+  const options = await getDevinRuntimeOptions();
+  return {
+    ...options,
+    modelOptions: options.modelOptions.length
+      ? options.modelOptions
+      : [resolveDevinModelId()]
+  };
+}
+
+export async function updateDevinProviderSettings(
+  state: DaemonState,
+  input: unknown
+): Promise<DevinProviderSettings> {
+  const parsed = setDevinSettingsInputSchema.parse(input);
+  const current = state.store.getDevinProviderSettings();
+  const modelId = normalizeDevinModelId(parsed.modelId ?? current.modelId);
+  const profile = getDevinReasoningProfile(modelId);
+  const reasoningPreference = normalizeDevinReasoningPreference(
+    modelId,
+    parsed.reasoningPreference ?? current.reasoningPreference
+  );
+
+  const next = state.store.setDevinProviderSettings({
+    modelId,
+    reasoningPreference,
+    reasoningCapabilityStatus: profile.capabilityStatus
+  });
+  setDevinRuntimeSettings(next);
+  await state.store.save();
+  return next;
+}
+
 export async function launchAgentRun(state: DaemonState, input: unknown): Promise<AgentRunLaunch> {
+  applyDevinSettingsFromStore(state);
   const parsed = createAgentRunInputSchema.parse(input);
   const sessions = state.store.listSessions(null);
 
@@ -320,5 +390,34 @@ async function recordRunLifecycle(state: DaemonState, run: AgentRun, phase: stri
       status: run.status,
       phase
     }
+  });
+}
+
+function applyDevinSettingsFromStore(state: DaemonState): void {
+  setDevinRuntimeSettings(state.store.getDevinProviderSettings());
+}
+
+function attachDevinSettingsMetadata(state: DaemonState, adapters: AgentAdapter[]): AgentAdapter[] {
+  const settings = state.store.getDevinProviderSettings();
+  return adapters.map((adapter) => {
+    if (adapter.id !== "devin") {
+      return adapter;
+    }
+
+    return {
+      ...adapter,
+      diagnostic: adapter.diagnostic
+        ? {
+            ...adapter.diagnostic,
+            metadata: {
+              ...(adapter.diagnostic.metadata ?? {}),
+              configuredModelId: settings.modelId,
+              effectiveModelId: resolveDevinModelId(),
+              reasoningPreference: settings.reasoningPreference,
+              reasoningCapabilityStatus: settings.reasoningCapabilityStatus
+            }
+          }
+        : adapter.diagnostic
+    };
   });
 }

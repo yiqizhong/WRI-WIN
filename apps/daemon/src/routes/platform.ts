@@ -8,9 +8,12 @@ import {
   createSession,
   decidePermission,
   executeTool,
+  getDevinProviderSettings,
+  getDevinProviderOptions,
   getAgentAdapterList,
   refreshAgentDetection,
   smokeAgentAdapter,
+  updateDevinProviderSettings,
   getAgentRunDetail,
   getMcpServerList,
   getToolList,
@@ -131,6 +134,29 @@ export async function handlePlatformRequest(
       sendJson(response, 200, await setActiveAdapter(state, await readJsonBody(request)));
     } catch {
       invalidRequest(response, "Invalid active adapter payload.", "Provide adapterId.");
+    }
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/agents/providers/devin") {
+    sendJson(response, 200, getDevinProviderSettings(state));
+    return true;
+  }
+
+  if (request.method === "GET" && path === "/agents/providers/devin/options") {
+    sendJson(response, 200, await getDevinProviderOptions(state));
+    return true;
+  }
+
+  if (request.method === "PATCH" && path === "/agents/providers/devin") {
+    try {
+      sendJson(response, 200, await updateDevinProviderSettings(state, await readJsonBody(request)));
+    } catch {
+      invalidRequest(
+        response,
+        "Invalid Devin provider settings payload.",
+        "Provide optional modelId and reasoningPreference."
+      );
     }
     return true;
   }

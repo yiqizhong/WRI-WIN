@@ -3,6 +3,20 @@ export { createEchoAdapter } from "./echo-adapter";
 export { createStubAdapter } from "./stub-adapter";
 export { createCliAdapter, detectCliAdapter, smokeCliAdapter } from "./create-cli-adapter";
 export { getCliAdapterConfig, createProviderAdapters, CLI_ADAPTER_IDS } from "./adapter-configs";
+export {
+  buildModelSpecifier,
+  getDevinReasoningOptionsForModel,
+  getDevinReasoningProfile,
+  getDevinCuratedModelOptions,
+  getDevinModelDisplayLabel,
+  getDevinModelDisplayLabels,
+  getDevinRuntimeOptions,
+  getDevinRuntimeSettings,
+  normalizeDevinModelId,
+  normalizeDevinReasoningPreference,
+  resolveDevinModelId,
+  setDevinRuntimeSettings
+} from "./adapters/devin";
 export { commandExists, runCliCommand } from "./cli-runner";
 export type {
   AgentAdapterImplementation,

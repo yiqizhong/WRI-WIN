@@ -17,9 +17,12 @@ import { PlatformStore } from "@writer/storage";
 import {
   cancelAgentRun,
   getAgentAdapterList,
+  getDevinProviderSettings,
+  getDevinProviderOptions,
   getAgentRunDetail,
   refreshAgentDetection,
   smokeAgentAdapter,
+  updateDevinProviderSettings,
   setActiveAdapter,
   startAgentRun,
   type AgentRunResult
@@ -99,8 +102,11 @@ export async function createSession(state: DaemonState, input: unknown): Promise
 
 export {
   getAgentAdapterList,
+  getDevinProviderSettings,
+  getDevinProviderOptions,
   refreshAgentDetection,
   smokeAgentAdapter,
+  updateDevinProviderSettings,
   setActiveAdapter,
   startAgentRun,
   cancelAgentRun,

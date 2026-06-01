@@ -9,6 +9,7 @@ import {
   type AgentRunEvent,
   type AuditLogEntry,
   type AuditLogList,
+  type DevinProviderSettings,
   type Project,
   type ProjectList,
   type ReviewChange,
@@ -21,6 +22,7 @@ import {
   agentRunSchema,
   auditLogListSchema,
   auditLogEntrySchema,
+  devinProviderSettingsSchema,
   projectListSchema,
   projectSchema,
   reviewChangeSchema,
@@ -53,6 +55,7 @@ export type PlatformStoreSnapshot = {
   findings: UxCopyFinding[];
   rewrites: RewriteCandidate[];
   pasteTextConversations: PasteTextConversation[];
+  devinProviderSettings: DevinProviderSettings;
 };
 
 export type PlatformStoreOptions = {
@@ -85,7 +88,8 @@ export class PlatformStore {
       reviewChanges: [],
       findings: [],
       rewrites: [],
-      pasteTextConversations: []
+      pasteTextConversations: [],
+      devinProviderSettings: devinProviderSettingsSchema.parse({})
     };
   }
 
@@ -120,7 +124,8 @@ export class PlatformStore {
         pasteTextConversations: (parsed.pasteTextConversations ?? []).flatMap((conversation) => {
           const result = pasteTextConversationSchema.safeParse(conversation);
           return result.success ? [result.data] : [];
-        })
+        }),
+        devinProviderSettings: devinProviderSettingsSchema.parse(parsed.devinProviderSettings ?? {})
       };
 
       const migrated = await this.migrateLoadedSnapshot();
@@ -231,6 +236,19 @@ export class PlatformStore {
 
   setActiveAdapterId(adapterId: string | null): void {
     this.snapshot.activeAdapterId = adapterId;
+  }
+
+  getDevinProviderSettings(): DevinProviderSettings {
+    return this.snapshot.devinProviderSettings;
+  }
+
+  setDevinProviderSettings(settings: Partial<DevinProviderSettings>): DevinProviderSettings {
+    const next = devinProviderSettingsSchema.parse({
+      ...this.snapshot.devinProviderSettings,
+      ...settings
+    });
+    this.snapshot.devinProviderSettings = next;
+    return next;
   }
 
   upsertAgentRun(run: AgentRun): AgentRun {

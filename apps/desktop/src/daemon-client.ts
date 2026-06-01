@@ -5,6 +5,8 @@ import {
   parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseDevinProviderSettings,
+  parseDevinRuntimeOptions,
   parseGlossaryList,
   parseGuideline,
   parseGuidelineList,
@@ -31,6 +33,7 @@ import {
   type AgentRunResult,
   type ChangeStatus,
   type DirectoryListing,
+  type DevinRuntimeOptions,
   type GlossaryList,
   type Guideline,
   type GuidelineList,
@@ -406,6 +409,32 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify({ adapterId })
         },
         parseAgentAdapterList
+      ),
+
+    getDevinProviderSettings: () =>
+      request(baseUrl, "/agents/providers/devin", undefined, parseDevinProviderSettings),
+
+    getDevinProviderOptions: () =>
+      request<DevinRuntimeOptions>(
+        baseUrl,
+        "/agents/providers/devin/options",
+        undefined,
+        parseDevinRuntimeOptions
+      ),
+
+    updateDevinProviderSettings: (input: {
+      modelId?: string;
+      reasoningPreference?: "off" | "low" | "medium" | "high";
+    }) =>
+      request(
+        baseUrl,
+        "/agents/providers/devin",
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseDevinProviderSettings
       ),
 
     getAgentRun: (runId: string) =>
