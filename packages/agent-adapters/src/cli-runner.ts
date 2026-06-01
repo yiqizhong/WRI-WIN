@@ -15,6 +15,11 @@ const isWindows = platform() === "win32";
 // `cmd.exe /d /s /c <script> <args…>` and pass the args as a normal argv array,
 // letting node quote each one. `cmd` then receives them as distinct literal
 // arguments — no interpolation, no injection.
+// Escape characters that cmd.exe interprets (`& | < > ^ ( ) " %`) so a script
+// argument is passed through verbatim. node's own arg quoting protects the
+// CommandLineToArgvW layer; this protects the extra cmd.exe parsing layer that
+// runs when we invoke a `.cmd`/`.bat` via cmd.exe. Together they prevent a
+// prompt like `a & whoami` from breaking out and executing.
 function escapeCmdMetacharacters(arg: string): string {
   return arg.replace(/[()%!^"<>&|]/g, "^$&");
 }
@@ -147,7 +152,9 @@ export function spawnCliStream(options: CliRunOptions): CliStreamHandle {
 }
 
 export async function commandExists(command: string): Promise<string | null> {
-  const isWindows = process.platform === "win32";
+  // Windows has no `which`; the equivalent is `where`. `where` is resolved via
+  // PATH and prints one CRLF-terminated absolute path per match.
+  const isWindows = platform() === "win32";
   const result = await runCliCommand({
     executable: isWindows ? "where" : "/usr/bin/which",
     args: [command],

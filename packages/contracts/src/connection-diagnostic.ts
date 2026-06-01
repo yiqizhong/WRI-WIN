@@ -9,6 +9,7 @@ export const connectionDiagnosticCodeSchema = z.enum([
   "smoke_failed",
   "not_configured",
   "startup_failed",
+  "service_unavailable",
   "tool_not_found",
   "mcp_not_ready",
   "unsupported_figma_source",

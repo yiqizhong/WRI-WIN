@@ -1,4 +1,4 @@
-import { ChevronRight, MessageCircle } from "lucide-react";
+import { BookOpen, ChevronRight, MessageCircle } from "lucide-react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -105,7 +105,7 @@ export function HomeScreen() {
           <div className="writer-home-divider" aria-hidden />
         </div>
 
-        <div className="flex gap-[90px]">
+        <div className="flex gap-6">
           <WorkflowCard
             type="Figma"
             description="Audit frames in Figma and write approved edits back."
@@ -130,6 +130,16 @@ export function HomeScreen() {
               </WorkflowCardIcon>
             }
             onClick={() => navigate("/text-copy")}
+          />
+          <WorkflowCard
+            type="Guide"
+            description="Generate background, glossary, and writing-guide files from Figma."
+            icon={
+              <WorkflowCardIcon>
+                <BookOpen className="size-7 text-[#e5f1ff]/75" strokeWidth={1.25} aria-hidden />
+              </WorkflowCardIcon>
+            }
+            onClick={() => navigate("/guide")}
           />
         </div>
       </div>

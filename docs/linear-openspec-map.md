@@ -378,6 +378,8 @@ Epic **WRI-126** closed · archived `openspec/changes/archive/2026-05-25-text-co
 
 **Suggested order for remaining motion increment:** WRI-154 → WRI-155 → WRI-149 → close WRI-145.
 
+**Branch disposition (2026-05-30):** Prototype branch `codex/chat-motion-polish` (`6f2c43b`, `74b82ee`) archived without merge. See `openspec/changes/archive/2026-05-30-chat-motion-polish/retrospective.md`. Production motion lives on `main` via WRI-154/WRI-155 (`composer-welcome-send-motion.ts`, expanded `ChatShellView`).
+
 ## figma-audit-redesign (OpenSpec: `openspec/changes/figma-audit-redesign/`)
 
 **Epic:** [WRI-134](https://linear.app/uicb/issue/WRI-134) — Figma Audit Redesign (v2 UX + audit log + workflow modes + screenshots + writeback flow)
@@ -433,3 +435,39 @@ Root cause: `PlatformStore` accumulates unbounded data (agentRunEvents, auditLog
 | §5 | [WRI-153](https://linear.app/uicb/issue/WRI-153) | Renderer: stabilise onConversationChange with useCallback |
 
 **Suggested order:** WRI-151 → WRI-152 → WRI-153 → close WRI-150
+
+## separate-text-and-figma-audit-workflows (archived OpenSpec: `openspec/changes/archive/2026-05-25-separate-text-and-figma-audit-workflows/`)
+
+**Epic:** [WRI-121](https://linear.app/uicb/issue/WRI-121) — Dedicated Text and Figma Audit workflow entrances
+
+**Status (2026-05-30):** Branch `codex/separate-text-and-figma-audit-workflows` archived **without merge**. Product goals were superseded on `main` by [WRI-126](https://linear.app/uicb/issue/WRI-126) (`/text-copy`) and [WRI-134](https://linear.app/uicb/issue/WRI-134) (`/figma-audit`, `/audits`). OpenSpec artifacts preserved for history only.
+
+Separates the two home-screen jobs without replacing their implemented engines: Text reuses the conversation/attachment flow with mandatory global and optional Product guideline context; Figma Audit reuses review/writeback safety through a Batch Log and independent Detail route.
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.3 | [WRI-122](https://linear.app/uicb/issue/WRI-122) | Optional Text Product contract + batch-level Audit Log contracts and persistence |
+| 2.1–2.4 | [WRI-123](https://linear.app/uicb/issue/WRI-123) | Daemon guideline context, Audit Log API, failed-batch retention, existing writeback safety |
+| 3.1–3.5 | [WRI-124](https://linear.app/uicb/issue/WRI-124) | `/text`, `/figma-audit`, Audit Detail routes; Settings keeps Guidelines and Agents only |
+| 4.1–4.3 | [WRI-125](https://linear.app/uicb/issue/WRI-125) | Documentation, automated verification, manual flow evidence, `/opsx:verify` |
+
+**Dependencies:** Builds on completed [WRI-84](https://linear.app/uicb/issue/WRI-84), [WRI-98](https://linear.app/uicb/issue/WRI-98), and [WRI-112](https://linear.app/uicb/issue/WRI-112).
+
+**Branch order (historical):** WRI-122 → WRI-123 → WRI-124 → WRI-125 → close WRI-121
+
+## enhance-figma-guideline-generation-quality (planned in Linear)
+
+**Epic:** [WRI-202](https://linear.app/uicb/issue/WRI-202) — Figma Guideline Generation Quality Upgrade
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| 1.1–1.4 | [WRI-203](https://linear.app/uicb/issue/WRI-203) | Shared contracts: semantic analysis + Devin settings |
+| 2.1–2.5 | [WRI-204](https://linear.app/uicb/issue/WRI-204) | Persisted Devin model/reasoning settings + daemon APIs |
+| 3.1–3.4 | [WRI-205](https://linear.app/uicb/issue/WRI-205) | Desktop controls for Devin model/reasoning |
+| 4.1–4.4 | [WRI-206](https://linear.app/uicb/issue/WRI-206) | 500-sample candidate package assembly |
+| 5.1–5.5 | [WRI-207](https://linear.app/uicb/issue/WRI-207) | LLM semantic analysis stage |
+| 6.1–6.4 | [WRI-208](https://linear.app/uicb/issue/WRI-208) | Evidence-grounded generation + enriched summary |
+| 7.1–7.2 | [WRI-209](https://linear.app/uicb/issue/WRI-209) | Desktop diagnostics |
+| 8.1–8.5 | [WRI-210](https://linear.app/uicb/issue/WRI-210) | Verification + docs |
+
+**Suggested order:** WRI-203 → WRI-204 → WRI-205 → WRI-206 → WRI-207 → WRI-208 → WRI-209 → WRI-210 → close WRI-202

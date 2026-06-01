@@ -2,10 +2,18 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { resolveDevinModelId } from "@writer/agent-adapters";
 import { PlatformStore } from "@writer/storage";
 import { describe, expect, it } from "vitest";
 
-import { getAgentAdapterList, setActiveAdapter, smokeAgentAdapter, startAgentRun } from "./agents";
+import {
+  getAgentAdapterList,
+  getDevinProviderSettings,
+  setActiveAdapter,
+  smokeAgentAdapter,
+  startAgentRun,
+  updateDevinProviderSettings
+} from "./agents";
 import { createProject, createSession } from "./state";
 import type { DaemonState } from "./state";
 
@@ -105,5 +113,35 @@ describe("agent discovery and runs", () => {
     expect(result.run.status).toBe("completed");
     expect(result.events.some((event) => event.type === "text")).toBe(true);
     expect(state.store.getAgentRun(result.run.id)?.status).toBe("completed");
+  });
+
+  it("persists devin provider settings and reports capability status", async () => {
+    const state = await createTestState();
+
+    const updated = await updateDevinProviderSettings(state, {
+      modelId: "swe-1.6-fast",
+      reasoningPreference: "high"
+    });
+
+    expect(updated.modelId).toBe("swe-1.6");
+    expect(updated.reasoningPreference).toBe("high");
+    expect(updated.reasoningCapabilityStatus).toBe("applied");
+
+    const reloaded = getDevinProviderSettings(state);
+    expect(reloaded.modelId).toBe("swe-1.6");
+    expect(reloaded.reasoningPreference).toBe("high");
+  });
+
+  it("reports pinned swe-1.6 even when store still holds another curated model", async () => {
+    const state = await createTestState();
+    state.store.setDevinProviderSettings({
+      modelId: "gpt-5.4",
+      reasoningPreference: "medium",
+      reasoningCapabilityStatus: "unsupported"
+    });
+
+    const settings = getDevinProviderSettings(state);
+    expect(settings.modelId).toBe("swe-1.6");
+    expect(resolveDevinModelId()).toBe("swe-1.6");
   });
 });

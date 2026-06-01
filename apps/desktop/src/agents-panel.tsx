@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, RotateCw } from "lucide-react";
 import {
   type AgentAdapter,
+  type DevinReasoningPreference,
   type LlmProviderAdapterId,
   type McpServer,
   isLlmProviderAdapterId
@@ -11,6 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/writer/glass-card";
+import {
+  WriterFormField,
+  WriterFormInput,
+  WriterFormSelect,
+  WriterFormStaticValue
+} from "@/components/writer/writer-form-field";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { WriterSwitch } from "@/components/writer/writer-switch";
 import { DaemonStatusInfo } from "@/components/writer/daemon-status-info";
@@ -20,6 +27,12 @@ import type { DaemonClient } from "./daemon-client";
 import type { DaemonStatusView } from "./daemon-status";
 import { SpeedBoostSection } from "./SpeedBoostSection";
 import type { DraftStatus } from "./SpeedBoostSection";
+import {
+  DEVIN_DEFAULT_MODEL_ID,
+  DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED,
+  resolveDevinModelLabel,
+  resolveDevinModelOptions
+} from "./devin-model-options";
 import { isAdapterStatusLoading } from "./agents-runtime";
 import {
   formatConnectionDiagnostic,
@@ -274,6 +287,34 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   // Keep every interactive element enabled while refreshing so nothing flickers to disabled.
   const stableConnected = connected || anyRefreshing;
 
+  const [devinModelId, setDevinModelId] = useState("");
+  const [devinReasoning, setDevinReasoning] = useState<DevinReasoningPreference>("medium");
+  const [devinModelOptions, setDevinModelOptions] = useState<string[]>([]);
+  const [devinModelLabels, setDevinModelLabels] = useState<Record<string, string>>({});
+  const [devinReasoningOptions, setDevinReasoningOptions] = useState<DevinReasoningPreference[]>([]);
+  const [devinSettingsBusy, setDevinSettingsBusy] = useState(false);
+
+  async function loadDevinProviderState() {
+    if (!connected) {
+      return;
+    }
+    try {
+      const settings = await client.getDevinProviderSettings();
+      const options = await client.getDevinProviderOptions();
+      setDevinModelId(settings.modelId);
+      setDevinReasoning(settings.reasoningPreference);
+      setDevinModelOptions(resolveDevinModelOptions(options.modelOptions));
+      setDevinModelLabels(options.modelLabels);
+      setDevinReasoningOptions(options.reasoningOptions);
+    } catch {
+      // best-effort load
+    }
+  }
+
+  useEffect(() => {
+    void loadDevinProviderState();
+  }, [client, connected]);
+
   async function handleRefresh() {
     const start = Date.now();
     setUiRefreshing(true);
@@ -296,6 +337,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     setRefreshingAdapterId(adapterId);
     try {
       await refreshAgentDetection();
+      await loadDevinProviderState();
     } finally {
       const remaining = MIN_REFRESH_MS - (Date.now() - start);
       if (remaining > 0) {
@@ -437,6 +479,23 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     }
   }
 
+  async function saveDevinSettings(next?: { modelId?: string; reasoningPreference?: DevinReasoningPreference }) {
+    if (!connected) {
+      return;
+    }
+    setDevinSettingsBusy(true);
+    try {
+      const updated = await client.updateDevinProviderSettings({
+        modelId: next?.modelId ?? devinModelId,
+        reasoningPreference: next?.reasoningPreference ?? devinReasoning
+      });
+      setDevinModelId(updated.modelId);
+      setDevinReasoning(updated.reasoningPreference);
+    } finally {
+      setDevinSettingsBusy(false);
+    }
+  }
+
   return (
     <WriterPageStack fill>
       <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
@@ -540,6 +599,70 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
 
                     {diagnosticText && adapter.diagnostic?.severity === "error" ? (
                       <ConnectionIssueNotice text={diagnosticText} />
+                    ) : null}
+
+                    {adapter.id === "devin" ? (
+                      <div className="grid w-full grid-cols-1 gap-3 pt-1 md:grid-cols-2">
+                        <WriterFormField label="Model">
+                          {devinModelOptions.length > 0 ? (
+                            <WriterFormSelect
+                              value={devinModelId || DEVIN_DEFAULT_MODEL_ID}
+                              disabled={
+                                !connected ||
+                                devinSettingsBusy ||
+                                DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED
+                              }
+                              displayValue={resolveDevinModelLabel(
+                                devinModelId || DEVIN_DEFAULT_MODEL_ID,
+                                devinModelLabels
+                              )}
+                              options={devinModelOptions.map((model) => ({
+                                value: model,
+                                label: resolveDevinModelLabel(model, devinModelLabels)
+                              }))}
+                              onValueChange={(value) => {
+                                setDevinModelId(value);
+                                void (async () => {
+                                  await saveDevinSettings({ modelId: value });
+                                  await loadDevinProviderState();
+                                })();
+                              }}
+                            />
+                          ) : (
+                            <WriterFormInput
+                              value={devinModelId || DEVIN_DEFAULT_MODEL_ID}
+                              disabled={
+                                !connected ||
+                                devinSettingsBusy ||
+                                DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED
+                              }
+                              onChange={(event) => setDevinModelId(event.target.value)}
+                              onBlur={() => void saveDevinSettings()}
+                              placeholder="swe-1.6"
+                            />
+                          )}
+                        </WriterFormField>
+                        <WriterFormField label="Reasoning level">
+                          {devinReasoningOptions.length > 0 ? (
+                            <WriterFormSelect
+                              value={devinReasoning}
+                              disabled={!connected || devinSettingsBusy}
+                              displayValue={devinReasoning}
+                              options={devinReasoningOptions.map((option) => ({
+                                value: option,
+                                label: option
+                              }))}
+                              onValueChange={(value) => {
+                                const preference = value as DevinReasoningPreference;
+                                setDevinReasoning(preference);
+                                void saveDevinSettings({ reasoningPreference: preference });
+                              }}
+                            />
+                          ) : (
+                            <WriterFormStaticValue>Not supported for this model</WriterFormStaticValue>
+                          )}
+                        </WriterFormField>
+                      </div>
                     ) : null}
                   </GlassCard>
                 );

@@ -125,7 +125,7 @@ export function WriterFormSelect({
   return (
     <GlassCard
       variant="outline"
-      className="writer-form-select-shell flex min-h-[44px] items-center px-4 py-2.5"
+      className="writer-form-select-shell flex h-[44px] min-h-[44px] items-center px-4 py-2.5"
     >
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -161,6 +161,36 @@ export function WriterFormSelect({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+    </GlassCard>
+  );
+}
+
+/** Same shell height as WriterFormSelect — for read-only placeholders (e.g. unsupported options). */
+export function WriterFormStaticValue({
+  children,
+  className,
+  muted = true
+}: {
+  children: ReactNode;
+  className?: string;
+  muted?: boolean;
+}) {
+  return (
+    <GlassCard
+      variant="outline"
+      className={cn(
+        "writer-form-select-shell writer-form-static-value flex h-[44px] min-h-[44px] items-center px-4 py-2.5",
+        className
+      )}
+    >
+      <span
+        className={cn(
+          "writer-form-select-trigger-label min-w-0 flex-1 truncate text-left",
+          muted && "writer-form-select-trigger-label--placeholder"
+        )}
+      >
+        {children}
+      </span>
     </GlassCard>
   );
 }

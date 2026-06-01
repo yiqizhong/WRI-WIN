@@ -7,6 +7,10 @@ import { AuditsRouteLayout } from "./layout/audits-route-layout";
 import { AuditDetailScreen } from "./screens/audit-detail-screen";
 import { AuditsListScreen } from "./screens/audits-list-screen";
 import { FigmaAuditScreen } from "./screens/figma-audit-screen";
+import { FigmaGuidelineGeneratorScreen } from "./screens/figma-guideline-generator-screen";
+import { GuidelineDetailScreen } from "./screens/guideline-detail-screen";
+import { GuidelinesListScreen } from "./screens/guidelines-list-screen";
+import { GuidelinesRouteLayout } from "./layout/guidelines-route-layout";
 import { HomeScreen } from "./screens/home-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { TextCopyScreen } from "./screens/text-copy-screen";
@@ -20,6 +24,11 @@ function RoutedApp() {
       <Routes>
         <Route path="/" element={<HomeScreen />} />
         <Route path="/figma-audit" element={<FigmaAuditScreen />} />
+        <Route path="/guide" element={<FigmaGuidelineGeneratorScreen />} />
+        <Route path="/guide/log" element={<GuidelinesRouteLayout />}>
+          <Route index element={<GuidelinesListScreen />} />
+          <Route path=":sessionId" element={<GuidelineDetailScreen />} />
+        </Route>
         <Route path="/audits" element={<AuditsRouteLayout />}>
           <Route index element={<AuditsListScreen />} />
           <Route path=":sessionId" element={<AuditDetailScreen />} />

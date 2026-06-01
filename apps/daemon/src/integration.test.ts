@@ -163,7 +163,12 @@ describe("daemon integration smoke", () => {
 
         return {
           ok: false,
-          diagnostic: { code: "unsupported_source", severity: "error", message: "unsupported" }
+          diagnostic: {
+            code: "tool_not_found",
+            severity: "error",
+            message: "unsupported",
+            recoveryAction: "Use a supported Figma MCP tool."
+          }
         };
       },
       finishAuth: async () => ({ ok: true }),

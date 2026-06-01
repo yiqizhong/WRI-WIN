@@ -53,6 +53,7 @@ export type WorkspaceContextValue = {
   parsedFigmaScope: string | null;
   refreshQueue: () => Promise<void>;
   runAudit: (sessionId?: string) => Promise<boolean>;
+  runGuidelineGeneration: (sessionId: string) => Promise<boolean>;
   runFigmaAudit: () => Promise<boolean>;
   importSpreadsheet: () => Promise<void>;
   createSpreadsheetSession: () => Promise<void>;
@@ -176,6 +177,45 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       setWorkflowRecovery(null);
       setWorkflowMessage(error instanceof DaemonClientError ? error.message : "Audit run failed.");
+      return false;
+    }
+  }
+
+  async function runGuidelineGeneration(sessionId: string): Promise<boolean> {
+    setWorkflowMessage(null);
+    setWorkflowRecovery(null);
+
+    try {
+      const result = await daemonClient.generateFigmaGuideline({
+        sessionId,
+        maxCandidates: 500
+      });
+
+      if (!result.ok) {
+        const diagnosticMessage = result.diagnostic
+          ? (formatConnectionDiagnostic(result.diagnostic) ?? result.diagnostic.message)
+          : "Guideline generation failed.";
+        setWorkflowMessage(diagnosticMessage);
+
+        if (result.diagnostic?.code === "mcp_not_ready") {
+          setWorkflowRecovery({ label: "Connect Figma", path: "/agents" });
+        }
+
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const message =
+        error instanceof DaemonClientError ? error.message : "Guideline generation failed.";
+
+      try {
+        await daemonClient.abandonFigmaGuidelineGeneration({ sessionId, message });
+      } catch {
+        // Best-effort: generation may have already finished on the daemon.
+      }
+
+      setWorkflowMessage(message);
       return false;
     }
   }
@@ -545,6 +585,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     parsedFigmaScope,
     refreshQueue,
     runAudit,
+    runGuidelineGeneration,
     runFigmaAudit,
     importSpreadsheet,
     createSpreadsheetSession,

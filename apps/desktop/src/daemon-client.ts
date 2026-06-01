@@ -5,6 +5,8 @@ import {
   parseAgentSmokeResult,
   parseDaemonHealth,
   parseDirectoryListing,
+  parseDevinProviderSettings,
+  parseDevinRuntimeOptions,
   parseGlossaryList,
   parseGuideline,
   parseGuidelineList,
@@ -20,6 +22,7 @@ import {
   parsePasteTextMessageResult,
   parseProject,
   parseProjectList,
+  parseFigmaGuidelineGenerationResponse,
   parseListPageFramesResponse,
   parseReviewSession,
   parseReviewSessionList,
@@ -32,6 +35,7 @@ import {
   type AgentRunResult,
   type ChangeStatus,
   type DirectoryListing,
+  type DevinRuntimeOptions,
   type GlossaryList,
   type Guideline,
   type GuidelineList,
@@ -39,6 +43,7 @@ import {
   type GuidelineSnapshot,
   type LocalModelStatusResponse,
   type ProductPackage,
+  type FigmaGuidelineGenerationResponse,
   type ParsedFigmaUrl,
   type PasteTextConversation,
   type PasteTextMessageResult,
@@ -95,10 +100,29 @@ function throwDaemonResponseError(response: Response, payload: unknown): never {
 }
 
 function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 60_000): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (timeoutMs <= 0) {
+    return fetch(url, init);
+  }
 
-  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort(
+      new DOMException(`Request timed out after ${Math.round(timeoutMs / 1000)} seconds.`, "TimeoutError")
+    );
+  }, timeoutMs);
+
+  return fetch(url, { ...init, signal: controller.signal })
+    .catch((error: unknown) => {
+      if (error instanceof Error && error.name === "AbortError") {
+        const seconds = Math.round(timeoutMs / 1000);
+        throw new DaemonClientError(
+          "timeout",
+          `The request took longer than ${seconds} seconds and was cancelled. If you were generating guidelines, wait and try again — Devin analysis can take several minutes.`
+        );
+      }
+      throw error;
+    })
+    .finally(() => clearTimeout(timer));
 }
 
 async function request<T>(
@@ -358,6 +382,26 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseReviewSession
       ),
 
+    generateFigmaGuideline: (input: { sessionId: string; adapterId?: string; maxCandidates?: number }) =>
+      request(
+        baseUrl,
+        "/guidelines/generate/figma",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseFigmaGuidelineGenerationResponse,
+        0
+      ) as Promise<FigmaGuidelineGenerationResponse>,
+
+    abandonFigmaGuidelineGeneration: (input: { sessionId: string; message?: string }) =>
+      request<{ ok: true; sessionId: string }>(baseUrl, "/guidelines/generate/figma/abandon", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }),
+
     exportSpreadsheet: (input: { sessionId: string; outputPath: string; mapping?: Record<string, unknown> }) =>
       request<{ outputPath: string; rowCount: number }>(baseUrl, "/spreadsheet/export", {
         method: "POST",
@@ -408,6 +452,32 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
           body: JSON.stringify({ adapterId })
         },
         parseAgentAdapterList
+      ),
+
+    getDevinProviderSettings: () =>
+      request(baseUrl, "/agents/providers/devin", undefined, parseDevinProviderSettings),
+
+    getDevinProviderOptions: () =>
+      request<DevinRuntimeOptions>(
+        baseUrl,
+        "/agents/providers/devin/options",
+        undefined,
+        parseDevinRuntimeOptions
+      ),
+
+    updateDevinProviderSettings: (input: {
+      modelId?: string;
+      reasoningPreference?: "off" | "low" | "medium" | "high";
+    }) =>
+      request(
+        baseUrl,
+        "/agents/providers/devin",
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(input)
+        },
+        parseDevinProviderSettings
       ),
 
     getAgentRun: (runId: string) =>

@@ -1,9 +1,9 @@
 import type { ReviewSession } from "@writer/contracts";
 
-export type AuditRunStatusVariant = "in_progress" | "done" | "failed";
+export type AuditRunStatusVariant = "in_progress" | "done" | "failed" | "pending";
 
 export type AuditRunStatus = {
-  label: "In Progress" | "Done" | "Fail";
+  label: "In Progress" | "Done" | "Fail" | "Not started";
   variant: AuditRunStatusVariant;
 };
 
@@ -18,6 +18,8 @@ export function auditRunStatusBadgeClassName(variant: AuditRunStatusVariant): st
       return `${base} writer-audit-status-badge--in-progress`;
     case "failed":
       return `${base} writer-audit-status-badge--failed`;
+    case "pending":
+      return `${base} writer-audit-status-badge--neutral`;
   }
 }
 
@@ -115,5 +117,14 @@ export function deriveWritebackDisplay(session: ReviewSession): WritebackDisplay
 }
 
 export function isFigmaAuditSession(session: ReviewSession): boolean {
+  const scope = session.scope as Record<string, unknown> | undefined;
+  if (scope?.workflow === "figma_guideline_generation") {
+    return false;
+  }
+
+  if (session.description?.startsWith("Writing guidelines for")) {
+    return false;
+  }
+
   return session.sourceType === "figma" && Boolean(session.featureName);
 }

@@ -57,7 +57,7 @@ export function usePasteTextChatRuntime({
   const stickToBottomRef = useRef(true);
   const submittingRef = useRef(false);
   const welcomeSendTransitionRef = useRef(false);
-  const welcomeThinkingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const welcomeThinkingTimerRef = useRef<number | null>(null);
 
   const clearWelcomeThinkingTimer = useCallback(() => {
     if (welcomeThinkingTimerRef.current !== null) {
@@ -74,7 +74,7 @@ export function usePasteTextChatRuntime({
   const scheduleWelcomeThinking = useCallback(() => {
     clearWelcomeThinkingTimer();
     setWelcomeThinkingVisible(false);
-    welcomeThinkingTimerRef.current = setTimeout(() => {
+    welcomeThinkingTimerRef.current = window.setTimeout(() => {
       welcomeThinkingTimerRef.current = null;
       setWelcomeThinkingVisible(true);
     }, WELCOME_THINKING_VISIBLE_MS);

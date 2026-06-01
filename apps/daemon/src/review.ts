@@ -92,6 +92,10 @@ export async function createPastedTextSession(state: DaemonState, input: unknown
 export async function createFigmaReviewSession(state: DaemonState, input: unknown): Promise<ReviewSession> {
   const parsed = parseCreateFigmaSessionInput(input);
 
+  const guidelineWorkflow = parsed.description.startsWith("Writing guidelines for")
+    ? { workflow: "figma_guideline_generation" as const }
+    : {};
+
   if (parsed.mode === "single_frame") {
     const figma = parseFigmaUrl(parsed.url);
 
@@ -106,7 +110,8 @@ export async function createFigmaReviewSession(state: DaemonState, input: unknow
         url: parsed.url,
         fileKey: figma.fileKey,
         nodeId: figma.nodeId,
-        suggestedScope: figma.suggestedScope
+        suggestedScope: figma.suggestedScope,
+        ...guidelineWorkflow
       }
     });
   }
@@ -126,7 +131,8 @@ export async function createFigmaReviewSession(state: DaemonState, input: unknow
         nodeIds: parsed.nodeIds,
         flowName: parsed.flowName,
         nodeNames: parsed.nodeNames
-      }
+      },
+      ...guidelineWorkflow
     }
   });
 }
