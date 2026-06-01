@@ -103,14 +103,14 @@ export async function getAgentAdapterList(
 
   // Prefer LLM provider adapters as the auto-selected fallback; local models
   // are not selected automatically since they require explicit user download.
+  //
+  // Listing is a read: surface a fallback for display when nothing is stored,
+  // but never persist it. Persisting here let a slow background list race a
+  // user's selection and silently pin the fallback. `setActiveAdapter` (the
+  // explicit POST) is the only writer of the active adapter.
   const fallback =
     adapters.find((a) => a.available && isLlmProviderAdapterId(a.id))?.id ?? null;
   const activeAdapterId = storedActive ?? fallback;
-
-  if (!storedActive && activeAdapterId) {
-    state.store.setActiveAdapterId(activeAdapterId);
-    await state.store.save();
-  }
 
   return { adapters, activeAdapterId: activeAdapterId ?? null };
 }

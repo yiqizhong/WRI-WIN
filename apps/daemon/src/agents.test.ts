@@ -46,6 +46,28 @@ describe("agent discovery and runs", () => {
     expect(list.activeAdapterId).toBeTruthy();
   });
 
+  it("does not persist a fallback active adapter as a side effect of listing", async () => {
+    // Listing adapters is a read. It may surface a fallback for display, but it
+    // must not write that fallback to the store — otherwise a slow background
+    // list can race a user's selection and silently pin the fallback.
+    const state = await createTestState();
+    expect(state.store.getActiveAdapterId()).toBeNull();
+
+    await getAgentAdapterList(state);
+
+    expect(state.store.getActiveAdapterId()).toBeNull();
+  });
+
+  it("does not overwrite an explicit selection when listing afterwards", async () => {
+    const state = await createTestState();
+    await setActiveAdapter(state, { adapterId: "devin" });
+
+    const list = await getAgentAdapterList(state);
+
+    expect(list.activeAdapterId).toBe("devin");
+    expect(state.store.getActiveAdapterId()).toBe("devin");
+  });
+
   it("persists active adapter across reload", async () => {
     const state = await createTestState();
     await setActiveAdapter(state, { adapterId: "devin" });

@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { createDefaultAgentRegistry } from "./index";
 
 describe("AgentAdapterRegistry", () => {
-  it("registers echo and provider adapters", async () => {
+  // Detection spawns real `where`/CLI subprocesses for echo, cursor-agent and
+  // devin; under full-suite parallelism this can exceed the 5s default.
+  it("registers echo and provider adapters", { timeout: 20_000 }, async () => {
     const registry = createDefaultAgentRegistry();
     const adapters = registry.list();
 

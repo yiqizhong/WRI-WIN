@@ -107,6 +107,24 @@ export function applyAgentAdapterList(
   };
 }
 
+/**
+ * Decide the active adapter id after a background agent-list load resolves.
+ *
+ * Guards the race where a slow `listAgents()` started before the user picked a
+ * provider resolves afterwards carrying a stale (load-time) active id. Once the
+ * user has made an explicit choice, that choice wins over the late load.
+ */
+export function resolveActiveAfterLoad(input: {
+  loadedActiveId: string | null;
+  currentActiveId: string | null;
+  userHasChosen: boolean;
+}): string | null {
+  if (input.userHasChosen) {
+    return input.currentActiveId;
+  }
+  return input.loadedActiveId;
+}
+
 export function isAdapterStatusLoading(
   adapter: AgentAdapter,
   loadState: AgentsLoadState,
