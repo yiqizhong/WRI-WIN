@@ -124,7 +124,7 @@ html[data-platform="win32"] .writer-window-frame::before {
 }
 
 html[data-platform="win32"] .writer-window-frame__glass {
-  --writer-tint-opacity: 0.92;
+  --writer-tint-opacity: 1;
   --writer-tint-saturate: 1.02;
 }
 

@@ -57,7 +57,7 @@ function getMainWindowOptions() {
        */
       transparent: false,
       backgroundColor: "#00000000",
-      backgroundMaterial: "acrylic",
+      backgroundMaterial: "mica",
       roundedCorners: true,
       hasShadow: true,
       acceptFirstMouse: true
@@ -84,7 +84,7 @@ function createMainWindow() {
       window.setBackgroundColor("#00000000");
       window.setWindowButtonVisibility(false);
     } else if (process.platform === "win32") {
-      window.setBackgroundMaterial("acrylic");
+      window.setBackgroundMaterial("mica");
       window.setBackgroundColor("#00000000");
       // setBackgroundMaterial resets the DWM border to default gray — re-apply blue last.
       applyBorderColorEffect(window);

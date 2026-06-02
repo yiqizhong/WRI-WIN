@@ -2,7 +2,7 @@
 export const DEVIN_DEFAULT_MODEL_ID = "swe-1.6";
 
 /** When true, the Agents panel shows the model picker but does not allow changes. */
-export const DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED = true;
+export const DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED = false;
 
 export const DEVIN_CURATED_MODEL_IDS = [
   "claude-sonnet-4.6",
@@ -29,6 +29,14 @@ export const DEVIN_MODEL_LABELS: Record<(typeof DEVIN_CURATED_MODEL_IDS)[number]
   "gpt-5.5": "ChatGPT 5.5",
   "swe-1.6": "SWE 1.6 (free)"
 };
+
+const DEVIN_REASONING_LABELS: Partial<Record<string, string>> = {
+  off: "off (free)"
+};
+
+export function resolveDevinReasoningLabel(option: string): string {
+  return DEVIN_REASONING_LABELS[option] ?? option;
+}
 
 export function resolveDevinModelOptions(_apiOptions: string[]): string[] {
   return [...DEVIN_CURATED_MODEL_IDS];

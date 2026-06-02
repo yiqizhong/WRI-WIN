@@ -46,7 +46,7 @@ const DEFAULT_DEVIN_MODEL = "swe-1.6";
  * (no personal ACU on the Dell Windsurf plan). Re-enable model picker in the
  * Agents UI when this flag is false.
  */
-export const DEVIN_MODEL_TEMPORARILY_PINNED = true;
+export const DEVIN_MODEL_TEMPORARILY_PINNED = false;
 
 export const PINNED_DEVIN_MODEL_ID = DEFAULT_DEVIN_MODEL;
 

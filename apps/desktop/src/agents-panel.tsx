@@ -29,7 +29,8 @@ import {
   DEVIN_DEFAULT_MODEL_ID,
   DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED,
   resolveDevinModelLabel,
-  resolveDevinModelOptions
+  resolveDevinModelOptions,
+  resolveDevinReasoningLabel
 } from "./devin-model-options";
 import { isAdapterStatusLoading } from "./agents-runtime";
 import {
@@ -91,92 +92,6 @@ function LlmLogo({ adapter }: { adapter: AgentAdapter }) {
 }
 
 const FIGMA_MCP_LOGO = "/mcp-server-logos/figma.png";
-
-const DEMO_TOTAL = 8_589_934_592; // 8 GB
-
-function DownloadProgressDemo() {
-  const [phase, setPhase] = useState<"idle" | "downloading">("idle");
-  const [downloaded, setDownloaded] = useState(0);
-
-  useEffect(() => {
-    if (phase !== "downloading") return;
-    setDownloaded(0);
-    const step = DEMO_TOTAL / 80;
-    const id = setInterval(() => {
-      setDownloaded((prev) => {
-        const next = prev + step;
-        if (next >= DEMO_TOTAL) {
-          clearInterval(id);
-          setTimeout(() => { setPhase("idle"); setDownloaded(0); }, 800);
-          return DEMO_TOTAL;
-        }
-        return next;
-      });
-    }, 200);
-    return () => clearInterval(id);
-  }, [phase]);
-
-  const pct = Math.round((downloaded / DEMO_TOTAL) * 100);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium tracking-wide text-[#e5f1ff]/40 uppercase">
-        Download progress — demo
-      </p>
-      <GlassCard className="flex min-h-0 w-full flex-col gap-3 p-4">
-        <div className={rowBetween}>
-          <div className="flex min-w-0 items-center gap-3">
-            <img
-              src="/local-model-logos/gemma.png"
-              alt=""
-              aria-hidden
-              draggable={false}
-              className="size-6 shrink-0 object-contain"
-            />
-            <Label className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal">
-              Gemma 4 E4B
-            </Label>
-            <span className="shrink-0 text-xs text-[#e5f1ff]/40">
-              {formatBytes(DEMO_TOTAL)}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {phase === "idle" ? (
-              <WriterPrimaryButton
-                className={hugWidth}
-                onClick={() => setPhase("downloading")}
-              >
-                Download
-              </WriterPrimaryButton>
-            ) : (
-              <Badge variant="secondary" className={hugWidth}>
-                Downloading
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {phase === "downloading" && (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex w-full items-center gap-1">
-              <div
-                className="h-[3.8px] min-w-px rounded-[0.95px] bg-[linear-gradient(to_right,#3b4df2,#bafde6_94.712%,white)] transition-[flex] duration-200 ease-linear"
-                style={{ flex: pct }}
-              />
-              <div
-                className="h-[3.8px] min-w-px rounded-[0.95px] bg-[#666] transition-[flex] duration-200 ease-linear"
-                style={{ flex: 100 - pct }}
-              />
-            </div>
-            <span className="text-xs text-[#e5f1ff]/50">
-              {formatBytes(downloaded)} / {formatBytes(DEMO_TOTAL)}
-            </span>
-          </div>
-        )}
-      </GlassCard>
-    </div>
-  );
-}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -629,8 +544,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         <WriterPageGridHalf fillHeight>
           <WriterPageStack gap={3}>
             <WriterSectionHeader
-              title="LLM providers"
-              description="Select the model provider for content review and generation."
+              title="Cloud LLM"
+              description="Connect a cloud model — powers content review and generation."
             />
 
             <fieldset className="flex min-h-0 flex-col gap-3">
@@ -748,10 +663,10 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             <WriterFormSelect
                               value={devinReasoning}
                               disabled={!connected || devinSettingsBusy}
-                              displayValue={devinReasoning}
+                              displayValue={resolveDevinReasoningLabel(devinReasoning)}
                               options={devinReasoningOptions.map((option) => ({
                                 value: option,
-                                label: option
+                                label: resolveDevinReasoningLabel(option)
                               }))}
                               onValueChange={(value) => {
                                 const preference = value as DevinReasoningPreference;
@@ -774,7 +689,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
           <div className="mt-8">
           <WriterPageStack gap={3}>
             <WriterSectionHeader
-              title="Local models"
+              title="Local LLM"
               description="Run inference on-device — no cloud API required."
             />
 
@@ -892,9 +807,6 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                 );
               })}
             </fieldset>
-
-            {/* DEMO — remove once real download progress is validated */}
-            <DownloadProgressDemo />
 
           </WriterPageStack>
           </div>
