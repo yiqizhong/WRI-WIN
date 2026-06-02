@@ -110,7 +110,17 @@ export async function generateFigmaGuideline(
     stage: "extracting_figma",
     message: "Reading text from Figma…"
   });
-  const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state));
+  let lastProgressMs = 0;
+  const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state), ({ completed, total }) => {
+    const now = Date.now();
+    if (now - lastProgressMs >= 1000) {
+      lastProgressMs = now;
+      void updateGuidelineGenerationProgress(state, session, {
+        stage: "extracting_figma",
+        message: `Reading text from Figma… ${completed} / ${total}`
+      });
+    }
+  });
 
   if (!extraction.ok) {
     return finish(failureResponse(parsed.sessionId, extraction.diagnostic));
