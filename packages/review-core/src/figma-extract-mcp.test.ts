@@ -463,7 +463,7 @@ describe("extractFigmaTextNodesViaMcp", () => {
 
     expect(progressValues).toHaveLength(3);
     expect(progressValues.every((p) => p.total === 3)).toBe(true);
-    expect(progressValues.map((p) => p.completed).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(progressValues.map((p) => p.completed)).toEqual([1, 2, 3]);
   });
 
   it("completes without error when no onProgress callback is provided", async () => {

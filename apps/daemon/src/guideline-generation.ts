@@ -111,6 +111,9 @@ export async function generateFigmaGuideline(
     message: "Reading text from Figma…"
   });
   let lastProgressMs = 0;
+  // Best-effort progress ticks: fire-and-forget, throttled to ~1/s.
+  // `session` snapshot is intentionally stable here — only progressMessage changes
+  // during extraction, and the returned session is picked up by the await below.
   const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state), ({ completed, total }) => {
     const now = Date.now();
     if (now - lastProgressMs >= 1000) {
