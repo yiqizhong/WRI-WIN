@@ -14,8 +14,8 @@ type Material = "none" | "mica" | "acrylic" | "tabbed";
  * and bake the ones you like into writer-window-background.css.
  */
 export function BackdropTuner() {
-  const [open, setOpen] = useState(true);
-  const [opacity, setOpacity] = useState(1);
+  const [open, setOpen] = useState(false);
+  const [opacity, setOpacity] = useState(0.92);
   const [material, setMaterial] = useState<Material>("mica");
 
   useEffect(() => {
