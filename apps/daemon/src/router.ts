@@ -10,15 +10,38 @@ import { handlePlatformRequest } from "./routes/platform";
 import { handleReviewRequest } from "./routes/review";
 import { createDaemonState, type DaemonState } from "./state";
 
-function applyDevCors(response: ServerResponse): void {
-  response.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5173");
+const DEFAULT_DEV_ORIGIN = "http://127.0.0.1:5173";
+const LOCAL_DEV_HOSTS = new Set(["127.0.0.1", "localhost"]);
+
+function resolveDevCorsOrigin(origin: string | string[] | undefined): string {
+  const candidate = Array.isArray(origin) ? origin[0] : origin;
+
+  if (!candidate) {
+    return DEFAULT_DEV_ORIGIN;
+  }
+
+  try {
+    const url = new URL(candidate);
+
+    if (url.protocol === "http:" && url.port && LOCAL_DEV_HOSTS.has(url.hostname)) {
+      return candidate;
+    }
+  } catch {
+    // Fall back to the default dev origin below.
+  }
+
+  return DEFAULT_DEV_ORIGIN;
+}
+
+function applyDevCors(request: IncomingMessage, response: ServerResponse): void {
+  response.setHeader("Access-Control-Allow-Origin", resolveDevCorsOrigin(request.headers.origin));
   response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "content-type");
 }
 
 export function createRequestHandler(config: DaemonConfig, state: DaemonState) {
   return (request: IncomingMessage, response: ServerResponse) => {
-    applyDevCors(response);
+    applyDevCors(request, response);
 
     if (request.method === "OPTIONS") {
       response.writeHead(204);
