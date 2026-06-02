@@ -36,8 +36,8 @@ import {
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
-const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES) || 500;
-const EXTRACTION_CONCURRENCY = Number(process.env.WRITER_FIGMA_READ_CONCURRENCY) || 8;
+const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES ?? 500);
+const EXTRACTION_CONCURRENCY = Number(process.env.WRITER_FIGMA_READ_CONCURRENCY ?? 8);
 
 function textNodeFromRef(
   ref: MetadataTextRef,
