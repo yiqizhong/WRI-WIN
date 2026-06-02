@@ -178,10 +178,25 @@ app.whenReady().then(async () => {
     await ensureDaemonRunning();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    dialog.showErrorBox(
-      "Writer daemon",
-      `${message}\n\nYou can start it manually with: npm run dev:daemon`
-    );
+    const os = require("node:os");
+    const logDir =
+      process.env.WRITER_DAEMON_LOG_DIR || path.join(os.homedir(), ".writer", "logs");
+    const { response } = await dialog.showMessageBox({
+      type: "error",
+      title: "Writer",
+      message: "Writer's background service didn't start",
+      detail:
+        `${message}\n\n` +
+        `Reopen Writer to try again. If it keeps happening, send these log files to support:\n` +
+        `${path.join(logDir, "daemon.log")}\n` +
+        `${path.join(logDir, "daemon-spawn.log")}`,
+      buttons: ["Open logs folder", "OK"],
+      defaultId: 1,
+      cancelId: 1
+    });
+    if (response === 0) {
+      await shell.openPath(logDir);
+    }
   }
 
   createWindow();

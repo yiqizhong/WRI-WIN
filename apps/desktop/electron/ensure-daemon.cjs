@@ -1,5 +1,7 @@
 const { spawn, execSync } = require("node:child_process");
 const { createRequire } = require("node:module");
+const fs = require("node:fs");
+const os = require("node:os");
 const http = require("node:http");
 const path = require("node:path");
 const { app } = require("electron");
@@ -25,9 +27,29 @@ const pollIntervalMs = 250;
 let managedChild = null;
 let spawnedByDesktop = false;
 
+// Desktop-side daemon lifecycle log. In a packaged GUI build the Electron
+// process has no visible console, so console output (and the daemon child's
+// piped stderr) is lost. Persisting it next to the daemon's own log gives a
+// single place to read when "Daemon did not become ready" appears.
+const spawnLogDir = process.env.WRITER_DAEMON_LOG_DIR ?? path.join(os.homedir(), ".writer", "logs");
+const spawnLogFile = path.join(spawnLogDir, "daemon-spawn.log");
+
+function appendSpawnLog(text) {
+  try {
+    fs.mkdirSync(spawnLogDir, { recursive: true });
+    fs.appendFileSync(spawnLogFile, text, "utf8");
+  } catch {
+    // Best-effort: never let logging break daemon startup.
+  }
+}
+
 function log(message, meta) {
   const suffix = meta ? ` ${JSON.stringify(meta)}` : "";
-  console.log(`[writer-desktop] ${message}${suffix}`);
+  const line = `[writer-desktop] ${message}${suffix}`;
+  console.log(line);
+  appendSpawnLog(
+    `${JSON.stringify({ timestamp: new Date().toISOString(), message, ...(meta ? { meta } : {}) })}\n`
+  );
 }
 
 function fetchHealth() {
@@ -167,6 +189,16 @@ function spawnDaemon() {
 
   if (app.isPackaged) {
     const { nodePath, daemonBundle } = resolvePackagedDaemon();
+    // Fail loudly with an actionable message if the bundled runtime is missing
+    // (e.g. an incomplete build, or antivirus quarantined node.exe). Without
+    // this, a missing file surfaces only as the generic 30s timeout.
+    for (const [label, target] of [["node runtime", nodePath], ["daemon bundle", daemonBundle]]) {
+      if (!fs.existsSync(target)) {
+        const message = `Packaged ${label} is missing at ${target}`;
+        log(message);
+        throw new Error(message);
+      }
+    }
     executable = nodePath;
     args = [daemonBundle];
     cwd = path.dirname(daemonBundle);
@@ -182,6 +214,8 @@ function spawnDaemon() {
     cwd = daemonDir;
     useShell = process.platform === "win32";
   }
+
+  log("Spawning daemon", { executable, args, cwd, packaged: app.isPackaged });
 
   const child = spawn(executable, args, {
     cwd,
@@ -208,15 +242,21 @@ function spawnDaemon() {
 
   child.on("error", (error) => {
     // Without this handler a spawn failure (e.g. EINVAL launching the tsx
-    // shim) is swallowed and the daemon silently never starts.
-    log("Managed daemon failed to spawn", { message: error.message });
+    // shim, or ENOENT / antivirus block on the packaged node.exe) is swallowed
+    // and the daemon silently never starts.
+    log("Managed daemon failed to spawn", { message: error.message, code: error.code });
   });
 
+  // Mirror the daemon's own stdout/stderr into the persisted spawn log. This is
+  // the only place a pre-listen crash stack (printed via console.error in the
+  // daemon) is captured in a packaged build with no visible console.
   child.stdout?.on("data", (chunk) => {
     process.stdout.write(chunk);
+    appendSpawnLog(chunk.toString());
   });
   child.stderr?.on("data", (chunk) => {
     process.stderr.write(chunk);
+    appendSpawnLog(chunk.toString());
   });
   child.on("exit", (code, signal) => {
     if (managedChild === child) {

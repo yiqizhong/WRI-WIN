@@ -1,3 +1,7 @@
+import { appendFileSync, mkdirSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
 
 import { loadDaemonConfig } from "./config";
@@ -52,7 +56,36 @@ async function startDaemon() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
+/**
+ * Persist a startup failure to disk. A crash before the HTTP server starts
+ * listening (e.g. EADDRINUSE, unwritable data dir) otherwise only reaches
+ * stderr, which is invisible in a packaged desktop build — leaving the
+ * "Daemon did not become ready" dialog with no captured cause. Best-effort:
+ * try the configured log dir, then a tmp fallback in case the data dir itself
+ * is what's unwritable.
+ */
+function persistStartupFailure(error: unknown): void {
+  const line = `[writer-daemon] ${JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: "error",
+    message: "Failed to start",
+    meta: { error: error instanceof Error ? (error.stack ?? error.message) : String(error) }
+  })}\n`;
+
+  const logDir = process.env.WRITER_DAEMON_LOG_DIR ?? join(homedir(), ".writer", "logs");
+  for (const dir of [logDir, join(tmpdir(), "writer-logs")]) {
+    try {
+      mkdirSync(dir, { recursive: true });
+      appendFileSync(join(dir, "daemon.log"), line, "utf8");
+      return;
+    } catch {
+      // Try the next location.
+    }
+  }
+}
+
 startDaemon().catch((error: unknown) => {
   console.error("[writer-daemon] Failed to start", error);
+  persistStartupFailure(error);
   process.exit(1);
 });
