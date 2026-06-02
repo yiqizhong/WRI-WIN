@@ -438,8 +438,9 @@ describe("extractFigmaTextNodesViaMcp", () => {
     // All 10 results returned
     expect(result.extraction.nodes).toHaveLength(10);
 
-    // Peak concurrency must not exceed 8
+    // Peak concurrency must not exceed 8, and must have actually run concurrently
     expect(peakConcurrency).toBeLessThanOrEqual(8);
+    expect(peakConcurrency).toBeGreaterThanOrEqual(2);
 
     // Results must be in original order (node IDs match metadata order: t:0..t:9)
     const ids = result.extraction.nodes.map((n) => n.id);

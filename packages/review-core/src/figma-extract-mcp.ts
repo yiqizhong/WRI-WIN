@@ -126,7 +126,9 @@ export async function extractFigmaTextNodesViaMcp(
       ? await scanInstanceTextNodes(scope, instanceRefs, textRefs, mcpCaller)
       : [];
 
-  // Merge metadata-derived refs and instance-scanned nodes (as refs) before looping.
+  // Merge refs for cap counting. Instance-scanned nodes already have characters
+  // resolved by the frame scan — cache them so the pool can skip redundant MCP calls.
+  const scannedById = new Map(scannedFromInstances.map((n) => [n.id, n]));
   const allRefs: MetadataTextRef[] = [
     ...textRefs,
     ...scannedFromInstances.map((n) => ({
@@ -150,16 +152,16 @@ export async function extractFigmaTextNodesViaMcp(
     });
   }
 
-  const results = new Array<FigmaTextNode>(cappedRefs.length);
+  const nodes = new Array<FigmaTextNode>(cappedRefs.length);
   let index = 0;
   async function worker() {
     while (index < cappedRefs.length) {
       const i = index++;
-      results[i] = await buildTextNode(scope, cappedRefs[i], mcpCaller);
+      const ref = cappedRefs[i];
+      nodes[i] = scannedById.get(ref.id) ?? await buildTextNode(scope, ref, mcpCaller);
     }
   }
   await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));
-  const nodes = results;
 
   const extraction: FigmaTextExtraction = {
     scope,
