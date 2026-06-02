@@ -15,7 +15,7 @@ type Material = "none" | "mica" | "acrylic" | "tabbed";
  */
 export function BackdropTuner() {
   const [open, setOpen] = useState(true);
-  const [opacity, setOpacity] = useState(0.92);
+  const [opacity, setOpacity] = useState(1);
   const [material, setMaterial] = useState<Material>("mica");
 
   useEffect(() => {
