@@ -99,7 +99,7 @@ export function HomeScreen() {
       <div className="flex -translate-y-[108px] flex-col gap-16">
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
-            <span>Hi, Yiqi</span>
+            <span>Hi,</span>
             <span>{greeting()}</span>
           </div>
           <div className="writer-home-divider" aria-hidden />

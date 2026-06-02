@@ -533,13 +533,15 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
             </span>
           </div>
         </div>
-        <WriterPrimaryButton
-          className={hugWidth}
-          disabled={anyRefreshing}
-          onClick={() => void handleRefresh()}
-        >
-          {anyRefreshing ? "Refreshing…" : "Refresh"}
-        </WriterPrimaryButton>
+        {(!connected || anyRefreshing) && (
+          <WriterPrimaryButton
+            className={hugWidth}
+            disabled={anyRefreshing}
+            onClick={() => void handleRefresh()}
+          >
+            {anyRefreshing ? "Refreshing…" : "Refresh"}
+          </WriterPrimaryButton>
+        )}
       </GlassCard>
 
       <WriterPageGrid className="min-h-0 flex-1 overflow-visible grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
@@ -590,25 +592,27 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         </Label>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="writer-chat-toolbar-btn"
-                          aria-label="Refresh connection"
-                          disabled={!stableConnected || refreshingAdapterId === adapter.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void refreshAdapter(adapter.id);
-                          }}
-                        >
-                          <RotateCw
-                            className={classNames(
-                              "size-4",
-                              refreshingAdapterId === adapter.id && "animate-spin"
-                            )}
-                          />
-                        </Button>
+                        {status.type !== "green" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="writer-chat-toolbar-btn"
+                            aria-label="Refresh connection"
+                            disabled={!stableConnected || refreshingAdapterId === adapter.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void refreshAdapter(adapter.id);
+                            }}
+                          >
+                            <RotateCw
+                              className={classNames(
+                                "size-4",
+                                refreshingAdapterId === adapter.id && "animate-spin"
+                              )}
+                            />
+                          </Button>
+                        )}
                         <Badge variant={tagVariant(status.type)} className={hugWidth}>
                           {status.label}
                         </Badge>
