@@ -36,6 +36,9 @@ import {
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
+const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES) || 500;
+const EXTRACTION_CONCURRENCY = Number(process.env.WRITER_FIGMA_READ_CONCURRENCY) || 8;
+
 function textNodeFromRef(
   ref: MetadataTextRef,
   characters: string,
@@ -94,7 +97,8 @@ export function extractStyleHintsFromDesignContext(code: string): Record<string,
 
 export async function extractFigmaTextNodesViaMcp(
   scope: FigmaReviewScope,
-  mcpCaller: McpCaller
+  mcpCaller: McpCaller,
+  onProgress?: (p: { completed: number; total: number }) => void
 ): Promise<FigmaExtractionResult> {
   if (mcpCaller.status !== "connected") {
     return { ok: false, diagnostic: mcpNotReadyDiagnostic() };
@@ -123,20 +127,48 @@ export async function extractFigmaTextNodesViaMcp(
       ? await scanInstanceTextNodes(scope, instanceRefs, textRefs, mcpCaller)
       : [];
 
-  const nodes: FigmaTextNode[] = [];
+  // Merge refs for cap counting. Instance-scanned nodes already have characters
+  // resolved by the frame scan — cache them so the pool can skip redundant MCP calls.
+  const scannedById = new Map(scannedFromInstances.map((n) => [n.id, n]));
+  const allRefs: MetadataTextRef[] = [
+    ...textRefs,
+    ...scannedFromInstances.map((n) => ({
+      id: n.id,
+      name: n.name,
+      path: n.path,
+      visible: n.visible
+    }))
+  ];
 
-  for (const ref of textRefs) {
-    nodes.push(await buildTextNode(scope, ref, mcpCaller));
+  const totalRefs = allRefs.length;
+  const cappedRefs = allRefs.slice(0, MAX_EXTRACTION_NODES);
+
+  const warnings: ConnectionDiagnostic[] = [];
+
+  if (totalRefs > MAX_EXTRACTION_NODES) {
+    warnings.push({
+      code: "partial_read_failure",
+      severity: "info",
+      message: `Extracted the first ${MAX_EXTRACTION_NODES} of ${totalRefs} text nodes; the rest were skipped`
+    });
   }
 
-  for (const node of scannedFromInstances) {
-    nodes.push(node);
+  const nodes = new Array<FigmaTextNode>(cappedRefs.length);
+  let index = 0;
+  async function worker() {
+    while (index < cappedRefs.length) {
+      const i = index++;
+      const ref = cappedRefs[i];
+      nodes[i] = scannedById.get(ref.id) ?? await buildTextNode(scope, ref, mcpCaller);
+      onProgress?.({ completed: i + 1, total: cappedRefs.length });
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));
 
   const extraction: FigmaTextExtraction = {
     scope,
     nodes,
-    warnings: [],
+    warnings,
     extractedAt: new Date().toISOString()
   };
 

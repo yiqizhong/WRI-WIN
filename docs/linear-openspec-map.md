@@ -488,3 +488,18 @@ Separates the two home-screen jobs without replacing their implemented engines: 
 **Suggested order:** WRI-213 → WRI-214 → WRI-215 → WRI-216 → WRI-217 → verification → close WRI-212
 
 **Branch:** `feat/vram-based-quant-selection`
+
+## figma-extraction-perf (OpenSpec: `openspec/changes/figma-extraction-perf/`)
+
+**Epic:** [WRI-218](https://linear.app/uicb/issue/WRI-218) — Parallelize + cap Figma text extraction with live progress
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.4) | [WRI-219](https://linear.app/uicb/issue/WRI-219) | Cap reads at 500 nodes; non-fatal diagnostic when truncated |
+| §2 (2.1–2.4) | [WRI-220](https://linear.app/uicb/issue/WRI-220) | Replace sequential loop with bounded-concurrency pool (8 workers, original order) |
+| §3 (3.1–3.5) | [WRI-221](https://linear.app/uicb/issue/WRI-221) | Thread `onProgress` callback → daemon `progressMessage` (throttled 1/s) |
+| §4 (4.1–4.2) | [WRI-222](https://linear.app/uicb/issue/WRI-222) | Typecheck + regression gate |
+
+**Suggested order:** WRI-219 → WRI-220 → WRI-221 → WRI-222 → close WRI-218
+
+**Branch:** `feat/figma-extraction-perf`

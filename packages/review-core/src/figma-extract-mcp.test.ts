@@ -181,6 +181,14 @@ describe("figma metadata xml", () => {
   });
 });
 
+function makeMetadata(count: number): string {
+  const nodes = Array.from(
+    { length: count },
+    (_, i) => `<text id="t:${i}" name="Node${i}" type="TEXT" visible="true" />`
+  ).join("\n");
+  return `<frame id="1:10" name="Login" type="FRAME">\n${nodes}\n</frame>`;
+}
+
 describe("extractFigmaTextNodesViaMcp", () => {
   const frameScope: FigmaReviewScope = {
     kind: "frame",
@@ -323,7 +331,14 @@ describe("extractFigmaTextNodesViaMcp", () => {
 
     const result = await extractFigmaTextNodesViaMcp(
       frameScope,
-      createFakeCaller({ metadata, scannedTextNodes })
+      createFakeCaller({
+        metadata,
+        scannedTextNodes,
+        designContextByNode: {
+          "I1:20;5:1": "Sign in",
+          "I1:20;5:2": "Enter your details"
+        }
+      })
     );
 
     expect(result.ok).toBe(true);
@@ -335,5 +350,168 @@ describe("extractFigmaTextNodesViaMcp", () => {
 
     const heading = result.extraction.nodes.find((n) => n.id === "I1:20;5:1");
     expect(heading?.characters).toBe("Sign in");
+  });
+
+  it("caps extraction at 500 nodes and adds a warning when 600 refs are present", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(600) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes.length).toBe(500);
+    expect(result.extraction.warnings.length).toBeGreaterThan(0);
+    expect(result.extraction.warnings[0].message).toMatch(/500 of 600.*skipped/);
+  });
+
+  it("returns all 300 nodes and no warnings when under the cap", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(300) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes.length).toBe(300);
+    expect(result.extraction.warnings).toHaveLength(0);
+  });
+
+  it("processes 10 refs with peak concurrency never exceeding 8 and returns results in original order", async () => {
+    // Build metadata with 10 text nodes
+    const metadata = makeMetadata(10);
+
+    let inFlight = 0;
+    let peakConcurrency = 0;
+
+    const fakeCaller: McpCaller = {
+      status: "connected",
+      callTool: async (name, args) => {
+        if (name === "get_metadata") {
+          return {
+            ok: true,
+            result: { content: [{ type: "text", text: metadata }] }
+          };
+        }
+
+        if (name === "use_figma" && String(args.code).includes("return { texts }")) {
+          return {
+            ok: true,
+            result: { content: [{ type: "text", text: JSON.stringify({ texts: [] }) }] }
+          };
+        }
+
+        if (name === "use_figma" && String(args.code).includes("return { nodeId")) {
+          inFlight++;
+          peakConcurrency = Math.max(peakConcurrency, inFlight);
+          await new Promise<void>((r) => setTimeout(r, 10));
+          inFlight--;
+
+          const nodeIdMatch = String(args.code).match(/nodeId = "([^"]+)"/);
+          const nodeId = nodeIdMatch?.[1] ?? "";
+          const characters = `text-for-${nodeId}`;
+          return {
+            ok: true,
+            result: { content: [{ type: "text", text: JSON.stringify({ nodeId, characters }) }] }
+          };
+        }
+
+        if (name === "get_design_context") {
+          const nodeId = String(args.nodeId ?? "");
+          return {
+            ok: true,
+            result: { content: [{ type: "text", text: `<span>${nodeId}</span>` }] }
+          };
+        }
+
+        return { ok: false };
+      }
+    };
+
+    const result = await extractFigmaTextNodesViaMcp(frameScope, fakeCaller);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // All 10 results returned
+    expect(result.extraction.nodes).toHaveLength(10);
+
+    // Peak concurrency must not exceed 8, and must have actually run concurrently
+    expect(peakConcurrency).toBeLessThanOrEqual(8);
+    expect(peakConcurrency).toBeGreaterThanOrEqual(2);
+
+    // Results must be in original order (node IDs match metadata order: t:0..t:9)
+    const ids = result.extraction.nodes.map((n) => n.id);
+    expect(ids).toEqual(["t:0", "t:1", "t:2", "t:3", "t:4", "t:5", "t:6", "t:7", "t:8", "t:9"]);
+  });
+
+  it("calls onProgress once per node with completed values [1,2,3] and total === 3", async () => {
+    const progressValues: Array<{ completed: number; total: number }> = [];
+
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(3) }),
+      (p) => {
+        progressValues.push(p);
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(progressValues).toHaveLength(3);
+    expect(progressValues.every((p) => p.total === 3)).toBe(true);
+    expect(progressValues.map((p) => p.completed)).toEqual([1, 2, 3]);
+  });
+
+  it("completes without error when no onProgress callback is provided", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(3) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes).toHaveLength(3);
+  });
+
+  it("produces a fallback node for a failing ref and resolves all other refs", async () => {
+    // Node "t:3" will fail both read and design context, falling back to its name
+    const metadata = makeMetadata(5);
+    const FAILING_ID = "t:3";
+
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({
+        metadata,
+        failReadFor: FAILING_ID,
+        failDesignContextFor: FAILING_ID,
+        designContextByNode: {
+          "t:0": "text zero",
+          "t:1": "text one",
+          "t:2": "text two",
+          // t:3 intentionally omitted — will fail
+          "t:4": "text four"
+        }
+      })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // All 5 nodes returned
+    expect(result.extraction.nodes).toHaveLength(5);
+
+    // The failing node falls back to its name ("Node3")
+    const failingNode = result.extraction.nodes.find((n) => n.id === FAILING_ID);
+    expect(failingNode).toBeDefined();
+    expect(failingNode?.characters).toBe("Node3");
+
+    // All other nodes still resolve normally
+    expect(result.extraction.nodes.find((n) => n.id === "t:0")?.characters).toBe("text zero");
+    expect(result.extraction.nodes.find((n) => n.id === "t:4")?.characters).toBe("text four");
   });
 });
