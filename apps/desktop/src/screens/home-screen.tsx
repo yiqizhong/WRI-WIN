@@ -9,7 +9,7 @@ import {
   writerPrimaryButtonMotionEndClassName
 } from "@/components/writer/writer-primary-button";
 
-const FIGMA_LOGO = "/mcp-server-logos/figma.png";
+const FIGMA_LOGO = `${import.meta.env.BASE_URL}mcp-server-logos/figma.png`;
 const WORKFLOW_CARD_ICON_CLASS = "size-10";
 
 function WorkflowCardIcon({ children }: { children: ReactNode }) {

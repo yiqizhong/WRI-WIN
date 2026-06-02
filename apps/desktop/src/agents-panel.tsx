@@ -58,7 +58,9 @@ type AgentsPanelProps = {
 };
 
 const LLM_PROVIDER_LOGO: Partial<Record<LlmProviderAdapterId, string>> = {
-  devin: "/llm-provider-logos/devin.png"
+  // Use import.meta.env.BASE_URL (resolves to "./") so paths are relative to
+  // index.html — required for file:// in the packaged Electron app.
+  devin: `${import.meta.env.BASE_URL}llm-provider-logos/devin.png`
 };
 
 function llmLogoPath(adapterId: string): string | undefined {
@@ -91,7 +93,7 @@ function LlmLogo({ adapter }: { adapter: AgentAdapter }) {
   );
 }
 
-const FIGMA_MCP_LOGO = "/mcp-server-logos/figma.png";
+const FIGMA_MCP_LOGO = `${import.meta.env.BASE_URL}mcp-server-logos/figma.png`;
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -723,7 +725,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         />
                         {adapter.id === "local-gemma" && (
                           <img
-                            src="/local-model-logos/gemma.png"
+                            src={`${import.meta.env.BASE_URL}local-model-logos/gemma.png`}
                             alt=""
                             aria-hidden
                             draggable={false}
