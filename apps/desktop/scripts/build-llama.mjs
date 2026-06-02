@@ -25,10 +25,11 @@ if (existsSync(outFile) && statSync(outFile).size > 1000) {
   process.exit(0);
 }
 
-// llama.cpp b9481 — CPU build (works on any x64 Windows machine, no GPU required).
-// The binary automatically picks the best CPU instruction set at runtime (AVX512, AVX2, etc).
+// llama.cpp b9481 — Vulkan build. GPU-accelerated via Vulkan (NVIDIA/AMD/Intel).
+// ggml-vulkan.dll is ~58MB vs ~539MB for CUDA — practical to bundle.
+// For Blackwell (RTX 5xxx) and other NVIDIA GPUs, Vulkan 1.3 is fully supported.
 const RELEASE_TAG = "b9481";
-const ASSET = `llama-${RELEASE_TAG}-bin-win-cpu-x64.zip`;
+const ASSET = `llama-${RELEASE_TAG}-bin-win-vulkan-x64.zip`;
 const DOWNLOAD_URL = `https://github.com/ggml-org/llama.cpp/releases/download/${RELEASE_TAG}/${ASSET}`;
 
 const zipPath = path.join(outDir, "llama-cli.zip");
