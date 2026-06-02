@@ -155,12 +155,13 @@ export async function extractFigmaTextNodesViaMcp(
 
   const nodes = new Array<FigmaTextNode>(cappedRefs.length);
   let index = 0;
+  let completed = 0;
   async function worker() {
     while (index < cappedRefs.length) {
       const i = index++;
       const ref = cappedRefs[i];
       nodes[i] = scannedById.get(ref.id) ?? await buildTextNode(scope, ref, mcpCaller);
-      onProgress?.({ completed: i + 1, total: cappedRefs.length });
+      onProgress?.({ completed: ++completed, total: cappedRefs.length });
     }
   }
   await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));
