@@ -10,13 +10,6 @@ export type AgentsLoadState = "idle" | "loading" | "ready";
 
 export const LLM_PROVIDER_PLACEHOLDERS: AgentAdapter[] = [
   {
-    id: "cursor-agent",
-    displayName: "Cursor",
-    available: false,
-    runtimeKind: "local",
-    capabilities: []
-  },
-  {
     id: "devin",
     displayName: "Devin",
     available: false,

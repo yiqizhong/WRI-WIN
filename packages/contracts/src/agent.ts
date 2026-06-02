@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { connectionDiagnosticSchema } from "./connection-diagnostic";
 
-export const LLM_PROVIDER_ADAPTER_IDS = ["cursor-agent", "devin"] as const;
+export const LLM_PROVIDER_ADAPTER_IDS = ["devin"] as const;
 
 export type LlmProviderAdapterId = (typeof LLM_PROVIDER_ADAPTER_IDS)[number];
 

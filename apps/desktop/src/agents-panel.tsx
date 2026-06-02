@@ -25,8 +25,6 @@ import { InlineAlert } from "@/components/writer/inline-alert";
 
 import type { DaemonClient } from "./daemon-client";
 import type { DaemonStatusView } from "./daemon-status";
-import { SpeedBoostSection } from "./SpeedBoostSection";
-import type { DraftStatus } from "./SpeedBoostSection";
 import {
   DEVIN_DEFAULT_MODEL_ID,
   DEVIN_MODEL_SELECTOR_TEMPORARILY_DISABLED,
@@ -94,6 +92,101 @@ function LlmLogo({ adapter }: { adapter: AgentAdapter }) {
 }
 
 const FIGMA_MCP_LOGO = "/mcp-server-logos/figma.png";
+
+const DEMO_TOTAL = 8_589_934_592; // 8 GB
+
+function DownloadProgressDemo() {
+  const [phase, setPhase] = useState<"idle" | "downloading">("idle");
+  const [downloaded, setDownloaded] = useState(0);
+
+  useEffect(() => {
+    if (phase !== "downloading") return;
+    setDownloaded(0);
+    const step = DEMO_TOTAL / 80;
+    const id = setInterval(() => {
+      setDownloaded((prev) => {
+        const next = prev + step;
+        if (next >= DEMO_TOTAL) {
+          clearInterval(id);
+          setTimeout(() => { setPhase("idle"); setDownloaded(0); }, 800);
+          return DEMO_TOTAL;
+        }
+        return next;
+      });
+    }, 200);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  const pct = Math.round((downloaded / DEMO_TOTAL) * 100);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-medium tracking-wide text-[#e5f1ff]/40 uppercase">
+        Download progress — demo
+      </p>
+      <GlassCard className="flex min-h-0 w-full flex-col gap-3 p-4">
+        <div className={rowBetween}>
+          <div className="flex min-w-0 items-center gap-3">
+            <img
+              src="/local-model-logos/gemma.png"
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="size-6 shrink-0 object-contain"
+            />
+            <Label className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal">
+              Gemma 4 E4B
+            </Label>
+            <span className="shrink-0 text-xs text-[#e5f1ff]/40">
+              {formatBytes(DEMO_TOTAL)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {phase === "idle" ? (
+              <WriterPrimaryButton
+                className={hugWidth}
+                onClick={() => setPhase("downloading")}
+              >
+                Download
+              </WriterPrimaryButton>
+            ) : (
+              <Badge variant="secondary" className={hugWidth}>
+                Downloading
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {phase === "downloading" && (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex w-full items-center gap-1">
+              <div
+                className="h-[3.8px] min-w-px rounded-[0.95px] bg-[linear-gradient(to_right,#3b4df2,#bafde6_94.712%,white)] transition-[flex] duration-200 ease-linear"
+                style={{ flex: pct }}
+              />
+              <div
+                className="h-[3.8px] min-w-px rounded-[0.95px] bg-[#666] transition-[flex] duration-200 ease-linear"
+                style={{ flex: 100 - pct }}
+              />
+            </div>
+            <span className="text-xs text-[#e5f1ff]/50">
+              {formatBytes(downloaded)} / {formatBytes(DEMO_TOTAL)}
+            </span>
+          </div>
+        )}
+      </GlassCard>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const gb = bytes / 1_073_741_824;
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / 1_048_576;
+  return `${mb.toFixed(0)} MB`;
+}
+
 
 function McpServerLogo({ server }: { server: McpServer }) {
   if (server.id !== "figma") {
@@ -263,14 +356,20 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   } = workspace;
 
   const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
-  const [draftStatus, setDraftStatus] = useState<DraftStatus>({ installed: false, enabled: false });
-  const [draftInstalling, setDraftInstalling] = useState(false);
+  const [localModelSizeBytes, setLocalModelSizeBytes] = useState<number | null>(null);
 
   useEffect(() => {
     if (!connected) return;
-    void client.getDraftModelStatus().then(setDraftStatus).catch(() => undefined);
+    void client.getLocalModelStatus()
+      .then((s) => setLocalModelSizeBytes(s.manifest.fileSizeBytes))
+      .catch(() => undefined);
   }, [connected, client]);
-
+  const [downloadProgress, setDownloadProgress] = useState<{
+    adapterId: string;
+    downloaded: number;
+    total: number;
+  } | null>(null);
+  const downloadPollingActiveRef = useRef(false);
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 
   const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
@@ -380,12 +479,36 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     setLocalModelLoading(adapterId);
     try {
       await client.startLocalModelDownload();
-      await refreshAgentDetection();
     } catch {
-      // Status refreshes on next Refresh.
-    } finally {
       setLocalModelLoading(null);
+      return;
     }
+    setLocalModelLoading(null);
+
+    // Poll progress until the daemon reports a terminal state.
+    downloadPollingActiveRef.current = true;
+    while (downloadPollingActiveRef.current) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      if (!downloadPollingActiveRef.current) break;
+      try {
+        const status = await client.getLocalModelStatus();
+        if (status.state.status === "downloading") {
+          setDownloadProgress({
+            adapterId,
+            downloaded: status.state.downloadedBytes,
+            total: status.state.totalBytes
+          });
+        } else {
+          break;
+        }
+      } catch {
+        break;
+      }
+    }
+
+    downloadPollingActiveRef.current = false;
+    setDownloadProgress(null);
+    await refreshAgentDetection();
   }
 
   async function resetLocalModel(adapterId: string) {
@@ -400,31 +523,6 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     }
   }
 
-  async function handleInstallDraft() {
-    setDraftInstalling(true);
-    setDraftStatus((prev) => ({ ...prev, lastError: undefined }));
-    try {
-      const result = await client.installDraftModel();
-      if (result.installed) {
-        setDraftStatus((prev) => ({ ...prev, installed: true, lastError: undefined }));
-      } else {
-        setDraftStatus((prev) => ({ ...prev, lastError: result.reason ?? "Draft model could not be installed." }));
-      }
-    } catch (err) {
-      setDraftStatus((prev) => ({ ...prev, lastError: err instanceof Error ? err.message : "Install failed." }));
-    } finally {
-      setDraftInstalling(false);
-    }
-  }
-
-  async function handleToggleDraft(enabled: boolean) {
-    try {
-      await client.setDraftModelEnabled(enabled);
-      setDraftStatus((prev) => ({ ...prev, enabled }));
-    } catch {
-      // Toggle failure shows on next refresh.
-    }
-  }
 
   async function connectFigma(serverId: string) {
     setBusyMcpId(serverId);
@@ -705,12 +803,26 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                           onChange={() => void setActiveLlmAdapter(adapter.id)}
                           className="writer-accent-radio"
                         />
+                        {adapter.id === "local-gemma" && (
+                          <img
+                            src="/local-model-logos/gemma.png"
+                            alt=""
+                            aria-hidden
+                            draggable={false}
+                            className="size-6 shrink-0 object-contain"
+                          />
+                        )}
                         <Label
                           htmlFor={`radio-${adapter.id}`}
                           className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal"
                         >
                           {adapter.displayName}
                         </Label>
+                        {localModelSizeBytes ? (
+                          <span className="shrink-0 text-xs text-[#e5f1ff]/40">
+                            {formatBytes(localModelSizeBytes)}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         {isLoading ? (
@@ -740,22 +852,43 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                       </div>
                     </div>
 
-                    {diagnosticText && adapter.diagnostic?.severity === "error" ? (
+                    {downloadProgress?.adapterId === adapter.id ? (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex w-full items-center gap-1">
+                          {(() => {
+                            const pct = downloadProgress.total > 0
+                              ? Math.min(100, Math.round((downloadProgress.downloaded / downloadProgress.total) * 100))
+                              : 0;
+                            return (
+                              <>
+                                <div
+                                  className="h-[3.8px] min-w-px rounded-[0.95px] bg-[linear-gradient(to_right,#3b4df2,#bafde6_94.712%,white)] transition-[flex] duration-500 ease-linear"
+                                  style={{ flex: pct }}
+                                />
+                                <div
+                                  className="h-[3.8px] min-w-px rounded-[0.95px] bg-[#666] transition-[flex] duration-500 ease-linear"
+                                  style={{ flex: 100 - pct }}
+                                />
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <span className="text-xs text-[#e5f1ff]/50">
+                          {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
+                        </span>
+                      </div>
+                    ) : diagnosticText && adapter.diagnostic?.severity === "error" ? (
                       <ConnectionIssueNotice text={diagnosticText} />
                     ) : null}
 
-                    {adapter.available && (
-                      <SpeedBoostSection
-                        status={draftStatus}
-                        installing={draftInstalling}
-                        onInstall={() => void handleInstallDraft()}
-                        onToggle={(enabled) => void handleToggleDraft(enabled)}
-                      />
-                    )}
                   </GlassCard>
                 );
               })}
             </fieldset>
+
+            {/* DEMO — remove once real download progress is validated */}
+            <DownloadProgressDemo />
+
           </WriterPageStack>
           </div>
         </WriterPageGridHalf>
@@ -788,70 +921,68 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                     key={server.id}
                     className={classNames(
                       fillWidth,
-                      "writer-mcp-tile flex min-h-[61px] w-full flex-row flex-wrap items-center justify-start gap-4 px-4 py-2.5"
+                      "writer-mcp-tile flex min-h-0 w-full flex-col gap-3 p-4"
                     )}
                   >
-                    <div className="flex min-w-0 flex-1 basis-0 flex-row items-center gap-3">
-                      <McpServerLogo server={server} />
-                      <div className="flex min-w-0 flex-1 flex-row items-center justify-start gap-3">
-                        <Label
-                          htmlFor={`mcp-${server.id}`}
-                          className="writer-home-text writer-home-agent-label min-w-0 cursor-pointer truncate font-extralight leading-snug tracking-normal"
-                        >
-                          {server.name}
-                        </Label>
-                        {server.status === "connected" && (server.tools?.length ?? 0) > 0 ? (
-                          <span className="text-xs text-[#e5f1ff]/40">
-                            {server.tools!.length} tools
-                          </span>
-                        ) : null}
+                    <div className={rowBetween}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <McpServerLogo server={server} />
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Label
+                            htmlFor={`mcp-${server.id}`}
+                            className="writer-home-text writer-home-agent-label min-w-0 cursor-pointer truncate font-extralight leading-snug tracking-normal"
+                          >
+                            {server.name}
+                          </Label>
+                          {server.status === "connected" && (server.tools?.length ?? 0) > 0 ? (
+                            <span className="text-xs text-[#e5f1ff]/40">
+                              {server.tools!.length} tools
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <div className={classNames(hugHeight, "flex shrink-0 flex-row items-center justify-end gap-3")}>
-                      {problemBadge ? (
-                        <Badge variant={tagVariant(problemBadge.type)} className={hugWidth}>
-                          {problemBadge.label}
-                        </Badge>
-                      ) : null}
-                      {server.id === "figma" && server.enabled ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="writer-chat-toolbar-btn"
-                          aria-label="Reconnect Figma MCP"
-                          disabled={!stableConnected || busyMcpId === server.id || reconnectingMcpId === server.id}
-                          onClick={() => void reconnectMcp(server.id)}
-                        >
-                          <RotateCw
-                            className={classNames(
-                              "size-4",
-                              reconnectingMcpId === server.id && "animate-spin"
-                            )}
-                          />
-                        </Button>
-                      ) : null}
-                      <WriterSwitch
-                        id={`mcp-${server.id}`}
-                        checked={server.enabled}
-                        disabled={!stableConnected || busyMcpId === server.id}
-                        aria-label={`Enable ${server.name}`}
-                        onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
-                      />
+                      <div className="flex shrink-0 items-center gap-3">
+                        {problemBadge ? (
+                          <Badge variant={tagVariant(problemBadge.type)} className={hugWidth}>
+                            {problemBadge.label}
+                          </Badge>
+                        ) : null}
+                        {server.id === "figma" && server.enabled ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="writer-chat-toolbar-btn"
+                            aria-label="Reconnect Figma MCP"
+                            disabled={!stableConnected || busyMcpId === server.id || reconnectingMcpId === server.id}
+                            onClick={() => void reconnectMcp(server.id)}
+                          >
+                            <RotateCw
+                              className={classNames(
+                                "size-4",
+                                reconnectingMcpId === server.id && "animate-spin"
+                              )}
+                            />
+                          </Button>
+                        ) : null}
+                        <WriterSwitch
+                          id={`mcp-${server.id}`}
+                          checked={server.enabled}
+                          disabled={!stableConnected || busyMcpId === server.id}
+                          aria-label={`Enable ${server.name}`}
+                          onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
+                        />
+                      </div>
                     </div>
 
                     {issueText ? (
-                      <div className="w-full basis-full">
-                        <ConnectionIssueNotice text={issueText} />
-                      </div>
+                      <ConnectionIssueNotice text={issueText} />
                     ) : null}
 
                     {showFigmaConnect ? (
                       <div
                         className={classNames(
-                          "w-full basis-full",
                           rowEnd,
-                          hugHeight,
                           "writer-mcp-tile__actions gap-2"
                         )}
                       >
