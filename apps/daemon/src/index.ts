@@ -23,22 +23,23 @@ async function startDaemon() {
   await startGuidelinesWatcher();
   logger.info("Guidelines watcher started");
 
-  const server = await createDaemonServer(config, logger, createRequestHandler(config, state));
-
-  // Restore the Figma MCP connection from stored tokens without blocking
-  // startup. Stays disabled (no browser prompt) when no valid tokens exist.
-  void autoConnectFigmaMcp(state)
-    .then((figma) => {
-      logger.info("Figma MCP auto-connect", {
-        status: figma.status,
-        tools: figma.tools?.length ?? 0
-      });
-    })
-    .catch((error: unknown) => {
-      logger.warn("Figma MCP auto-connect failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
+  // Restore the Figma MCP connection from stored tokens before the server
+  // starts accepting requests. This ensures /mcp/servers returns the correct
+  // enabled state on the desktop's first fetch after daemon startup.
+  // Stays disabled (no browser prompt) when no valid tokens exist.
+  try {
+    const figma = await autoConnectFigmaMcp(state);
+    logger.info("Figma MCP auto-connect", {
+      status: figma.status,
+      tools: figma.tools?.length ?? 0
     });
+  } catch (error: unknown) {
+    logger.warn("Figma MCP auto-connect failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
+  const server = await createDaemonServer(config, logger, createRequestHandler(config, state));
 
   const shutdown = async (signal: string) => {
     logger.info("Shutting down daemon", { signal });
