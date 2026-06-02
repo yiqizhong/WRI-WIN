@@ -154,7 +154,7 @@ export async function generateFigmaGuideline(
     message: `Prepared ${candidatePackage.selectedCandidates} copy samples.`
   });
 
-  const diagnostics: string[] = [];
+  const diagnostics: string[] = (extraction.extraction.warnings ?? []).map((w) => w.message);
   const llmAdapterId = parsed.adapterId ?? state.store.getActiveAdapterId() ?? undefined;
   let semanticAnalysis = buildDeterministicSemanticAnalysis(candidatePackage);
 
