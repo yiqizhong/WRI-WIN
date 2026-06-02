@@ -447,8 +447,8 @@ describe("extractFigmaTextNodesViaMcp", () => {
     expect(ids).toEqual(["t:0", "t:1", "t:2", "t:3", "t:4", "t:5", "t:6", "t:7", "t:8", "t:9"]);
   });
 
-  it("calls onProgress once per node with completed values [1,2,3] and total === 3", async () => {
-    const progressValues: Array<{ completed: number; total: number }> = [];
+  it("calls onProgress once per node with stage='reading' and completed values [1,2,3]", async () => {
+    const progressValues: Array<{ stage: string; completed: number; total: number }> = [];
 
     const result = await extractFigmaTextNodesViaMcp(
       frameScope,
@@ -461,9 +461,73 @@ describe("extractFigmaTextNodesViaMcp", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(progressValues).toHaveLength(3);
-    expect(progressValues.every((p) => p.total === 3)).toBe(true);
-    expect(progressValues.map((p) => p.completed)).toEqual([1, 2, 3]);
+    const readingValues = progressValues.filter((p) => p.stage === "reading");
+    expect(readingValues).toHaveLength(3);
+    expect(readingValues.every((p) => p.total === 3)).toBe(true);
+    expect(readingValues.map((p) => p.completed)).toEqual([1, 2, 3]);
+  });
+
+  it("fires stage='metadata' before any reading events", async () => {
+    const stages: string[] = [];
+
+    await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(3) }),
+      (p) => {
+        stages.push(p.stage);
+      }
+    );
+
+    expect(stages[0]).toBe("metadata");
+    expect(stages.filter((s) => s === "metadata")).toHaveLength(1);
+  });
+
+  it("fires stage='scanning' when frame contains instances, not when it does not", async () => {
+    const metadataWithInstance = `
+<frame id="1:10" name="Login" type="FRAME">
+  <instance id="I1:20" name="Button" type="INSTANCE" />
+  <text id="1:11" name="Label" type="TEXT" visible="true" />
+</frame>
+`;
+    const metadataNoInstance = makeMetadata(2);
+
+    const stagesWithInstance: string[] = [];
+    await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: metadataWithInstance }),
+      (p) => { stagesWithInstance.push(p.stage); }
+    );
+
+    const stagesNoInstance: string[] = [];
+    await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: metadataNoInstance }),
+      (p) => { stagesNoInstance.push(p.stage); }
+    );
+
+    expect(stagesWithInstance).toContain("scanning");
+    expect(stagesNoInstance).not.toContain("scanning");
+  });
+
+  it("fires stage='scanning' with completed=0 and total=0", async () => {
+    const metadataWithInstance = `
+<frame id="1:10" name="Login" type="FRAME">
+  <instance id="I1:20" name="Button" type="INSTANCE" />
+  <text id="1:11" name="Label" type="TEXT" visible="true" />
+</frame>
+`;
+
+    const scanningEvents: Array<{ completed: number; total: number }> = [];
+    await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: metadataWithInstance }),
+      (p) => {
+        if (p.stage === "scanning") scanningEvents.push({ completed: p.completed, total: p.total });
+      }
+    );
+
+    expect(scanningEvents).toHaveLength(1);
+    expect(scanningEvents[0]).toEqual({ completed: 0, total: 0 });
   });
 
   it("completes without error when no onProgress callback is provided", async () => {

@@ -104,7 +104,7 @@ export function extractStyleHintsFromDesignContext(code: string): Record<string,
 export async function extractFigmaTextNodesViaMcp(
   scope: FigmaReviewScope,
   mcpCaller: McpCaller,
-  onProgress?: (p: { completed: number; total: number }) => void
+  onProgress?: (p: { stage: "metadata" | "scanning" | "reading"; completed: number; total: number }) => void
 ): Promise<FigmaExtractionResult> {
   if (mcpCaller.status !== "connected") {
     return { ok: false, diagnostic: mcpNotReadyDiagnostic() };
@@ -116,6 +116,7 @@ export async function extractFigmaTextNodesViaMcp(
     return { ok: false, diagnostic: scopeError };
   }
 
+  onProgress?.({ stage: "metadata", completed: 0, total: 0 });
   const metadataXml = await fetchMetadataXml(scope, mcpCaller);
 
   if (!metadataXml.ok) {
@@ -128,6 +129,9 @@ export async function extractFigmaTextNodesViaMcp(
 
   // get_metadata XML omits TEXT nodes inside INSTANCE children. When the frame
   // contains instances, run a single use_figma scan to discover them.
+  if (instanceRefs.length > 0) {
+    onProgress?.({ stage: "scanning", completed: 0, total: 0 });
+  }
   const scannedFromInstances =
     instanceRefs.length > 0
       ? await scanInstanceTextNodes(scope, instanceRefs, textRefs, mcpCaller)
@@ -164,7 +168,7 @@ export async function extractFigmaTextNodesViaMcp(
       const i = index++;
       const ref = cappedRefs[i];
       nodes[i] = scannedById.get(ref.id) ?? await buildTextNode(scope, ref, mcpCaller);
-      onProgress?.({ completed: ++completed, total: cappedRefs.length });
+      onProgress?.({ stage: "reading", completed: ++completed, total: cappedRefs.length });
     }
   }
   await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));
