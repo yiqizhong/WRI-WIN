@@ -219,6 +219,7 @@ export async function startModelDownload(state: DaemonState): Promise<{ started:
   );
   await state.store.save();
 
+  // Fire-and-forget; errors are written back to the store.
   void runDownload(state, resumeFrom, manifest).catch(async (error) => {
     const message = error instanceof Error ? error.message : "Download failed";
     const partial = state.store.getLocalModel();

@@ -122,6 +122,24 @@ describe("local model lifecycle", () => {
     expect(result.started).toBe(false);
   });
 
+  it("startModelDownload throws when GPU is blocked", async () => {
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(null);
+    await expect(startModelDownload(state)).rejects.toThrow(/No compatible NVIDIA GPU/i);
+  });
+
+  it("startModelDownload initializes download with Q4_K_M size for 8 GB GPU", async () => {
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(8192);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, body: null, headers: new Headers() }));
+
+    const result = await startModelDownload(state);
+    expect(result.started).toBe(true);
+
+    const stored = state.store.getLocalModel();
+    expect(stored?.totalBytes).toBe(5_335_289_824);
+
+    vi.unstubAllGlobals();
+  });
+
   it("resetModelDownload clears state to not_installed", async () => {
     state.store.setLocalModel({
       status: "failed",
