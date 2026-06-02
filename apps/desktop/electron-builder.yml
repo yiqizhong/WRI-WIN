@@ -3,6 +3,13 @@ productName: Writer
 copyright: Copyright © 2026 Dell
 electronVersion: "39.8.10"
 
+# deflate instead of LZMA (the default "maximum"). The llama/CUDA DLLs are
+# compiled machine code that LZMA barely compresses (~30%), but LZMA
+# decompression runs on the NSIS UI thread and freezes the installer for
+# 1-3 minutes with a 1 GB CUDA payload. deflate is 3-4x faster to decompress
+# with only a modest size increase (~10-15% larger installer).
+compression: normal
+
 directories:
   output: dist-electron
   buildResources: build-resources
@@ -24,6 +31,35 @@ extraResources:
     filter:
       - "**"
       - "!*.zip"
+      # Exclude developer / benchmark / server tools — the app only uses llama-cli.exe
+      - "!llama-server.exe"
+      - "!llama-server-impl.dll"
+      - "!llama-batched-bench.exe"
+      - "!llama-batched-bench-impl.dll"
+      - "!llama-bench.exe"
+      - "!llama-bench-impl.dll"
+      - "!llama-fit-params.exe"
+      - "!llama-fit-params-impl.dll"
+      - "!llama-perplexity.exe"
+      - "!llama-perplexity-impl.dll"
+      - "!llama-quantize.exe"
+      - "!llama-quantize-impl.dll"
+      - "!llama-completion.exe"
+      - "!llama-completion-impl.dll"
+      - "!rpc-server.exe"
+      - "!llama-gguf-split.exe"
+      - "!llama-tokenize.exe"
+      - "!llama-results.exe"
+      - "!llama-template-analysis.exe"
+      - "!llama-imatrix.exe"
+      - "!llama-tts.exe"
+      - "!llama-gemma3-cli.exe"
+      - "!llama-minicpmv-cli.exe"
+      - "!llama-qwen2vl-cli.exe"
+      - "!llama-mtmd-cli.exe"
+      - "!llama-mtmd-debug.exe"
+      - "!llama-llava-cli.exe"
+      - "!llama.exe"
 
 # koffi native module must be outside asar (can't load .node from inside asar)
 asarUnpack:

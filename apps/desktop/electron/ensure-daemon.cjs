@@ -108,7 +108,9 @@ function killProcessesOnPort(port) {
     let pids = [];
     if (process.platform === "win32") {
       // netstat output: "  TCP  0.0.0.0:47631  ...  LISTENING  <pid>"
-      const output = execSync(`netstat -ano`, { encoding: "utf8" });
+      // -p TCP limits output to TCP connections only, significantly reducing
+      // the output size (and parse time) on machines with many connections.
+      const output = execSync(`netstat -p TCP -ano`, { encoding: "utf8" });
       for (const line of output.split("\n")) {
         if (line.includes(`:${port}`) && line.includes("LISTENING")) {
           const parts = line.trim().split(/\s+/);
