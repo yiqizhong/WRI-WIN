@@ -8,3 +8,7 @@ dist-electron/
 
 # git worktrees
 .worktrees/
+
+# Desktop build outputs
+apps/desktop/dist-electron/
+apps/desktop/build/

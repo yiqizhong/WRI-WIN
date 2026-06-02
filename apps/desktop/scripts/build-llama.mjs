@@ -7,7 +7,7 @@
  */
 
 import https from "node:https";
-import { createWriteStream, mkdirSync, existsSync, renameSync, rmSync } from "node:fs";
+import { createWriteStream, mkdirSync, existsSync, renameSync, rmSync, statSync } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -20,15 +20,15 @@ const outFile = path.join(outDir, "llama-cli.exe");
 
 mkdirSync(outDir, { recursive: true });
 
-if (existsSync(outFile)) {
+if (existsSync(outFile) && statSync(outFile).size > 1000) {
   console.log("llama-cli.exe already present, skipping download.");
   process.exit(0);
 }
 
-// llama.cpp b9481 — CUDA 12.4 build for NVIDIA GPUs (Blackwell/Ada/Ampere).
-// Falls back to CPU inference if no compatible GPU is found at runtime.
+// llama.cpp b9481 — CPU build (works on any x64 Windows machine, no GPU required).
+// The binary automatically picks the best CPU instruction set at runtime (AVX512, AVX2, etc).
 const RELEASE_TAG = "b9481";
-const ASSET = `llama-${RELEASE_TAG}-bin-win-cuda-12.4-x64.zip`;
+const ASSET = `llama-${RELEASE_TAG}-bin-win-cpu-x64.zip`;
 const DOWNLOAD_URL = `https://github.com/ggml-org/llama.cpp/releases/download/${RELEASE_TAG}/${ASSET}`;
 
 const zipPath = path.join(outDir, "llama-cli.zip");
@@ -42,22 +42,9 @@ console.log("Downloaded. Extracting llama-cli.exe…");
 // Extract just llama-cli.exe from the zip using PowerShell
 const execAsync = promisify(exec);
 await execAsync(
-  `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${outDir}\\extracted' -Force"`,
+  `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${outDir}' -Force"`,
   { timeout: 60000 }
 );
-
-// Find llama-cli.exe in the extracted files
-const { stdout } = await execAsync(
-  `powershell -Command "Get-ChildItem -Recurse -Filter 'llama-cli.exe' '${outDir}\\extracted' | Select-Object -First 1 -ExpandProperty FullName"`
-);
-const extractedPath = stdout.trim();
-
-if (!extractedPath) {
-  throw new Error("llama-cli.exe not found in archive");
-}
-
-renameSync(extractedPath, outFile);
-rmSync(path.join(outDir, "extracted"), { recursive: true, force: true });
 rmSync(zipPath, { force: true });
 
 console.log("llama-cli.exe ready →", outFile);

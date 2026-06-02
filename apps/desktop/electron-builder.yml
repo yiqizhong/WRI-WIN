@@ -1,6 +1,7 @@
 appId: com.dell.writer
 productName: Writer
 copyright: Copyright © 2026 Dell
+electronVersion: "39.8.10"
 
 directories:
   output: dist-electron
@@ -22,12 +23,16 @@ extraResources:
     to: llama
     filter:
       - "**"
+      - "!*.zip"
 
 # koffi native module must be outside asar (can't load .node from inside asar)
 asarUnpack:
   - "node_modules/koffi/**"
 
+forceCodeSigning: false
+
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch:
