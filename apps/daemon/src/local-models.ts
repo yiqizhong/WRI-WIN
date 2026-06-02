@@ -3,11 +3,15 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-import type { LocalModelState, LocalModelStatusResponse } from "@writer/contracts";
-import { shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
+import type { LocalModelManifest, LocalModelState, LocalModelStatusResponse } from "@writer/contracts";
+import { detectNvidiaVram, shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
 
 import type { DaemonState } from "./state";
-import { GEMMA_4_E4B_MANIFEST } from "./local-model-manifest";
+import {
+  GEMMA_4_E4B_MANIFEST,
+  GEMMA_4_E4B_Q4KM_MANIFEST,
+  resolveLocalModelManifest
+} from "./local-model-manifest";
 
 let activeDownload: AbortController | null = null;
 
@@ -15,8 +19,8 @@ export function getModelsDir(state: DaemonState): string {
   return join(state.store.dataDir, "models");
 }
 
-export function getModelFilePath(state: DaemonState): string {
-  return join(getModelsDir(state), GEMMA_4_E4B_MANIFEST.fileName);
+export function getModelFilePath(state: DaemonState, manifest: LocalModelManifest): string {
+  return join(getModelsDir(state), manifest.fileName);
 }
 
 export function getDraftFilePath(state: DaemonState, manifest = GEMMA_4_E4B_MANIFEST): string | null {
@@ -169,11 +173,21 @@ export async function initLocalModelState(state: DaemonState): Promise<void> {
   }
 }
 
-export function getLocalModelStatus(state: DaemonState): LocalModelStatusResponse {
+export async function getLocalModelStatus(state: DaemonState): Promise<LocalModelStatusResponse> {
   const stored = state.store.getLocalModel();
+  const vram = await detectNvidiaVram();
+  const resolution = resolveLocalModelManifest(vram);
+  if ("blocked" in resolution) {
+    return {
+      manifest: GEMMA_4_E4B_MANIFEST,
+      state: stored ?? buildState(),
+      blockedReason: resolution.reason
+    };
+  }
   return {
-    manifest: GEMMA_4_E4B_MANIFEST,
-    state: stored ?? buildState()
+    manifest: resolution.manifest,
+    state: stored ?? buildState(),
+    blockedReason: null
   };
 }
 
@@ -188,18 +202,24 @@ export async function startModelDownload(state: DaemonState): Promise<{ started:
     return { started: false };
   }
 
+  const vram = await detectNvidiaVram();
+  const resolution = resolveLocalModelManifest(vram);
+  if ("blocked" in resolution) {
+    throw new Error(resolution.reason);
+  }
+  const manifest = resolution.manifest;
+
   const resumeFrom = current?.downloadedBytes ?? 0;
   state.store.setLocalModel(
     buildState({
       status: "downloading",
       downloadedBytes: resumeFrom,
-      totalBytes: current?.totalBytes || GEMMA_4_E4B_MANIFEST.fileSizeBytes
+      totalBytes: current?.totalBytes || manifest.fileSizeBytes
     })
   );
   await state.store.save();
 
-  // Fire-and-forget; errors are written back to the store.
-  void runDownload(state, resumeFrom).catch(async (error) => {
+  void runDownload(state, resumeFrom, manifest).catch(async (error) => {
     const message = error instanceof Error ? error.message : "Download failed";
     const partial = state.store.getLocalModel();
     state.store.setLocalModel(
@@ -211,9 +231,9 @@ export async function startModelDownload(state: DaemonState): Promise<{ started:
   return { started: true };
 }
 
-async function runDownload(state: DaemonState, resumeFrom: number): Promise<void> {
+async function runDownload(state: DaemonState, resumeFrom: number, manifest: LocalModelManifest): Promise<void> {
   const modelsDir = getModelsDir(state);
-  const finalPath = getModelFilePath(state);
+  const finalPath = getModelFilePath(state, manifest);
   const tempPath = `${finalPath}.tmp`;
 
   await mkdir(modelsDir, { recursive: true });
@@ -232,7 +252,7 @@ async function runDownload(state: DaemonState, resumeFrom: number): Promise<void
     headers["Authorization"] = `Bearer ${hfToken}`;
   }
 
-  const response = await fetch(GEMMA_4_E4B_MANIFEST.downloadUrl, {
+  const response = await fetch(manifest.downloadUrl, {
     headers,
     signal,
     redirect: "follow"
@@ -243,7 +263,7 @@ async function runDownload(state: DaemonState, resumeFrom: number): Promise<void
   }
 
   const contentLength = Number(response.headers.get("content-length") ?? 0);
-  const totalBytes = resumeFrom + contentLength || GEMMA_4_E4B_MANIFEST.fileSizeBytes;
+  const totalBytes = resumeFrom + contentLength || manifest.fileSizeBytes;
 
   const fileStream = createWriteStream(tempPath, { flags: resumeFrom > 0 ? "a" : "w" });
   let downloadedBytes = resumeFrom;
@@ -286,10 +306,10 @@ async function runDownload(state: DaemonState, resumeFrom: number): Promise<void
 
   const actualSha256 = await computeSha256(tempPath);
 
-  if (actualSha256 !== GEMMA_4_E4B_MANIFEST.expectedSha256) {
+  if (actualSha256 !== manifest.expectedSha256) {
     await rm(tempPath, { force: true });
     throw new Error(
-      `Checksum mismatch: expected ${GEMMA_4_E4B_MANIFEST.expectedSha256}, got ${actualSha256}`
+      `Checksum mismatch: expected ${manifest.expectedSha256}, got ${actualSha256}`
     );
   }
 
@@ -322,12 +342,18 @@ export async function resetModelDownload(state: DaemonState): Promise<void> {
   activeDownload = null;
 
   const modelsDir = getModelsDir(state);
-  const finalPath = getModelFilePath(state);
-  const tempPath = `${finalPath}.tmp`;
+  const stored = state.store.getLocalModel();
+  const pathsToRemove: string[] = stored?.modelPath
+    ? [stored.modelPath, `${stored.modelPath}.tmp`]
+    : [
+        join(modelsDir, GEMMA_4_E4B_MANIFEST.fileName),
+        join(modelsDir, GEMMA_4_E4B_Q4KM_MANIFEST.fileName),
+        join(modelsDir, `${GEMMA_4_E4B_MANIFEST.fileName}.tmp`),
+        join(modelsDir, `${GEMMA_4_E4B_Q4KM_MANIFEST.fileName}.tmp`)
+      ];
 
-  // Defensive: recreate dir before removal attempts
   await mkdir(modelsDir, { recursive: true });
-  await Promise.all([rm(finalPath, { force: true }), rm(tempPath, { force: true })]);
+  await Promise.all(pathsToRemove.map((p) => rm(p, { force: true })));
 
   state.store.setLocalModel(buildState());
   await state.store.save();

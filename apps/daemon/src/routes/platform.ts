@@ -386,7 +386,7 @@ export async function handlePlatformRequest(
   }
 
   if (request.method === "GET" && path === "/local-models") {
-    sendJson(response, 200, getLocalModelStatus(state));
+    sendJson(response, 200, await getLocalModelStatus(state));
     return true;
   }
 
@@ -403,7 +403,7 @@ export async function handlePlatformRequest(
   if (request.method === "POST" && path === "/local-models/reset") {
     try {
       await resetModelDownload(state);
-      sendJson(response, 200, getLocalModelStatus(state));
+      sendJson(response, 200, await getLocalModelStatus(state));
     } catch (error) {
       invalidRequest(response, error instanceof Error ? error.message : "Failed to reset model.");
     }

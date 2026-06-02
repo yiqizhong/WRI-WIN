@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID, createHash } from "node:crypto";
 
 import { PlatformStore } from "@writer/storage";
+import * as agentAdapters from "@writer/agent-adapters";
 
 import { getLocalModelStatus, startModelDownload, resetModelDownload, initLocalModelState, installDraftModel, setSpeculativeDecodingEnabled, getDraftFilePath } from "./local-models";
 import { GEMMA_4_E4B_MANIFEST } from "./local-model-manifest";
@@ -37,10 +38,15 @@ describe("local model lifecycle", () => {
     await mkdir(dataDir, { recursive: true });
     state = makeDaemonState(dataDir);
     await state.store.load();
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(12288);
   });
 
-  it("returns not_installed status when no model state exists", () => {
-    const status = getLocalModelStatus(state);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns not_installed status when no model state exists", async () => {
+    const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("not_installed");
     expect(status.state.modelPath).toBeNull();
     expect(status.manifest.modelId).toBe("gemma-4-e4b");
@@ -59,7 +65,7 @@ describe("local model lifecycle", () => {
 
     await initLocalModelState(state);
 
-    const status = getLocalModelStatus(state);
+    const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("failed");
     expect(status.state.errorMessage).toMatch(/restart/i);
   });
@@ -77,7 +83,7 @@ describe("local model lifecycle", () => {
 
     await initLocalModelState(state);
 
-    const status = getLocalModelStatus(state);
+    const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("failed");
   });
 
@@ -129,7 +135,7 @@ describe("local model lifecycle", () => {
 
     await resetModelDownload(state);
 
-    const status = getLocalModelStatus(state);
+    const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("not_installed");
     expect(status.state.errorMessage).toBeNull();
     expect(status.state.downloadedBytes).toBe(0);
@@ -147,10 +153,23 @@ describe("local model lifecycle", () => {
     });
     await state.store.save();
 
-    const status = getLocalModelStatus(state);
+    const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("installed");
     expect(status.state.modelPath).toBe("/some/path/model.gguf");
     expect(status.state.installedAt).toBe(installedAt);
+  });
+
+  it("getLocalModelStatus returns blockedReason when no NVIDIA GPU detected", async () => {
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(null);
+    const status = await getLocalModelStatus(state);
+    expect(status.blockedReason).toMatch(/No compatible NVIDIA GPU/i);
+  });
+
+  it("getLocalModelStatus returns Q4_K_M manifest for 8 GB GPU", async () => {
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(8192);
+    const status = await getLocalModelStatus(state);
+    expect(status.manifest.fileName).toBe("gemma-4-E4B-it-Q4_K_M.gguf");
+    expect(status.blockedReason).toBeNull();
   });
 });
 
