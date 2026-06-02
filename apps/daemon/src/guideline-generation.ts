@@ -114,13 +114,17 @@ export async function generateFigmaGuideline(
   // Best-effort progress ticks: fire-and-forget, throttled to ~1/s.
   // `session` snapshot is intentionally stable here — only progressMessage changes
   // during extraction, and the returned session is picked up by the await below.
-  const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state), ({ completed, total }) => {
+  const extraction = await extractFigmaTextNodesViaMcp(figmaScope, createFigmaMcpCaller(state), ({ stage, completed, total }) => {
     const now = Date.now();
     if (now - lastProgressMs >= 1000) {
       lastProgressMs = now;
+      const message =
+        stage === "metadata" ? "Reading text from Figma… fetching metadata" :
+        stage === "scanning" ? "Reading text from Figma… scanning instances" :
+        `Reading text from Figma… ${completed} / ${total}`;
       void updateGuidelineGenerationProgress(state, session, {
         stage: "extracting_figma",
-        message: `Reading text from Figma… ${completed} / ${total}`
+        message
       });
     }
   });
