@@ -97,7 +97,8 @@ export function extractStyleHintsFromDesignContext(code: string): Record<string,
 
 export async function extractFigmaTextNodesViaMcp(
   scope: FigmaReviewScope,
-  mcpCaller: McpCaller
+  mcpCaller: McpCaller,
+  onProgress?: (p: { completed: number; total: number }) => void
 ): Promise<FigmaExtractionResult> {
   if (mcpCaller.status !== "connected") {
     return { ok: false, diagnostic: mcpNotReadyDiagnostic() };
@@ -159,6 +160,7 @@ export async function extractFigmaTextNodesViaMcp(
       const i = index++;
       const ref = cappedRefs[i];
       nodes[i] = scannedById.get(ref.id) ?? await buildTextNode(scope, ref, mcpCaller);
+      onProgress?.({ completed: i + 1, total: cappedRefs.length });
     }
   }
   await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));

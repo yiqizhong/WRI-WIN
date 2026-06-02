@@ -447,6 +447,37 @@ describe("extractFigmaTextNodesViaMcp", () => {
     expect(ids).toEqual(["t:0", "t:1", "t:2", "t:3", "t:4", "t:5", "t:6", "t:7", "t:8", "t:9"]);
   });
 
+  it("calls onProgress once per node with completed values [1,2,3] and total === 3", async () => {
+    const progressValues: Array<{ completed: number; total: number }> = [];
+
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(3) }),
+      (p) => {
+        progressValues.push(p);
+      }
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(progressValues).toHaveLength(3);
+    expect(progressValues.every((p) => p.total === 3)).toBe(true);
+    expect(progressValues.map((p) => p.completed).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+  });
+
+  it("completes without error when no onProgress callback is provided", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(3) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes).toHaveLength(3);
+  });
+
   it("produces a fallback node for a failing ref and resolves all other refs", async () => {
     // Node "t:3" will fail both read and design context, falling back to its name
     const metadata = makeMetadata(5);
