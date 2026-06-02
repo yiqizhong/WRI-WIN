@@ -3,10 +3,12 @@
 ### Requirement: Progress Reporting
 
 The extraction function SHALL accept an optional `onProgress` callback
-`(p: { completed: number; total: number }) => void`. When provided, the callback
-MUST be invoked once per resolved node with a `completed` value that is strictly
-monotonically increasing (1, 2, 3, … total), regardless of which worker slot
-resolves first. `total` MUST equal the number of capped refs being processed.
+`(p: { stage: "metadata" | "scanning" | "reading"; completed: number; total: number }) => void`.
+When provided, the callback MUST be invoked once per resolved node with a `completed` value
+that is strictly monotonically increasing (1, 2, 3, … total), regardless of which worker slot
+resolves first. `total` MUST equal the number of capped refs being processed. `stage` MUST
+reflect the current extraction phase: `"metadata"` during metadata fetch, `"scanning"` during
+instance scanning, and `"reading"` during per-node text reads.
 
 #### Scenario: Monotonic progress under concurrency
 - **WHEN** `extractFigmaTextNodesViaMcp` runs with 8 concurrent workers on 20 nodes

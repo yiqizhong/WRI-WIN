@@ -77,11 +77,11 @@ The system SHALL cap the total number of text-node references read during extrac
 - **THEN** all 300 nodes are read and no truncation diagnostic is recorded
 
 ### Requirement: Extraction SHALL support an optional progress callback
-The system SHALL accept an optional `onProgress: (p: { completed: number; total: number }) => void` parameter on `extractFigmaTextNodesViaMcp`. When provided, the callback MUST be invoked once per completed node read, with `completed` monotonically increasing from 1 to `total`.
+The system SHALL accept an optional `onProgress: (p: { stage: "metadata" | "scanning" | "reading"; completed: number; total: number }) => void` parameter on `extractFigmaTextNodesViaMcp`. When provided, the callback MUST be invoked once per completed node read, with `completed` monotonically increasing from 1 to `total`, and `stage` set to the current extraction phase (`"metadata"` during metadata fetch, `"scanning"` during instance scanning, `"reading"` during per-node text reads).
 
 #### Scenario: Progress fires per completed node
 - **WHEN** extraction reads N capped nodes and an `onProgress` callback is provided
-- **THEN** the callback is invoked exactly N times with `completed` values 1 through N and `total` equal to N
+- **THEN** the callback is invoked exactly N times with `completed` values 1 through N, `total` equal to N, and `stage` reflecting the active phase at the time of each invocation
 
 #### Scenario: No callback — extraction still completes
 - **WHEN** no `onProgress` callback is provided
