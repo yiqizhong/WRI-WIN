@@ -36,6 +36,8 @@ import {
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
+const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES ?? 500);
+
 function textNodeFromRef(
   ref: MetadataTextRef,
   characters: string,
@@ -123,20 +125,47 @@ export async function extractFigmaTextNodesViaMcp(
       ? await scanInstanceTextNodes(scope, instanceRefs, textRefs, mcpCaller)
       : [];
 
-  const nodes: FigmaTextNode[] = [];
+  // Merge metadata-derived refs and instance-scanned nodes (as refs) before looping.
+  const allRefs: MetadataTextRef[] = [
+    ...textRefs,
+    ...scannedFromInstances.map((n) => ({
+      id: n.id,
+      name: n.name,
+      path: n.path,
+      visible: n.visible
+    }))
+  ];
 
-  for (const ref of textRefs) {
-    nodes.push(await buildTextNode(scope, ref, mcpCaller));
+  const totalRefs = allRefs.length;
+  const cappedRefs = allRefs.slice(0, MAX_EXTRACTION_NODES);
+
+  const warnings: ConnectionDiagnostic[] = [];
+
+  if (totalRefs > MAX_EXTRACTION_NODES) {
+    warnings.push({
+      code: "partial_read_failure",
+      severity: "info" as const,
+      message: `Analyzed the first ${MAX_EXTRACTION_NODES} of ${totalRefs} text nodes`
+    });
   }
 
-  for (const node of scannedFromInstances) {
-    nodes.push(node);
+  const nodes: FigmaTextNode[] = [];
+
+  for (const ref of cappedRefs) {
+    // scannedFromInstances nodes already have their characters resolved; re-use them directly.
+    const scanned = scannedFromInstances.find((n) => n.id === ref.id);
+
+    if (scanned) {
+      nodes.push(scanned);
+    } else {
+      nodes.push(await buildTextNode(scope, ref, mcpCaller));
+    }
   }
 
   const extraction: FigmaTextExtraction = {
     scope,
     nodes,
-    warnings: [],
+    warnings,
     extractedAt: new Date().toISOString()
   };
 

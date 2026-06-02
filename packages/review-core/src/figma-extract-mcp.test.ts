@@ -181,6 +181,14 @@ describe("figma metadata xml", () => {
   });
 });
 
+function makeMetadata(count: number): string {
+  const nodes = Array.from(
+    { length: count },
+    (_, i) => `<text id="t:${i}" name="Node${i}" type="TEXT" visible="true" />`
+  ).join("\n");
+  return `<frame id="1:10" name="Login" type="FRAME">\n${nodes}\n</frame>`;
+}
+
 describe("extractFigmaTextNodesViaMcp", () => {
   const frameScope: FigmaReviewScope = {
     kind: "frame",
@@ -335,5 +343,32 @@ describe("extractFigmaTextNodesViaMcp", () => {
 
     const heading = result.extraction.nodes.find((n) => n.id === "I1:20;5:1");
     expect(heading?.characters).toBe("Sign in");
+  });
+
+  it("caps extraction at 500 nodes and adds a warning when 600 refs are present", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(600) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes.length).toBe(500);
+    expect(result.extraction.warnings.length).toBeGreaterThan(0);
+    expect(result.extraction.warnings[0].message).toMatch(/500 of 600/);
+  });
+
+  it("returns all 300 nodes and no warnings when under the cap", async () => {
+    const result = await extractFigmaTextNodesViaMcp(
+      frameScope,
+      createFakeCaller({ metadata: makeMetadata(300) })
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(result.extraction.nodes.length).toBe(300);
+    expect(result.extraction.warnings).toHaveLength(0);
   });
 });
