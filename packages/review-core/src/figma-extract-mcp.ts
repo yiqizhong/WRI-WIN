@@ -37,6 +37,7 @@ import {
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
 const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES) || 500;
+const EXTRACTION_CONCURRENCY = Number(process.env.WRITER_FIGMA_READ_CONCURRENCY) || 8;
 
 function textNodeFromRef(
   ref: MetadataTextRef,
@@ -149,18 +150,16 @@ export async function extractFigmaTextNodesViaMcp(
     });
   }
 
-  const nodes: FigmaTextNode[] = [];
-
-  for (const ref of cappedRefs) {
-    // scannedFromInstances nodes already have their characters resolved; re-use them directly.
-    const scanned = scannedFromInstances.find((n) => n.id === ref.id);
-
-    if (scanned) {
-      nodes.push(scanned);
-    } else {
-      nodes.push(await buildTextNode(scope, ref, mcpCaller));
+  const results = new Array<FigmaTextNode>(cappedRefs.length);
+  let index = 0;
+  async function worker() {
+    while (index < cappedRefs.length) {
+      const i = index++;
+      results[i] = await buildTextNode(scope, cappedRefs[i], mcpCaller);
     }
   }
+  await Promise.all(Array.from({ length: Math.min(EXTRACTION_CONCURRENCY, cappedRefs.length) }, worker));
+  const nodes = results;
 
   const extraction: FigmaTextExtraction = {
     scope,
