@@ -36,7 +36,7 @@ import {
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
-const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES ?? 500);
+const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES) || 500;
 
 function textNodeFromRef(
   ref: MetadataTextRef,
@@ -144,8 +144,8 @@ export async function extractFigmaTextNodesViaMcp(
   if (totalRefs > MAX_EXTRACTION_NODES) {
     warnings.push({
       code: "partial_read_failure",
-      severity: "info" as const,
-      message: `Analyzed the first ${MAX_EXTRACTION_NODES} of ${totalRefs} text nodes`
+      severity: "info",
+      message: `Extracted the first ${MAX_EXTRACTION_NODES} of ${totalRefs} text nodes; the rest were skipped`
     });
   }
 

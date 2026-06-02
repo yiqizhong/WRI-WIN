@@ -356,7 +356,7 @@ describe("extractFigmaTextNodesViaMcp", () => {
 
     expect(result.extraction.nodes.length).toBe(500);
     expect(result.extraction.warnings.length).toBeGreaterThan(0);
-    expect(result.extraction.warnings[0].message).toMatch(/500 of 600/);
+    expect(result.extraction.warnings[0].message).toMatch(/500 of 600.*skipped/);
   });
 
   it("returns all 300 nodes and no warnings when under the cap", async () => {
