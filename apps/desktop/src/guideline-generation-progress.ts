@@ -5,7 +5,7 @@ import { readGuidelineGenerationScope, type GuidelineGenerationScopeRecord } fro
 export const GUIDELINE_PROGRESS_STEPS = [
   { stage: "extracting_figma", label: "Extract text from Figma" },
   { stage: "building_candidates", label: "Build copy candidates" },
-  { stage: "semantic_analysis", label: "Semantic analysis (Devin)" },
+  { stage: "semantic_analysis", label: "Semantic analysis (AI)" },
   { stage: "generating_files", label: "Draft starter pack" },
   { stage: "rendering_files", label: "Prepare downloads" }
 ] as const;

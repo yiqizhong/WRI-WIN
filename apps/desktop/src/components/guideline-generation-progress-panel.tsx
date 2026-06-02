@@ -7,7 +7,7 @@ export function GuidelineGenerationProgressPanel({ progress }: { progress: Guide
   return (
     <WorkflowGlassPanel
       title="Generation in progress"
-      description="This page refreshes automatically. Devin runs can take several minutes."
+      description="This page refreshes automatically. AI runs can take several minutes."
     >
       <div className="grid gap-3">
         {progress.elapsedLabel ? (
