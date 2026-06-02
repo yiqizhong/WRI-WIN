@@ -36,8 +36,14 @@ import {
 
 export { extractCharactersFromDesignContext, toExtractedCopy, toSurfaceCopy };
 
-const MAX_EXTRACTION_NODES = Number(process.env.WRITER_FIGMA_MAX_NODES ?? 500);
-const EXTRACTION_CONCURRENCY = Number(process.env.WRITER_FIGMA_READ_CONCURRENCY ?? 8);
+function parseEnvInt(val: string | undefined, fallback: number): number {
+  if (val == null || val === "") return fallback;
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+const MAX_EXTRACTION_NODES = parseEnvInt(process.env.WRITER_FIGMA_MAX_NODES, 500);
+const EXTRACTION_CONCURRENCY = parseEnvInt(process.env.WRITER_FIGMA_READ_CONCURRENCY, 8);
 
 function textNodeFromRef(
   ref: MetadataTextRef,
