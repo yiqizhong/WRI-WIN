@@ -38,3 +38,17 @@ export const ALL_LOCAL_MODEL_MANIFESTS: LocalModelManifest[] = [
   GEMMA_4_E4B_MANIFEST,
   GEMMA_4_E4B_Q4KM_MANIFEST
 ];
+
+export type ManifestResolution =
+  | { manifest: LocalModelManifest }
+  | { blocked: true; reason: string };
+
+// Real 12 GB cards report slightly under 12288 MiB — use 12000 so they get Q8_0.
+export const VRAM_Q8_MIN_MIB = 12000;
+
+export function resolveLocalModelManifest(vram: number | null): ManifestResolution {
+  if (vram === null) {
+    return { blocked: true, reason: "No compatible NVIDIA GPU detected" };
+  }
+  return { manifest: vram >= VRAM_Q8_MIN_MIB ? GEMMA_4_E4B_MANIFEST : GEMMA_4_E4B_Q4KM_MANIFEST };
+}
