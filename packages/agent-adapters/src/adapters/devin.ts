@@ -214,7 +214,13 @@ export const devinCliConfig: CliAdapterConfig = {
   needsAuthMessage: "Run `devin` and complete `/login` before using Devin in Writer.",
   buildRunArgs: buildDevinArgs,
   buildSmokeArgs: buildDevinArgs,
-  probeAuth: probeDevinAuth,
+  // probeAuth is intentionally omitted from detection. Running a real LLM call
+  // ("devin -p …") on every cold cache (~60 s) blocks listAgents() for up to
+  // 45 s and makes startup and the Refresh button feel slow. Detection only
+  // needs to confirm the binary is on PATH and responds to `devin version`.
+  // Auth errors surface when a run is actually attempted, and the explicit
+  // "Test connection" smoke test (smokeAgentAdapter) still uses probeDevinAuth
+  // via smokeCliAdapter for intentional auth verification.
   /** Guideline generation runs semantic + final Devin passes with large prompts. */
   runTimeoutMs: 300_000
 };

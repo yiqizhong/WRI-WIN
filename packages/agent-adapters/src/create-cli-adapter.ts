@@ -38,15 +38,15 @@ const SMOKE_PROMPT = "Reply with exactly OK";
 
 /**
  * TTL for cached detect() results. Detection spawns the CLI (`--version`)
- * and — for adapters with `probeAuth` like Devin — runs a full LLM smoke
- * test ("Reply with exactly OK"). Without this cache, every Send re-pays
- * that cost twice (resolveAdapterForRun + runCliAdapter both detect).
+ * to confirm the binary is present and working. Without this cache, every
+ * Send re-pays that cost twice (resolveAdapterForRun + runCliAdapter both
+ * detect).
  *
- * 60s strikes a balance: stable enough that interactive bursts share one
- * detection, short enough that a reinstall / login change is picked up
- * without forcing the user to hit Refresh.
+ * 5 minutes is safe: binaries rarely change mid-session, and the user can
+ * always force a fresh probe via the explicit "Refresh" button which passes
+ * { force: true } and bypasses this cache.
  */
-const DETECTION_TTL_MS = 60_000;
+const DETECTION_TTL_MS = 5 * 60_000;
 
 type CachedDetection = {
   result: AgentDetectionResult;
