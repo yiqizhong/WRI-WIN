@@ -104,7 +104,7 @@ export function FigmaGuidelineGeneratorScreen() {
             <div className="flex flex-col gap-4">
             <p className="writer-home-section-description">
               Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
-              appears in the Guidelines Log (often 3–8 minutes with Devin).
+              appears in the Guidelines Log (often 16 minutes with AI).
             </p>
 
             <WriterFormField label="Product name" htmlFor="guide-product-name">
