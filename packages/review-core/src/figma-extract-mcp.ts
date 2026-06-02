@@ -129,16 +129,13 @@ export async function extractFigmaTextNodesViaMcp(
 
   // Merge refs for cap counting. Instance-scanned nodes already have characters
   // resolved by the frame scan — cache them so the pool can skip redundant MCP calls.
-  const scannedById = new Map(scannedFromInstances.map((n) => [n.id, n]));
-  const allRefs: MetadataTextRef[] = [
-    ...textRefs,
-    ...scannedFromInstances.map((n) => ({
-      id: n.id,
-      name: n.name,
-      path: n.path,
-      visible: n.visible
-    }))
-  ];
+  const scannedById = new Map<string, FigmaTextNode>();
+  const allRefsFromInstances: MetadataTextRef[] = [];
+  for (const n of scannedFromInstances) {
+    scannedById.set(n.id, n);
+    allRefsFromInstances.push({ id: n.id, name: n.name, path: n.path, visible: n.visible });
+  }
+  const allRefs: MetadataTextRef[] = [...textRefs, ...allRefsFromInstances];
 
   const totalRefs = allRefs.length;
   const cappedRefs = allRefs.slice(0, MAX_EXTRACTION_NODES);
