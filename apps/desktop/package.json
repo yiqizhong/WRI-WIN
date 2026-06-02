@@ -7,7 +7,12 @@
     "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "dev:renderer": "vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:renderer": "vite build",
+    "build:daemon": "node scripts/build-daemon.mjs",
+    "build:llama": "node scripts/build-llama.mjs",
+    "build:app": "electron-builder --win --x64",
+    "build": "npm run build:renderer && npm run build:daemon && npm run build:llama && npm run build:app"
   },
   "dependencies": {
     "@animateicons/react": "^0.3.3",
@@ -28,6 +33,8 @@
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.7",
     "sass-embedded": "^1.100.0"
   }
 }

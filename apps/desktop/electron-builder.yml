@@ -1,0 +1,41 @@
+appId: com.dell.writer
+productName: Writer
+copyright: Copyright © 2026 Dell
+
+directories:
+  output: dist-electron
+  buildResources: build-resources
+
+files:
+  - dist/**
+  - electron/**
+  - package.json
+  - node_modules/**
+
+# daemon bundle + node.exe + llama-cli — outside asar so they can be spawned
+extraResources:
+  - from: build/daemon
+    to: daemon
+    filter:
+      - "**"
+  - from: build/llama
+    to: llama
+    filter:
+      - "**"
+
+# koffi native module must be outside asar (can't load .node from inside asar)
+asarUnpack:
+  - "node_modules/koffi/**"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Writer

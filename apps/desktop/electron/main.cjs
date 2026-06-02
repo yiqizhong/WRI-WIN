@@ -19,7 +19,11 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  window.loadURL(devServerUrl);
+  if (app.isPackaged) {
+    window.loadFile(path.join(app.getAppPath(), "dist", "index.html"));
+  } else {
+    window.loadURL(devServerUrl);
+  }
 
   return window;
 }

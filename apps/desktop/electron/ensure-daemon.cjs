@@ -2,6 +2,7 @@ const { spawn, execSync } = require("node:child_process");
 const { createRequire } = require("node:module");
 const http = require("node:http");
 const path = require("node:path");
+const { app } = require("electron");
 
 const electronRequire = createRequire(__filename);
 const desktopPkg = electronRequire("../package.json");
@@ -143,6 +144,15 @@ function resolveTsxExecutable() {
   return path.join(repoRoot, "node_modules", ".bin", binName);
 }
 
+function resolvePackagedDaemon() {
+  const resourcesPath = process.resourcesPath;
+  const nodeExe = process.platform === "win32" ? "node.exe" : "node";
+  return {
+    nodePath: path.join(resourcesPath, "daemon", nodeExe),
+    daemonBundle: path.join(resourcesPath, "daemon", "daemon.mjs")
+  };
+}
+
 /** Append a Node CLI option to an existing NODE_OPTIONS string, avoiding duplicates. */
 function appendNodeOption(existing, option) {
   const current = (existing ?? "").trim();
@@ -153,16 +163,29 @@ function appendNodeOption(existing, option) {
 }
 
 function spawnDaemon() {
-  const tsxExecutable = resolveTsxExecutable();
-  // On Windows the tsx launcher is a `.cmd` shim, which node's spawn cannot
-  // execute directly (it fails with EINVAL). Route it through the shell there.
-  // Safe to do here: the arguments are fixed and trusted (no user input), so
-  // there is nothing to inject.
-  const useShell = process.platform === "win32";
-  const child = spawn(tsxExecutable, ["src/index.ts"], {
-    cwd: daemonDir,
-    // .cmd files on Windows must be spawned with shell:true
-    shell: process.platform === "win32",
+  let executable, args, cwd, useShell;
+
+  if (app.isPackaged) {
+    const { nodePath, daemonBundle } = resolvePackagedDaemon();
+    executable = nodePath;
+    args = [daemonBundle];
+    cwd = path.dirname(daemonBundle);
+    useShell = false;
+  } else {
+    const tsxExecutable = resolveTsxExecutable();
+    // On Windows the tsx launcher is a `.cmd` shim, which node's spawn cannot
+    // execute directly (it fails with EINVAL). Route it through the shell there.
+    // Safe to do here: the arguments are fixed and trusted (no user input), so
+    // there is nothing to inject.
+    executable = tsxExecutable;
+    args = ["src/index.ts"];
+    cwd = daemonDir;
+    useShell = process.platform === "win32";
+  }
+
+  const child = spawn(executable, args, {
+    cwd,
+    shell: useShell,
     env: {
       ...process.env,
       WRITER_DAEMON_HOST: daemonHost,
@@ -180,8 +203,7 @@ function spawnDaemon() {
       ...(process.resourcesPath ? { WRITER_RESOURCES_PATH: process.resourcesPath } : {})
     },
     stdio: ["ignore", "pipe", "pipe"],
-    detached: false,
-    shell: useShell
+    detached: false
   });
 
   child.on("error", (error) => {
