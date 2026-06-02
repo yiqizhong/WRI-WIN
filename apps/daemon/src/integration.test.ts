@@ -78,6 +78,15 @@ describe("daemon integration smoke", () => {
     expect(agentPayload.adapters.some((adapter) => adapter.id === "echo")).toBe(false);
   });
 
+  it("allows local dev renderer origins beyond the default Vite port", async () => {
+    const origin = "http://127.0.0.1:5174";
+    const health = await fetch(`${baseUrl}/health`, {
+      headers: { Origin: origin }
+    });
+
+    expect(health.headers.get("access-control-allow-origin")).toBe(origin);
+  });
+
   it("exposes implicit workspace without folder pick", async () => {
     const workspaceRes = await fetch(`${baseUrl}/workspace`);
     expect(workspaceRes.ok).toBe(true);

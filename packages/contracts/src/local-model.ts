@@ -55,7 +55,8 @@ export const localModelStateSchema = z.object({
 
 export const localModelStatusResponseSchema = z.object({
   manifest: localModelManifestSchema,
-  state: localModelStateSchema
+  state: localModelStateSchema,
+  blockedReason: z.string().nullable().optional()
 });
 
 export type LocalModelStatus = z.infer<typeof localModelStatusSchema>;

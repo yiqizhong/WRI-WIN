@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { extractResponse, splitCopywriterPrompt } from "./local-gemma-adapter";
+import { extractResponse, splitCopywriterPrompt, parseNvidiaVramMib } from "./local-gemma-adapter";
 
 describe("splitCopywriterPrompt", () => {
   it("splits system and user on the --- separator", () => {
@@ -102,5 +102,31 @@ describe("extractResponse", () => {
 
   it("returns trimmed response even when no banner/echo is present", () => {
     expect(extractResponse("  Just the answer.  ", prompt)).toBe("Just the answer.");
+  });
+});
+
+describe("parseNvidiaVramMib", () => {
+  it("extracts total MiB from a CUDA0 line", () => {
+    const lines = [
+      "CUDA0: NVIDIA GeForce RTX 4070 (12288 MiB, 12000 MiB free)"
+    ];
+    expect(parseNvidiaVramMib(lines)).toBe(12288);
+  });
+
+  it("returns null for CPU-only output (no CUDA line)", () => {
+    expect(parseNvidiaVramMib(["CPU: Intel Core i9"])).toBeNull();
+  });
+
+  it("returns null for an empty device list", () => {
+    expect(parseNvidiaVramMib([])).toBeNull();
+  });
+
+  it("returns null when the CUDA0 line has no MiB values", () => {
+    expect(parseNvidiaVramMib(["CUDA0: NVIDIA GPU (unknown)"])).toBeNull();
+  });
+
+  it("extracts total MiB (first number) not free MiB (second number)", () => {
+    const lines = ["CUDA0: NVIDIA RTX 3070 (8192 MiB, 7500 MiB free)"];
+    expect(parseNvidiaVramMib(lines)).toBe(8192);
   });
 });

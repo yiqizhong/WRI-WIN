@@ -43,11 +43,11 @@ describe("agent discovery and runs", () => {
     const state = await createTestState();
     const list = await getAgentAdapterList(state);
 
-    const knownIds = new Set(["cursor-agent", "devin", "local-gemma"]);
+    const knownIds = new Set(["devin", "local-gemma"]);
     expect(list.adapters.every((adapter) => knownIds.has(adapter.id))).toBe(true);
-    expect(list.adapters.some((adapter) => adapter.id === "cursor-agent")).toBe(true);
     expect(list.adapters.some((adapter) => adapter.id === "devin")).toBe(true);
     expect(list.adapters.some((adapter) => adapter.id === "local-gemma")).toBe(true);
+    expect(list.adapters.some((adapter) => adapter.id === "cursor-agent")).toBe(false);
     expect(list.adapters.some((adapter) => adapter.id === "claude-code")).toBe(false);
     expect(list.adapters.some((adapter) => adapter.id === "codex")).toBe(false);
     expect(list.adapters.some((adapter) => adapter.id === "echo")).toBe(false);

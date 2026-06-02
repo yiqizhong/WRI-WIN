@@ -13,30 +13,24 @@ import {
 } from "./agents-runtime";
 
 describe("agents-runtime", () => {
-  it("keeps both provider slots when daemon returns partial data", () => {
+  it("keeps the provider slot when daemon returns partial data", () => {
     const merged = mergeLlmAdapters(LLM_PROVIDER_PLACEHOLDERS, [
       {
-        id: "cursor-agent",
-        displayName: "Cursor",
+        id: "devin",
+        displayName: "Devin",
         available: true,
-        executablePath: "/usr/local/bin/cursor",
+        executablePath: "/Users/me/.local/bin/devin",
         capabilities: []
       }
     ]);
 
-    expect(merged).toHaveLength(2);
+    expect(merged).toHaveLength(1);
     expect(merged[0]?.available).toBe(true);
-    expect(merged[1]?.id).toBe("devin");
+    expect(merged[0]?.id).toBe("devin");
   });
 
   it("overrides stale daemon display names for LLM adapters", () => {
     const merged = mergeLlmAdapters(LLM_PROVIDER_PLACEHOLDERS, [
-      {
-        id: "cursor-agent",
-        displayName: "Cursor Agent",
-        available: true,
-        capabilities: []
-      },
       {
         id: "devin",
         displayName: "Devin (cloud-backed)",
@@ -45,19 +39,11 @@ describe("agents-runtime", () => {
       }
     ]);
 
-    expect(merged[0]?.displayName).toBe("Cursor");
-    expect(merged[1]?.displayName).toBe("Devin");
+    expect(merged[0]?.displayName).toBe("Devin");
   });
 
   it("preserves previous adapter details while refreshing", () => {
     const previous: AgentAdapter[] = [
-      {
-        id: "cursor-agent",
-        displayName: "Cursor",
-        available: true,
-        executablePath: "/usr/local/bin/cursor",
-        capabilities: []
-      },
       {
         id: "devin",
         displayName: "Devin",
@@ -68,8 +54,7 @@ describe("agents-runtime", () => {
     ];
 
     const merged = mergeLlmAdapters(previous, []);
-    expect(merged[0]?.executablePath).toBe("/usr/local/bin/cursor");
-    expect(merged[1]?.executablePath).toBe("/Users/me/.local/bin/devin");
+    expect(merged[0]?.executablePath).toBe("/Users/me/.local/bin/devin");
   });
 
   it("shows loading until adapter details exist", () => {
@@ -94,23 +79,23 @@ describe("agents-runtime", () => {
   describe("resolveActiveAfterLoad", () => {
     it("uses the loaded active id when the user has not chosen yet", () => {
       const next = resolveActiveAfterLoad({
-        loadedActiveId: "cursor-agent",
+        loadedActiveId: "devin",
         currentActiveId: null,
         userHasChosen: false
       });
-      expect(next).toBe("cursor-agent");
+      expect(next).toBe("devin");
     });
 
     it("keeps the user's selection when a background load resolves later", () => {
-      // The race: user picked devin; a slow listAgents started before the
-      // click resolves afterwards carrying the load-time fallback (cursor).
+      // The race: user picked local-gemma; a slow listAgents started before the
+      // click resolves afterwards carrying the load-time fallback (devin).
       // The user's choice must win.
       const next = resolveActiveAfterLoad({
-        loadedActiveId: "cursor-agent",
-        currentActiveId: "devin",
+        loadedActiveId: "devin",
+        currentActiveId: "local-gemma",
         userHasChosen: true
       });
-      expect(next).toBe("devin");
+      expect(next).toBe("local-gemma");
     });
 
     it("still applies a load that agrees with the user's selection", () => {
@@ -137,6 +122,6 @@ describe("agents-runtime", () => {
     });
 
     expect(result.activeAdapterId).toBe("devin");
-    expect(result.llmAdapters.some((adapter: { id: string }) => adapter.id === "cursor-agent")).toBe(true);
+    expect(result.llmAdapters.some((adapter: { id: string }) => adapter.id === "devin")).toBe(true);
   });
 });

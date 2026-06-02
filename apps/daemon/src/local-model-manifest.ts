@@ -18,4 +18,37 @@ export const GEMMA_4_E4B_MANIFEST: LocalModelManifest = {
   fileSizeBytes: 8_600_000_000
 };
 
-export const ALL_LOCAL_MODEL_MANIFESTS: LocalModelManifest[] = [GEMMA_4_E4B_MANIFEST];
+// Pinned artifact: ggml-org/gemma-4-E4B-it-GGUF, file gemma-4-E4B-it-Q4_K_M.gguf
+// sha256 and size sourced from Git LFS pointer on 2026-06-02.
+export const GEMMA_4_E4B_Q4KM_MANIFEST: LocalModelManifest = {
+  modelId: "gemma-4-e4b",
+  displayName: "Gemma 4 E4B",
+  sourceRepo: "ggml-org/gemma-4-E4B-it-GGUF",
+  fileName: "gemma-4-E4B-it-Q4_K_M.gguf",
+  downloadUrl:
+    "https://huggingface.co/ggml-org/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+  expectedSha256: "90ce98129eb3e8cc57e62433d500c97c624b1e3af1fcc85dd3b55ad7e0313e9f",
+  gated: false,
+  modelMaxContext: 131072,
+  defaultContext: 16384,
+  fileSizeBytes: 5_335_289_824
+};
+
+export const ALL_LOCAL_MODEL_MANIFESTS: LocalModelManifest[] = [
+  GEMMA_4_E4B_MANIFEST,
+  GEMMA_4_E4B_Q4KM_MANIFEST
+];
+
+export type ManifestResolution =
+  | { manifest: LocalModelManifest }
+  | { blocked: true; reason: string };
+
+// Real 12 GB cards report slightly under 12288 MiB — use 12000 so they get Q8_0.
+export const VRAM_Q8_MIN_MIB = 12000;
+
+export function resolveLocalModelManifest(vram: number | null): ManifestResolution {
+  if (vram === null) {
+    return { blocked: true, reason: "No compatible NVIDIA GPU detected" };
+  }
+  return { manifest: vram >= VRAM_Q8_MIN_MIB ? GEMMA_4_E4B_MANIFEST : GEMMA_4_E4B_Q4KM_MANIFEST };
+}

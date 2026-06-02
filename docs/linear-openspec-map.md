@@ -471,3 +471,20 @@ Separates the two home-screen jobs without replacing their implemented engines: 
 | 8.1–8.5 | [WRI-210](https://linear.app/uicb/issue/WRI-210) | Verification + docs |
 
 **Suggested order:** WRI-203 → WRI-204 → WRI-205 → WRI-206 → WRI-207 → WRI-208 → WRI-209 → WRI-210 → close WRI-202
+
+## vram-based-quant-selection (OpenSpec: `openspec/changes/vram-based-quant-selection/`)
+
+**Epic:** [WRI-212](https://linear.app/uicb/issue/WRI-212) — VRAM-based local model quantization selection
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.2) | [WRI-213](https://linear.app/uicb/issue/WRI-213) | Q4_K_M manifest constant + tests |
+| §2 (2.1–2.3) | [WRI-214](https://linear.app/uicb/issue/WRI-214) | detectNvidiaVram() + VRAM line parser + cache |
+| §3 (3.1–3.2) | [WRI-215](https://linear.app/uicb/issue/WRI-215) | resolveLocalModelManifest() pure function + tests |
+| §4 (4.1–4.3) | [WRI-216](https://linear.app/uicb/issue/WRI-216) | Daemon model layer wiring + blockedReason contract |
+| §5 (5.1–5.2) | [WRI-217](https://linear.app/uicb/issue/WRI-217) | UI: selected quant size + blocked state message |
+| §6 (6.1–6.3) | — | Verification: typecheck + tests + openspec validate |
+
+**Suggested order:** WRI-213 → WRI-214 → WRI-215 → WRI-216 → WRI-217 → verification → close WRI-212
+
+**Branch:** `feat/vram-based-quant-selection`

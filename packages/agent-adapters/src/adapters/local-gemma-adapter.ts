@@ -174,6 +174,30 @@ async function getLlamaBinaryPath(): Promise<string | null> {
   return commandExists("llama-cli");
 }
 
+// Exported for unit-testing only — callers should use detectNvidiaVram().
+export function parseNvidiaVramMib(deviceLines: string[]): number | null {
+  for (const line of deviceLines) {
+    if (!/^CUDA0:/i.test(line)) continue;
+    const match = line.match(/\((\d+)\s*MiB/);
+    if (match) return Number(match[1]);
+  }
+  return null;
+}
+
+let cachedNvidiaVram: number | null | undefined;
+
+export async function detectNvidiaVram(): Promise<number | null> {
+  if (cachedNvidiaVram !== undefined) return cachedNvidiaVram;
+  const binaryPath = await getLlamaBinaryPath();
+  if (!binaryPath) {
+    cachedNvidiaVram = null;
+    return null;
+  }
+  const devices = await listGpuDevices(binaryPath);
+  cachedNvidiaVram = parseNvidiaVramMib(devices);
+  return cachedNvidiaVram;
+}
+
 function buildAdapter(input: {
   available: boolean;
   setupMessage?: string;

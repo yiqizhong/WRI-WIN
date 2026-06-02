@@ -18,7 +18,7 @@ export {
   setDevinRuntimeSettings
 } from "./adapters/devin";
 export { commandExists, runCliCommand } from "./cli-runner";
-export { createLocalGemmaAdapter, LOCAL_MODEL_ADAPTER_ID, shutdownLocalGemmaRuntime } from "./adapters/local-gemma-adapter";
+export { createLocalGemmaAdapter, LOCAL_MODEL_ADAPTER_ID, shutdownLocalGemmaRuntime, detectNvidiaVram } from "./adapters/local-gemma-adapter";
 export type { LocalGemmaAdapterOptions } from "./adapters/local-gemma-adapter";
 export type { DraftSettings } from "./adapters/local-gemma-runtime";
 export type {

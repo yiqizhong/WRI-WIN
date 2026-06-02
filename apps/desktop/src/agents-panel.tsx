@@ -57,7 +57,6 @@ type AgentsPanelProps = {
 };
 
 const LLM_PROVIDER_LOGO: Partial<Record<LlmProviderAdapterId, string>> = {
-  "cursor-agent": "/llm-provider-logos/cursor-agent.png",
   devin: "/llm-provider-logos/devin.png"
 };
 
@@ -357,11 +356,15 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
 
   const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
   const [localModelSizeBytes, setLocalModelSizeBytes] = useState<number | null>(null);
+  const [localModelBlockedReason, setLocalModelBlockedReason] = useState<string | null>(null);
 
   useEffect(() => {
     if (!connected) return;
     void client.getLocalModelStatus()
-      .then((s) => setLocalModelSizeBytes(s.manifest.fileSizeBytes))
+      .then((s) => {
+        setLocalModelSizeBytes(s.manifest.fileSizeBytes);
+        setLocalModelBlockedReason(s.blockedReason ?? null);
+      })
       .catch(() => undefined);
   }, [connected, client]);
   const [downloadProgress, setDownloadProgress] = useState<{
@@ -828,23 +831,27 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         {isLoading ? (
                           <Loader2 className="size-4 animate-spin text-[#e5f1ff]/70" aria-hidden />
                         ) : !adapter.available ? (
-                          <WriterPrimaryButton
-                            className={hugWidth}
-                            disabled={!stableConnected}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const code = adapter.diagnostic?.code;
-                              if (code === "not_installed" || !code) {
-                                void downloadLocalModel(adapter.id);
-                              } else {
-                                void resetLocalModel(adapter.id);
-                              }
-                            }}
-                          >
-                            {adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic
-                              ? "Download"
-                              : "Retry"}
-                          </WriterPrimaryButton>
+                          localModelBlockedReason && adapter.id === "local-gemma" ? (
+                            <span className="text-xs text-[#e5f1ff]/50">{localModelBlockedReason}</span>
+                          ) : (
+                            <WriterPrimaryButton
+                              className={hugWidth}
+                              disabled={!stableConnected}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const code = adapter.diagnostic?.code;
+                                if (code === "not_installed" || !code) {
+                                  void downloadLocalModel(adapter.id);
+                                } else {
+                                  void resetLocalModel(adapter.id);
+                                }
+                              }}
+                            >
+                              {adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic
+                                ? "Download"
+                                : "Retry"}
+                            </WriterPrimaryButton>
+                          )
                         ) : null}
                         <Badge variant={tagVariant(status.type)} className={hugWidth}>
                           {status.label}
