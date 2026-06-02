@@ -1,11 +1,8 @@
-import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import revisionJson from "@writer/contracts/daemon-api-revision.json";
 
-const require = createRequire(import.meta.url);
-const { revision: defaultApiRevision } = require("@writer/contracts/daemon-api-revision.json") as {
-  revision: string;
-};
+const defaultApiRevision: string = revisionJson.revision;
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
