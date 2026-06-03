@@ -57,7 +57,14 @@ function resolveBody(s: AppUpdateState): ReactNode {
     case "downloading":
       return (
         <div className="flex flex-col gap-2">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            role="progressbar"
+            aria-valuenow={s.percent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Download progress"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+          >
             <div
               className="h-full rounded-full bg-[var(--writer-accent-blue)] transition-[width] duration-500 ease-linear"
               style={{ width: `${s.percent}%` }}
