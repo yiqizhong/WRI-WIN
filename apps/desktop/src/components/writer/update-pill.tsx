@@ -46,13 +46,13 @@ export function UpdatePill({ state, onClick }: UpdatePillProps) {
   return (
     <button
       type="button"
-      onClick={isDownloading ? undefined : onClick}
+      onClick={onClick}
+      disabled={isDownloading}
       className={cn(
         "self-center mr-2 flex items-center gap-1.5 rounded-full px-3 py-1",
         "text-xs font-medium tracking-wide transition-opacity",
         VARIANT_CLASSES[variant]
       )}
-      aria-label={label}
     >
       {state.status === "available"   && <ArrowUp size={11} strokeWidth={2.5} aria-hidden />}
       {state.status === "downloading" && <Loader2 size={11} className="animate-spin" aria-hidden />}
