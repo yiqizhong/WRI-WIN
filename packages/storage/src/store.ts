@@ -35,7 +35,9 @@ import {
   rewriteCandidateSchema,
   uxCopyFindingSchema,
   pasteTextConversationSchema,
-  type PasteTextAttachment
+  type PasteTextAttachment,
+  userProfileSchema,
+  type UserProfile
 } from "@writer/contracts";
 
 import { getPasteTextParseResultPath } from "./paste-text-paths";
@@ -72,6 +74,7 @@ export type PlatformStoreSnapshot = {
   localModel: LocalModelState | null;
   speculativeDecoding: SpeculativeDecodingState;
   devinProviderSettings: DevinProviderSettings;
+  userProfile: UserProfile | null;
 };
 
 export type PlatformStoreOptions = {
@@ -107,7 +110,8 @@ export class PlatformStore {
       pasteTextConversations: [],
       localModel: null,
       speculativeDecoding: { enabled: false },
-      devinProviderSettings: devinProviderSettingsSchema.parse({})
+      devinProviderSettings: devinProviderSettingsSchema.parse({}),
+      userProfile: null
     };
   }
 
@@ -155,7 +159,13 @@ export class PlatformStore {
           const r = speculativeDecodingStateSchema.safeParse(raw);
           return r.success ? r.data : { enabled: false };
         })(),
-        devinProviderSettings: devinProviderSettingsSchema.parse(parsed.devinProviderSettings ?? {})
+        devinProviderSettings: devinProviderSettingsSchema.parse(parsed.devinProviderSettings ?? {}),
+        userProfile: (() => {
+          const raw = (parsed as { userProfile?: unknown }).userProfile;
+          if (!raw) return null;
+          const r = userProfileSchema.safeParse(raw);
+          return r.success ? r.data : null;
+        })()
       };
 
       const migrated = await this.migrateLoadedSnapshot();
@@ -414,6 +424,14 @@ export class PlatformStore {
 
   setSpeculativeDecoding(value: SpeculativeDecodingState): void {
     this.snapshot.speculativeDecoding = speculativeDecodingStateSchema.parse(value);
+  }
+
+  getUserProfile(): UserProfile | null {
+    return this.snapshot.userProfile ? { ...this.snapshot.userProfile } : null;
+  }
+
+  setUserProfile(profile: UserProfile): void {
+    this.snapshot.userProfile = userProfileSchema.parse(profile);
   }
 
   private async migrateLoadedSnapshot(): Promise<boolean> {
