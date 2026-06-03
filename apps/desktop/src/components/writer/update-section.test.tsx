@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { updateLabel } from "./update-section";
 
 describe("updateLabel", () => {
+  it("labels idle", () => {
+    expect(updateLabel({ status: "idle" })).toBe("Up to date");
+  });
   it("labels checking", () => {
     expect(updateLabel({ status: "checking" })).toBe("Checking for updates…");
   });

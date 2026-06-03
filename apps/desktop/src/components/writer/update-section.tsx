@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AppUpdateState } from "@writer/contracts";
+import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 
 export function updateLabel(state: AppUpdateState): string {
   switch (state.status) {
@@ -14,13 +15,13 @@ export function updateLabel(state: AppUpdateState): string {
 }
 
 export function UpdateSection() {
-  const api = typeof window !== "undefined" ? window.writerUpdate : undefined;
+  const api = window.writerUpdate;
   const [state, setState] = useState<AppUpdateState>({ status: "idle" });
 
   useEffect(() => {
     if (!api) return;
     return api.onState(setState);
-  }, [api]);
+  }, []);
 
   if (!api) return null;
 
@@ -32,22 +33,21 @@ export function UpdateSection() {
       <p className="text-xs font-medium tracking-wide text-[#e5f1ff]/60 uppercase">App updates</p>
       <p className="text-sm text-[#e5f1ff]/80">{updateLabel(state)}</p>
       <div className="flex flex-wrap gap-2">
-        <button
+        <WriterPrimaryButton
           onClick={() => api.check()}
           disabled={state.status === "checking"}
-          className="writer-primary-button"
         >
           Check for updates
-        </button>
+        </WriterPrimaryButton>
         {state.status === "available" && (
-          <button onClick={() => api.download()} className="writer-primary-button">
+          <WriterPrimaryButton onClick={() => api.download()}>
             Download
-          </button>
+          </WriterPrimaryButton>
         )}
         {state.status === "downloaded" && (
-          <button onClick={() => api.restartToInstall()} className="writer-primary-button">
+          <WriterPrimaryButton onClick={() => api.restartToInstall()}>
             Restart to install
-          </button>
+          </WriterPrimaryButton>
         )}
       </div>
     </section>
