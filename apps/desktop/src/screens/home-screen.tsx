@@ -92,13 +92,13 @@ function WorkflowCard({
   );
 }
 
-export function HomeScreen() {
+export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }) {
   const navigate = useNavigate();
   const { userName } = useWorkspace();
   const name = userName;
 
   return (
-    <div className="writer-content-fade-in mt-[76px] flex h-full w-full items-center justify-center">
+    <div className="writer-content-fade-in relative mt-[76px] flex h-full w-full items-center justify-center">
       <div className="flex -translate-y-[108px] flex-col gap-16">
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
@@ -146,6 +146,16 @@ export function HomeScreen() {
           />
         </div>
       </div>
+      {import.meta.env.DEV && onReplayWelcome ? (
+        <button
+          type="button"
+          onClick={onReplayWelcome}
+          className="absolute bottom-4 right-4 rounded px-2 py-1 text-xs text-[#e5f1ff]/30 transition-colors hover:text-[#e5f1ff]/60"
+          aria-label="Replay welcome animation"
+        >
+          ▶ replay intro
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MemoryRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { Toaster } from "@/components/ui/sonner";
@@ -16,13 +17,20 @@ import { SettingsScreen } from "./screens/settings-screen";
 import { TextCopyScreen } from "./screens/text-copy-screen";
 import { AppShell } from "./shell/AppShell";
 import { ProductChrome } from "./shell/ProductChrome";
-import { WorkspaceProvider } from "./workspace-context";
+import { WorkspaceProvider, useWorkspace } from "./workspace-context";
+import { WelcomeScreen } from "./screens/welcome-screen";
 
-function RoutedApp() {
+function RoutedApp({ showWelcome, onGo, onReplayWelcome }: { showWelcome: boolean; onGo: () => void; onReplayWelcome: () => void }) {
+  const { daemonConnected } = useWorkspace();
+
+  if (daemonConnected && showWelcome) {
+    return <WelcomeScreen onGo={onGo} />;
+  }
+
   return (
     <ProductChrome>
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
+        <Route path="/" element={<HomeScreen onReplayWelcome={onReplayWelcome} />} />
         <Route path="/figma-audit" element={<FigmaAuditScreen />} />
         <Route path="/guide" element={<FigmaGuidelineGeneratorScreen />} />
         <Route path="/guide/log" element={<GuidelinesRouteLayout />}>
@@ -42,12 +50,14 @@ function RoutedApp() {
 }
 
 export function App() {
+  const [showWelcome, setShowWelcome] = useState(true);
+
   return (
     <TooltipProvider delay={200}>
       <MemoryRouter>
         <WorkspaceProvider>
-          <AppShell>
-            <RoutedApp />
+          <AppShell hideSettings={showWelcome}>
+            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} onReplayWelcome={() => setShowWelcome(true)} />
           </AppShell>
           <Toaster richColors position="top-right" />
         </WorkspaceProvider>

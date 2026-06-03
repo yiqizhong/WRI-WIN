@@ -12,13 +12,14 @@ import { BackdropTuner } from "./BackdropTuner";
 
 type AppShellProps = {
   children: ReactNode;
+  hideSettings?: boolean;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, hideSettings }: AppShellProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { backTo } = mastheadConfigForPath(pathname);
-  const onSettings = pathname === "/settings" ? undefined : () => navigate("/settings");
+  const onSettings = hideSettings || pathname === "/settings" ? undefined : () => navigate("/settings");
 
   return (
     <WriterWindowBackground>
