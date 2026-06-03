@@ -6,7 +6,8 @@ import type {
   McpServer,
   ProductPackageListItem,
   SpreadsheetMappingInput,
-  SpreadsheetParseResult
+  SpreadsheetParseResult,
+  UserProfile
 } from "@writer/contracts";
 
 import {
@@ -72,6 +73,8 @@ export type WorkspaceContextValue = {
   setActiveLlmAdapter: (adapterId: string) => Promise<void>;
   refreshAgentDetection: () => Promise<void>;
   replaceMcpServers: (servers: McpServer[]) => void;
+  userProfile: UserProfile | null | "loading";
+  saveProfile: (name: string) => Promise<void>;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
@@ -109,6 +112,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [agentsRefreshing, setAgentsRefreshing] = useState(false);
   const [mcpServers, setMcpServers] = useState<McpServer[]>(MCP_SERVER_PLACEHOLDERS);
   const [mcpLoadState, setMcpLoadState] = useState<AgentsLoadState>("idle");
+  const [userProfile, setUserProfile] = useState<UserProfile | null | "loading">("loading");
 
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
   const daemonClient = useMemo(() => createDaemonClient(), []);
@@ -487,6 +491,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             ? workspace.lastProductId
             : (workspace.products[0]?.id ?? null);
         setSelectedProductIdState(preferred);
+        setUserProfile(workspace.userProfile);
       } catch {
         // Keep UI usable when workspace bootstrap fails.
       }
@@ -501,6 +506,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setAgentsLoadState("idle");
       setMcpLoadState("idle");
       setMcpServers(MCP_SERVER_PLACEHOLDERS);
+      setUserProfile("loading");
       return;
     }
 
@@ -556,6 +562,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     void refreshQueue();
   }, [activeSessionId]);
 
+  async function saveProfile(name: string): Promise<void> {
+    const profile = await daemonClient.setupProfile(name);
+    setUserProfile(profile);
+  }
+
   const value: WorkspaceContextValue = {
     daemonClient,
     daemonState,
@@ -603,7 +614,9 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     mcpLoadState,
     setActiveLlmAdapter,
     refreshAgentDetection,
-    replaceMcpServers
+    replaceMcpServers,
+    userProfile,
+    saveProfile
   };
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
