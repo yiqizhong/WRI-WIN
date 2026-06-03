@@ -1,3 +1,5 @@
+import type { AppUpdateState } from "@writer/contracts";
+
 export {};
 
 declare global {
@@ -24,6 +26,12 @@ declare global {
       setBackgroundMaterial?: (
         material: "none" | "mica" | "acrylic" | "tabbed"
       ) => Promise<boolean>;
+    };
+    writerUpdate?: {
+      check: () => Promise<unknown>;
+      download: () => Promise<unknown>;
+      restartToInstall: () => Promise<unknown>;
+      onState: (callback: (state: AppUpdateState) => void) => () => void;
     };
   }
 }
