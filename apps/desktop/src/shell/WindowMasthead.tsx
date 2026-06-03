@@ -1,13 +1,16 @@
 import { ArrowLeft, Settings } from "lucide-react";
-
+import type { AppUpdateState } from "@writer/contracts";
+import { UpdatePill } from "@/components/writer/update-pill";
 import "../styles/writer-masthead.css";
 
 type WindowMastheadProps = {
   onBack?: () => void;
   onSettings?: () => void;
+  updateState?: AppUpdateState;
+  onUpdateClick?: () => void;
 };
 
-export function WindowMasthead({ onBack, onSettings }: WindowMastheadProps) {
+export function WindowMasthead({ onBack, onSettings, updateState, onUpdateClick }: WindowMastheadProps) {
   const win = window.writerDesktop;
 
   return (
@@ -27,6 +30,11 @@ export function WindowMasthead({ onBack, onSettings }: WindowMastheadProps) {
       </div>
 
       <div className="writer-masthead__buttons">
+        {/* Update pill — left of settings */}
+        {updateState && onUpdateClick && (
+          <UpdatePill state={updateState} onClick={onUpdateClick} />
+        )}
+
         {/* Settings */}
         {onSettings && (
           <button
