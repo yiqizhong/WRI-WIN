@@ -12,7 +12,7 @@ import { FigmaGuidelineGeneratorScreen } from "./screens/figma-guideline-generat
 import { GuidelineDetailScreen } from "./screens/guideline-detail-screen";
 import { GuidelinesListScreen } from "./screens/guidelines-list-screen";
 import { GuidelinesRouteLayout } from "./layout/guidelines-route-layout";
-import { HomeScreen } from "./screens/home-screen";
+import { HomeScreen, resetHomeAnimation } from "./screens/home-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { TextCopyScreen } from "./screens/text-copy-screen";
 import { AppShell } from "./shell/AppShell";
@@ -57,7 +57,7 @@ export function App() {
       <MemoryRouter>
         <WorkspaceProvider>
           <AppShell hideSettings={showWelcome}>
-            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} onReplayWelcome={() => setShowWelcome(true)} />
+            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} onReplayWelcome={() => { resetHomeAnimation(); setShowWelcome(true); }} />
           </AppShell>
           <Toaster richColors position="top-right" />
         </WorkspaceProvider>
