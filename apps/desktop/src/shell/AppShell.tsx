@@ -58,7 +58,7 @@ export function AppShell({ children, hideSettings }: AppShellProps) {
           state={updateState}
           onDownload={() => { void api.download().catch(() => undefined); }}
           onRestart={() => { void api.restartToInstall().catch(() => undefined); }}
-          onRetry={() => { void api.check().catch(() => undefined); }}
+          onRetry={() => { void api.download().catch(() => undefined); }}
         />
       )}
 
