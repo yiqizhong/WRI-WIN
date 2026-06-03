@@ -503,3 +503,26 @@ Separates the two home-screen jobs without replacing their implemented engines: 
 **Suggested order:** WRI-219 → WRI-220 → WRI-221 → WRI-222 → close WRI-218
 
 **Branch:** `feat/figma-extraction-perf`
+
+## add-windows-auto-update-r2 (OpenSpec: `openspec/changes/add-windows-auto-update-r2/`)
+
+**Epic:** [WRI-223](https://linear.app/uicb/issue/WRI-223) — Add Windows Electron auto-update via Cloudflare R2
+
+Thin PoC slice: `electron-updater` + NSIS + `generic` provider → R2. Auto-check on launch (packaged only), manual download + manual restart. Hard invariant: updates must not touch user data, logs, or local models under `~/.writer`.
+
+| OpenSpec task | Linear | Notes |
+|---------------|--------|-------|
+| §1 (1.1–1.7) | [WRI-224](https://linear.app/uicb/issue/WRI-224) | Contracts: `AppUpdateState` Zod discriminated union (spec: `desktop-auto-update`) |
+| §2 (2.1–2.5) | [WRI-225](https://linear.app/uicb/issue/WRI-225) | NSIS `generic` R2 publish config + `electron-updater` + `deleteAppDataOnUninstall:false` + upload runbook |
+| §3 (3.1–3.7) | [WRI-226](https://linear.app/uicb/issue/WRI-226) | Pure event→state mapper + `app.isPackaged`-guarded updater module + IPC; wired into `main.cjs` |
+| §4 (4.1–4.3) | [WRI-227](https://linear.app/uicb/issue/WRI-227) | Preload `window.writerUpdate` bridge + `writer-desktop.d.ts` typing |
+| §5 (5.1–5.7) | [WRI-228](https://linear.app/uicb/issue/WRI-228) | Renderer `UpdateSection` in settings; hidden in dev |
+| §6 (6.1–6.5) | [WRI-229](https://linear.app/uicb/issue/WRI-229) | Invariant guard test + typecheck/test/strict-validate + manual A→B survival E2E |
+
+**Dependencies:** WRI-224 → (WRI-225, WRI-226); WRI-226 → WRI-227 → WRI-228; (WRI-225 + WRI-228) → WRI-229.
+
+**Suggested order:** WRI-224 → WRI-226 → WRI-227 → WRI-228 → WRI-225 → WRI-229 → close WRI-223
+
+**Prerequisite input:** public R2 update base URL (for WRI-225). Unsigned NSIS acceptable for first internal test (pending company policy).
+
+**Branch:** `feat/hot-update`
