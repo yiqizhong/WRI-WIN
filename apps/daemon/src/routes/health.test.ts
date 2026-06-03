@@ -32,7 +32,8 @@ describe("health route", () => {
         logDir: "/tmp",
         logLevel: "info",
         version: "0.1.0",
-        apiRevision: "4"
+        apiRevision: "4",
+        packaged: false
       },
       getCapabilitySummary: () => [{ id: "desktop-shell", status: "enabled" }]
     });

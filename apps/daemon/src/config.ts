@@ -13,6 +13,7 @@ export type DaemonConfig = {
   logLevel: LogLevel;
   version: string;
   apiRevision: string;
+  packaged: boolean;
 };
 
 const LOG_LEVELS: LogLevel[] = ["debug", "info", "warn", "error"];
@@ -40,6 +41,7 @@ export function loadDaemonConfig(env: NodeJS.ProcessEnv = process.env): DaemonCo
     logDir: env.WRITER_DAEMON_LOG_DIR ?? join(homedir(), ".writer", "logs"),
     logLevel: parseLogLevel(env.WRITER_DAEMON_LOG_LEVEL),
     version: env.WRITER_DAEMON_VERSION ?? "0.1.0",
-    apiRevision: env.WRITER_DAEMON_API_REVISION ?? defaultApiRevision
+    apiRevision: env.WRITER_DAEMON_API_REVISION ?? defaultApiRevision,
+    packaged: env.WRITER_DAEMON_PACKAGED === "true"
   };
 }

@@ -12,7 +12,8 @@ export const daemonHealthSchema = z.object({
   status: z.enum(["running", "degraded"]),
   version: z.string().min(1),
   apiRevision: z.string().min(1),
-  capabilities: z.array(daemonCapabilitySchema)
+  capabilities: z.array(daemonCapabilitySchema),
+  packaged: z.boolean().optional()
 });
 
 export type DaemonHealth = z.infer<typeof daemonHealthSchema>;

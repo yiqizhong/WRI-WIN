@@ -33,7 +33,13 @@ function initAutoUpdate(getWindow) {
 
   ipcMain.handle("writer-update:check", () => autoUpdater.checkForUpdates());
   ipcMain.handle("writer-update:download", () => autoUpdater.downloadUpdate());
-  ipcMain.handle("writer-update:restart", () => autoUpdater.quitAndInstall());
+  ipcMain.handle("writer-update:restart", () => {
+    // Hide the window before quitting so Windows never marks it "Not Responding"
+    // while the NSIS installer launches (CreateProcess blocks the main thread briefly).
+    const window = getWindow();
+    if (window && !window.isDestroyed()) window.hide();
+    autoUpdater.quitAndInstall();
+  });
 
   // One auto-check on launch.
   autoUpdater.checkForUpdates().catch((error) => {

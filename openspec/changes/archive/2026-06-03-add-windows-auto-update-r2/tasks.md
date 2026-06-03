@@ -30,4 +30,4 @@
 - [x] 6.1 Add Vitest unit tests for the event→state mapping using a mocked `autoUpdater`, covering progress, `not-available`, and `error`.
 - [x] 6.2 Add a guard test asserting the updater module references no install-dir / `resourcesPath` write paths and performs no `~/.writer` writes.
 - [x] 6.3 Run `npm run typecheck`, `npm run test`, and `npx openspec validate add-windows-auto-update-r2 --type change --strict`.
-- [ ] 6.4 Manual A→B E2E: build vA → install → create a record, write a log line, confirm a `.gguf` in `~/.writer/models`; upload vB to R2 (package files first, `latest.yml` last); confirm vA detects vB, downloads with progress, restarts, and relaunches as vB; assert `platform-store.json`, `~/.writer/logs`, and the model file are intact and the model is not re-downloaded.
+- [x] 6.4 Manual A→B E2E: build vA → install → create a record, write a log line, confirm a `.gguf` in `~/.writer/models`; upload vB to R2 (package files first, `latest.yml` last); confirm vA detects vB, downloads with progress, restarts, and relaunches as vB; assert `platform-store.json`, `~/.writer/logs`, and the model file are intact and the model is not re-downloaded.

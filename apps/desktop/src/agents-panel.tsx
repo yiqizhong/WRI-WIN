@@ -758,7 +758,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
-                        {isLoading ? (
+                        {isLoading || adapter.diagnostic?.code === "downloading" || adapter.diagnostic?.code === "verifying" ? (
                           <Loader2 className="size-4 animate-spin text-[#e5f1ff]/70" aria-hidden />
                         ) : !adapter.available ? (
                           localModelBlockedReason && adapter.id === "local-gemma" ? (

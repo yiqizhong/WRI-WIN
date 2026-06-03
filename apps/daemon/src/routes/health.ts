@@ -25,7 +25,8 @@ export function handleHealthRequest(
     status: hasDegraded ? "degraded" : "running",
     version: deps.config.version,
     apiRevision: deps.config.apiRevision,
-    capabilities
+    capabilities,
+    packaged: deps.config.packaged
   };
 
   response.writeHead(200, { "content-type": "application/json" });

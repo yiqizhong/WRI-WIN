@@ -75,7 +75,8 @@ function fetchHealth() {
           resolve({
             version: payload.version,
             apiRevision:
-              typeof payload.apiRevision === "string" ? payload.apiRevision : ""
+              typeof payload.apiRevision === "string" ? payload.apiRevision : "",
+            packaged: payload.packaged === true
           });
         } catch {
           resolve(null);
@@ -95,7 +96,10 @@ function isCompatible(health) {
   return (
     health !== null &&
     health.version === expectedVersion &&
-    health.apiRevision === expectedApiRevision
+    health.apiRevision === expectedApiRevision &&
+    // A packaged app must not reuse a dev daemon — it lacks WRITER_RESOURCES_PATH
+    // and cannot find llama-cli, breaking model download and VRAM detection.
+    (!app.isPackaged || health.packaged === true)
   );
 }
 
@@ -236,7 +240,8 @@ function spawnDaemon() {
       NODE_OPTIONS: appendNodeOption(process.env.NODE_OPTIONS, "--use-system-ca"),
       // Pass the Electron resources path so the daemon can find bundled binaries
       // (e.g. llama-cli / llama-cli.exe) in production builds.
-      ...(process.resourcesPath ? { WRITER_RESOURCES_PATH: process.resourcesPath } : {})
+      ...(process.resourcesPath ? { WRITER_RESOURCES_PATH: process.resourcesPath } : {}),
+      WRITER_DAEMON_PACKAGED: String(app.isPackaged)
     },
     stdio: ["ignore", "pipe", "pipe"],
     detached: false
