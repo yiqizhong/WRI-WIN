@@ -4,6 +4,7 @@ const path = require("node:path");
 
 const { createMainWindow } = require("./create-main-window.cjs");
 const { ensureDaemonRunning, stopManagedDaemon } = require("./ensure-daemon.cjs");
+const { initAutoUpdate } = require("./auto-update.cjs");
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
 
@@ -200,6 +201,7 @@ app.whenReady().then(async () => {
   }
 
   createWindow();
+  initAutoUpdate(() => mainWindow);
 
   app.on("activate", () => {
     if (mainWindow === null || mainWindow.isDestroyed()) {
