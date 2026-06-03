@@ -8,6 +8,7 @@ import {
   WriterPrimaryButton,
   writerPrimaryButtonMotionEndClassName
 } from "@/components/writer/writer-primary-button";
+import { useWorkspace } from "../workspace-context";
 
 const FIGMA_LOGO = `${import.meta.env.BASE_URL}mcp-server-logos/figma.png`;
 const WORKFLOW_CARD_ICON_CLASS = "size-10";
@@ -93,13 +94,15 @@ function WorkflowCard({
 
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { userProfile } = useWorkspace();
+  const name = userProfile && userProfile !== "loading" ? userProfile.name : null;
 
   return (
     <div className="mt-[76px] flex h-full w-full items-center justify-center">
       <div className="flex -translate-y-[108px] flex-col gap-16">
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
-            <span>Hi,</span>
+            <span>{name ? `Hi ${name},` : "Hi,"}</span>
             <span>{greeting()}</span>
           </div>
           <div className="writer-home-divider" aria-hidden />
