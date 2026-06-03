@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { AppUpdateState } from "@writer/contracts";
 
@@ -26,17 +26,10 @@ export function AppShell({ children, hideSettings }: AppShellProps) {
   const api = window.writerUpdate;
   const [updateState, setUpdateState] = useState<AppUpdateState>({ status: "idle" });
   const [modalOpen, setModalOpen] = useState(false);
-  const hasAutoOpened = useRef(false);
 
   useEffect(() => {
     if (!api) return;
-    return api.onState((state) => {
-      setUpdateState(state);
-      if (!hasAutoOpened.current && (state.status === "available" || state.status === "error")) {
-        hasAutoOpened.current = true;
-        setModalOpen(true);
-      }
-    });
+    return api.onState(setUpdateState);
   }, [api]);
 
   return (

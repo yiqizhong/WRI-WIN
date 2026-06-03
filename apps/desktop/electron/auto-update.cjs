@@ -11,7 +11,7 @@ const UPDATE_EVENTS = [
 ];
 
 const CHECK_MAX_RETRIES = 3;
-const CHECK_RETRY_DELAY_MS = 4_000;
+const CHECK_RETRY_DELAY_MS = 10_000;
 
 /** Returns true for transient network errors worth retrying (e.g. slow corporate DNS). */
 function isRetryableError(error) {
