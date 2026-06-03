@@ -94,7 +94,8 @@ describe("Devin runtime settings", () => {
     setDevinRuntimeSettings({ modelId: "swe-1.6-fast" });
     expect(resolveDevinModelId()).toBe("swe-1.6");
     expect(normalizeDevinModelId("swe-1.5")).toBe("swe-1.6");
-    expect(normalizeDevinModelId("gpt-5.4")).toBe("swe-1.6");
+    // gpt-5.4 is now a curated model — it normalizes to itself, not the fallback
+    expect(normalizeDevinModelId("gpt-5.4")).toBe("gpt-5.4");
   });
 });
 

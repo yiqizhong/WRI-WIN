@@ -132,7 +132,7 @@ describe("agent discovery and runs", () => {
     expect(reloaded.reasoningPreference).toBe("high");
   });
 
-  it("reports pinned swe-1.6 even when store still holds another curated model", async () => {
+  it("returns a valid curated model from store when model picker is enabled", async () => {
     const state = await createTestState();
     state.store.setDevinProviderSettings({
       modelId: "gpt-5.4",
@@ -141,7 +141,7 @@ describe("agent discovery and runs", () => {
     });
 
     const settings = getDevinProviderSettings(state);
-    expect(settings.modelId).toBe("swe-1.6");
-    expect(resolveDevinModelId()).toBe("swe-1.6");
+    expect(settings.modelId).toBe("gpt-5.4");
+    expect(resolveDevinModelId()).toBe("gpt-5.4");
   });
 });
