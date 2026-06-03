@@ -10,6 +10,10 @@ electronVersion: "39.8.10"
 # with only a modest size increase (~10-15% larger installer).
 compression: normal
 
+publish:
+  - provider: generic
+    url: https://pub-d230cd20641545cf88369006a73de152.r2.dev
+
 directories:
   output: dist-electron
   buildResources: build-resources
@@ -80,3 +84,4 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Writer
+  deleteAppDataOnUninstall: false
