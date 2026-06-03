@@ -14,6 +14,12 @@ export {
 export type { ApiError, ApiErrorCode } from "./api-error";
 
 export {
+  appUpdateStateSchema,
+  parseAppUpdateState
+} from "./app-update";
+export type { AppUpdateState } from "./app-update";
+
+export {
   connectionDiagnosticCodeSchema,
   connectionDiagnosticSchema,
   connectionDiagnosticSeveritySchema,
