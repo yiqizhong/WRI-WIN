@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { userInfo } from "node:os";
 import { join } from "node:path";
 
 import type { WorkspaceInfo } from "@writer/contracts";
@@ -50,10 +51,15 @@ export async function getWorkspaceInfo(state: DaemonState): Promise<WorkspaceInf
   const display = await loadSlotDisplayNames();
   const apiTree = toGuidelinesTreeApi(tree, display);
 
+  const rawUsername = userInfo().username;
+  const withoutDomain = rawUsername.split("+").pop() ?? rawUsername;
+  const firstName = withoutDomain.split(/[_.\s]/)[0] ?? withoutDomain;
+  const userName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+
   return {
     projectId: project.id,
     lastProductId: project.activeProductId ?? null,
     products: apiTree.products,
-    userProfile: state.store.getUserProfile()
+    userName
   };
 }

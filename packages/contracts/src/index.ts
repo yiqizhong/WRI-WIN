@@ -124,8 +124,8 @@ export {
 } from "./project";
 export type { CreateProjectInput, Project, ProjectList } from "./project";
 
-export { parseWorkspaceInfo, userProfileSchema, workspaceInfoSchema } from "./workspace";
-export type { UserProfile, WorkspaceInfo } from "./workspace";
+export { parseWorkspaceInfo, workspaceInfoSchema } from "./workspace";
+export type { WorkspaceInfo } from "./workspace";
 
 export {
   createReviewSessionInputSchema,

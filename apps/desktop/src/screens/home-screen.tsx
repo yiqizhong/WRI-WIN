@@ -94,11 +94,11 @@ function WorkflowCard({
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { userProfile } = useWorkspace();
-  const name = userProfile && userProfile !== "loading" ? userProfile.name : null;
+  const { userName } = useWorkspace();
+  const name = userName;
 
   return (
-    <div className="mt-[76px] flex h-full w-full items-center justify-center">
+    <div className="writer-content-fade-in mt-[76px] flex h-full w-full items-center justify-center">
       <div className="flex -translate-y-[108px] flex-col gap-16">
         <div className="flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">

@@ -16,26 +16,9 @@ import { SettingsScreen } from "./screens/settings-screen";
 import { TextCopyScreen } from "./screens/text-copy-screen";
 import { AppShell } from "./shell/AppShell";
 import { ProductChrome } from "./shell/ProductChrome";
-import { WorkspaceProvider, useWorkspace } from "./workspace-context";
-import { NameEntryScreen } from "./screens/name-entry-screen";
+import { WorkspaceProvider } from "./workspace-context";
 
 function RoutedApp() {
-  const { userProfile, daemonState } = useWorkspace();
-
-  // Daemon connected and profile definitively absent → name-entry screen.
-  // Only trigger when daemon is healthy (connected/degraded) so that daemon-offline
-  // states still fall through to normal routes where existing error UI handles them.
-  const daemonHealthy =
-    daemonState.kind === "connected" || daemonState.kind === "degraded";
-  if (daemonHealthy && userProfile === null) {
-    return <NameEntryScreen />;
-  }
-
-  // Hide the very brief initial flash (checking + workspace not yet loaded).
-  if (daemonState.kind === "checking" && userProfile === "loading") {
-    return null;
-  }
-
   return (
     <ProductChrome>
       <Routes>

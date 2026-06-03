@@ -53,9 +53,7 @@ import {
   type ReviewSession,
   type RewriteCandidate,
   type SpreadsheetParseResult,
-  type UxCopyFinding,
-  userProfileSchema,
-  type UserProfile
+  type UxCopyFinding
 } from "@writer/contracts";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:47631";
@@ -370,18 +368,6 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       request<{ entries: Array<{ summary: string; timestamp: string }> }>(
         baseUrl,
         `/review/changelog?sessionId=${encodeURIComponent(sessionId)}`
-      ),
-
-    setupProfile: (name: string) =>
-      request(
-        baseUrl,
-        "/profile/setup",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ name })
-        },
-        (payload) => userProfileSchema.parse(payload)
       ),
 
     createFigmaSession: (input: CreateFigmaSessionInput) =>
