@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 
 import { getQueryParam, readJsonBody } from "../http";
+import { setupUserProfile } from "../profile";
 import {
   cancelAgentRun,
   createPermissionRequest,
@@ -443,6 +444,20 @@ export async function handlePlatformRequest(
       sendJson(response, 200, { ok: true, enabled: parsed.data.enabled });
     } catch (error) {
       invalidRequest(response, error instanceof Error ? error.message : "Failed to update speculative decoding.");
+    }
+    return true;
+  }
+
+  if (request.method === "POST" && path === "/profile/setup") {
+    try {
+      const result = await setupUserProfile(state, await readJsonBody(request));
+      sendJson(response, 200, result);
+    } catch (error) {
+      invalidRequest(
+        response,
+        error instanceof Error ? error.message : "Could not save profile.",
+        "Enter a name from the approved list."
+      );
     }
     return true;
   }

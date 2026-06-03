@@ -53,6 +53,7 @@ export async function getWorkspaceInfo(state: DaemonState): Promise<WorkspaceInf
   return {
     projectId: project.id,
     lastProductId: project.activeProductId ?? null,
-    products: apiTree.products
+    products: apiTree.products,
+    userProfile: state.store.getUserProfile()
   };
 }
