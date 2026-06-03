@@ -5,7 +5,7 @@ export const appUpdateStateSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("checking") }),
   z.object({ status: z.literal("available"), version: z.string().min(1) }),
   z.object({ status: z.literal("not-available") }),
-  z.object({ status: z.literal("downloading"), percent: z.number().min(0).max(100) }),
+  z.object({ status: z.literal("downloading"), percent: z.number().int().min(0).max(100) }),
   z.object({ status: z.literal("downloaded"), version: z.string().min(1) }),
   z.object({ status: z.literal("error"), message: z.string().min(1) })
 ]);

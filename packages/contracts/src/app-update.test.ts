@@ -14,6 +14,13 @@ describe("appUpdateState", () => {
     });
   });
 
+  it("parses a downloaded state with a version", () => {
+    expect(parseAppUpdateState({ status: "downloaded", version: "0.2.0" })).toEqual({
+      status: "downloaded",
+      version: "0.2.0"
+    });
+  });
+
   it("parses an error state with a message", () => {
     expect(parseAppUpdateState({ status: "error", message: "offline" })).toEqual({
       status: "error",
