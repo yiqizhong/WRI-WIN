@@ -209,6 +209,16 @@ export function WriterChatComposer({
 
   const sendBlocked = sendDisabled || !value.trim();
 
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!sendBlocked && !disabled) {
+        void onSend();
+      }
+    }
+    onKeyDown?.(event);
+  }
+
   return (
     <div className={cn("writer-chat-composer-panel w-full", className)}>
       {extras}
@@ -231,7 +241,7 @@ export function WriterChatComposer({
                   value={value}
                   onChange={(event) => onChange(event.target.value)}
                   disabled={disabled}
-                  onKeyDown={onKeyDown}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
             </div>
