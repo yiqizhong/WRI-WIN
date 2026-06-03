@@ -8,6 +8,10 @@ import {
 
 export type AgentsLoadState = "idle" | "loading" | "ready";
 
+export function isFigmaMcpConnected(servers: McpServer[]): boolean {
+  return servers.find((s) => s.id === "figma")?.status === "connected";
+}
+
 export const LLM_PROVIDER_PLACEHOLDERS: AgentAdapter[] = [
   {
     id: "devin",

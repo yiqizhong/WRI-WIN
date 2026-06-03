@@ -217,9 +217,9 @@ function buildAdapter(input: {
       ? { code: "ready", severity: "info", message: `${DISPLAY_NAME} is ready.`, command: input.binaryPath }
       : {
           code: input.diagnosticCode ?? "not_installed",
-          severity: "error",
+          severity: input.diagnosticCode === "install_failed" ? "error" : "info",
           message: input.setupMessage ?? `${DISPLAY_NAME} model is not installed.`,
-          recoveryAction: "Download the model from the Local Models panel."
+          recoveryAction: "Go to Settings → LLM & MCP to download it."
         },
     capabilities: [{ id: "review", label: "UX copy review", enabled: input.available }]
   };
@@ -232,7 +232,7 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
 
   if (status !== "installed" && status !== "ready") {
     const messages: Record<string, string> = {
-      not_installed: "Download the model from the Local Models panel.",
+      not_installed: "Local model not downloaded yet.",
       downloading: "Model is downloading. Wait for it to complete.",
       verifying: "Model is being verified. Wait for it to complete.",
       failed: "Model download failed. Retry from the Local Models panel."

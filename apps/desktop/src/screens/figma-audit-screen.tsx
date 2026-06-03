@@ -23,6 +23,7 @@ import { DaemonClientError } from "../daemon-client";
 import { syncScrollEdgeMask } from "../lib/sync-scroll-edge-mask";
 import { WorkflowGlassPanel, WorkflowScreenShell } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
+import { isFigmaMcpConnected } from "../agents-runtime";
 
 const NONE_PRODUCT = "__none__";
 
@@ -108,7 +109,9 @@ export function FigmaAuditScreen() {
     workspaceReady,
     workspaceProjectId,
     products,
-    setSelectedProductId
+    setSelectedProductId,
+    mcpServers,
+    mcpLoadState
   } = useWorkspace();
 
   const [productId, setProductId] = useState<string>(NONE_PRODUCT);
@@ -127,6 +130,9 @@ export function FigmaAuditScreen() {
 
   const disabled = !workspaceReady || !daemonConnected || submitting;
   const singleFrameSubmitReady = frameUrl.trim().length > 0;
+  const showFigmaMcpAlert =
+    daemonConnected && mcpLoadState === "ready" && !isFigmaMcpConnected(mcpServers);
+  const showBlockingAlert = !daemonConnected || showFigmaMcpAlert;
 
   const scrollPageContentToBottom = useCallback(() => {
     const scrollEl = contentScrollRef.current;
@@ -310,65 +316,73 @@ export function FigmaAuditScreen() {
             className="writer-chat-scroll figma-audit-content-scroll h-full min-h-0"
           >
             <WorkflowScreenShell className="writer-page-subheader-content-gap overflow-visible pb-0">
-              {!daemonConnected ? (
-                <InlineAlert
-                  kind="warning"
-                  title="Daemon disconnected"
-                  subtitle="Start the Writer daemon before creating a Figma audit session."
-                />
-              ) : null}
-
-              {error ? (
-                <InlineAlert
-                  kind="error"
-                  title="Audit error"
-                  subtitle={error}
-                  onClose={() => setError(null)}
-                />
-              ) : null}
-
               <div className={cn("figma-audit-stage", layoutSplit && "figma-audit-stage--split")}>
-                <div className="figma-audit-session-slot">
-                  <WorkflowGlassPanel title="Session">
-                    <div className="flex flex-col gap-4">
-                      <WriterFormField label="Audit product (optional)" htmlFor="figma-product">
-                        <WriterFormSelect
-                          id="figma-product"
-                          value={productId}
-                          options={auditProductOptions}
-                          displayValue={auditProductLabel}
-                          placeholder="Select product"
-                          disabled={disabled}
-                          onValueChange={(value) => setProductId(value)}
-                        />
-                      </WriterFormField>
+                <div className="figma-audit-session-slot flex flex-col gap-4">
+                  {!daemonConnected ? (
+                    <InlineAlert
+                      kind="warning"
+                      title="Daemon disconnected"
+                      subtitle="Start the Writer daemon before creating a Figma audit session."
+                    />
+                  ) : showFigmaMcpAlert ? (
+                    <InlineAlert
+                      kind="warning"
+                      title="Figma not connected"
+                      subtitle="Turn on the Figma MCP in Settings to run an audit."
+                    />
+                  ) : null}
 
-                      <WriterFormField label="Feature name" htmlFor="figma-feature">
-                        <WriterFormInput
-                          id="figma-feature"
-                          value={featureName}
-                          disabled={disabled}
-                          placeholder="e.g. Checkout confirmation"
-                          onChange={(event) => setFeatureName(event.target.value)}
-                        />
-                      </WriterFormField>
+                  <div className={cn("flex flex-col gap-4", showBlockingAlert && "pointer-events-none opacity-40 select-none")}>
+                    {error ? (
+                      <InlineAlert
+                        kind="error"
+                        title="Audit error"
+                        subtitle={error}
+                        onClose={() => setError(null)}
+                      />
+                    ) : null}
 
-                      <WriterFormField label="Feature description" htmlFor="figma-description">
-                        <WriterFormTextarea
-                          id="figma-description"
-                          value={description}
-                          disabled={disabled}
-                          rows={4}
-                          placeholder="e.g. Post-purchase confirmation and order summary screens…"
-                          onChange={(event) => setDescription(event.target.value)}
-                        />
-                      </WriterFormField>
+                    <WorkflowGlassPanel title="Session">
+                      <div className="flex flex-col gap-4">
+                        <WriterFormField label="Audit product (optional)" htmlFor="figma-product">
+                          <WriterFormSelect
+                            id="figma-product"
+                            value={productId}
+                            options={auditProductOptions}
+                            displayValue={auditProductLabel}
+                            placeholder="Select product"
+                            disabled={disabled}
+                            onValueChange={(value) => setProductId(value)}
+                          />
+                        </WriterFormField>
 
-                      <WriterFormField label="Audit type">
-                        <AuditModeChoice mode={mode} disabled={disabled} onChange={handleAuditModeChange} />
-                      </WriterFormField>
-                    </div>
-                  </WorkflowGlassPanel>
+                        <WriterFormField label="Feature name" htmlFor="figma-feature">
+                          <WriterFormInput
+                            id="figma-feature"
+                            value={featureName}
+                            disabled={disabled}
+                            placeholder="e.g. Checkout confirmation"
+                            onChange={(event) => setFeatureName(event.target.value)}
+                          />
+                        </WriterFormField>
+
+                        <WriterFormField label="Feature description" htmlFor="figma-description">
+                          <WriterFormTextarea
+                            id="figma-description"
+                            value={description}
+                            disabled={disabled}
+                            rows={4}
+                            placeholder="e.g. Post-purchase confirmation and order summary screens…"
+                            onChange={(event) => setDescription(event.target.value)}
+                          />
+                        </WriterFormField>
+
+                        <WriterFormField label="Audit type">
+                          <AuditModeChoice mode={mode} disabled={disabled} onChange={handleAuditModeChange} />
+                        </WriterFormField>
+                      </div>
+                    </WorkflowGlassPanel>
+                  </div>
                 </div>
 
                 {framePanelVisible ? (

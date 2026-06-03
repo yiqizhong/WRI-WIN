@@ -516,33 +516,35 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
 
   return (
     <WriterPageStack fill>
-      <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
-        <div className="flex min-w-0 items-center gap-2">
-          {anyRefreshing ? (
-            <Loader2 className="size-4 shrink-0 animate-spin text-[#e5f1ff]/70" aria-hidden />
-          ) : null}
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <p className="writer-home-text text-base font-normal leading-normal tracking-normal">
-                {statusView.label}
-              </p>
-              <DaemonStatusInfo tooltip={statusView.infoTooltip} />
+      {(statusView.tone !== "ready" || anyRefreshing) && (
+        <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
+          <div className="flex min-w-0 items-center gap-2">
+            {anyRefreshing ? (
+              <Loader2 className="size-4 shrink-0 animate-spin text-[#e5f1ff]/70" aria-hidden />
+            ) : null}
+            <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <p className="writer-home-text text-base font-normal leading-normal tracking-normal">
+                  {statusView.label}
+                </p>
+                <DaemonStatusInfo tooltip={statusView.infoTooltip} />
+              </div>
+              <span className="truncate text-xs tracking-wide text-[#e5f1ff]/60">
+                {compactDaemonDetail(statusView, connected)}
+              </span>
             </div>
-            <span className="truncate text-xs tracking-wide text-[#e5f1ff]/60">
-              {compactDaemonDetail(statusView, connected)}
-            </span>
           </div>
-        </div>
-        {(!connected || anyRefreshing) && (
-          <WriterPrimaryButton
-            className={hugWidth}
-            disabled={anyRefreshing}
-            onClick={() => void handleRefresh()}
-          >
-            {anyRefreshing ? "Refreshing…" : "Refresh"}
-          </WriterPrimaryButton>
-        )}
-      </GlassCard>
+          {(!connected || anyRefreshing) && (
+            <WriterPrimaryButton
+              className={hugWidth}
+              disabled={anyRefreshing}
+              onClick={() => void handleRefresh()}
+            >
+              {anyRefreshing ? "Refreshing…" : "Refresh"}
+            </WriterPrimaryButton>
+          )}
+        </GlassCard>
+      )}
 
       <WriterPageGrid className="min-h-0 flex-1 overflow-visible grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
         <WriterPageGridHalf fillHeight>
@@ -707,6 +709,13 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                 const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
                 const isLoading = localModelLoading === adapter.id;
                 const canSelect = stableConnected && adapter.available;
+                // Not-downloaded state: the Download button alone is enough — suppress the badge.
+                const isNotDownloaded =
+                  stableConnected &&
+                  !adapter.available &&
+                  !isLoading &&
+                  !(localModelBlockedReason && adapter.id === "local-gemma") &&
+                  (adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic);
 
                 return (
                   <GlassCard
@@ -774,9 +783,11 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             </WriterPrimaryButton>
                           )
                         ) : null}
-                        <Badge variant={tagVariant(status.type)} className={hugWidth}>
-                          {status.label}
-                        </Badge>
+                        {!isNotDownloaded && (
+                          <Badge variant={tagVariant(status.type)} className={hugWidth}>
+                            {status.label}
+                          </Badge>
+                        )}
                       </div>
                     </div>
 
@@ -835,11 +846,10 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
               {mcpServers.map((server) => {
                 const issueText = mcpIssueText(server);
                 const signingIn = figmaAuthPending && busyMcpId === server.id;
-                const problemBadge = mcpRowProblemBadge(server, signingIn, issueText);
-                const showFigmaConnect =
-                  server.id === "figma" &&
-                  server.enabled &&
-                  (server.status !== "connected" || server.diagnostic?.code === "needs_auth");
+                const needsAuth = server.id === "figma" && server.diagnostic?.code === "needs_auth" && !signingIn;
+                const problemBadge = needsAuth ? null : mcpRowProblemBadge(server, signingIn, issueText);
+                // Bottom connect section only needed while signing in (for cancel link); needsAuth shows Connect in header.
+                const showFigmaConnect = server.id === "figma" && server.enabled && signingIn;
 
                 return (
                   <GlassCard
@@ -872,7 +882,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             {problemBadge.label}
                           </Badge>
                         ) : null}
-                        {server.id === "figma" && server.enabled ? (
+                        {server.id === "figma" && server.enabled && !needsAuth ? (
                           <Button
                             type="button"
                             variant="ghost"
@@ -890,18 +900,30 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             />
                           </Button>
                         ) : null}
-                        <WriterSwitch
-                          id={`mcp-${server.id}`}
-                          checked={server.enabled}
-                          disabled={!stableConnected || busyMcpId === server.id}
-                          aria-label={`Enable ${server.name}`}
-                          onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
-                        />
+                        {needsAuth ? (
+                          <WriterPrimaryButton
+                            className={hugWidth}
+                            disabled={!stableConnected || busyMcpId === server.id}
+                            onClick={() => void connectFigma(server.id)}
+                          >
+                            Connect
+                          </WriterPrimaryButton>
+                        ) : (
+                          <WriterSwitch
+                            id={`mcp-${server.id}`}
+                            checked={server.enabled}
+                            disabled={!stableConnected || busyMcpId === server.id}
+                            aria-label={`Enable ${server.name}`}
+                            onCheckedChange={(checked) => void toggleMcp(server.id, checked)}
+                          />
+                        )}
                       </div>
                     </div>
 
-                    {issueText ? (
-                      <ConnectionIssueNotice text={issueText} />
+                    {issueText && !needsAuth ? (
+                      signingIn
+                        ? <InlineAlert kind="info" title="" subtitle={issueText} />
+                        : <ConnectionIssueNotice text={issueText} />
                     ) : null}
 
                     {showFigmaConnect ? (

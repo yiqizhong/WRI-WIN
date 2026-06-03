@@ -18,10 +18,11 @@ import {
   WorkflowSessionPanel
 } from "../layout/workflow-screen-shell";
 import { useWorkspace } from "../workspace-context";
+import { isFigmaMcpConnected } from "../agents-runtime";
 
 export function FigmaGuidelineGeneratorScreen() {
   const navigate = useNavigate();
-  const { daemonClient, daemonConnected, workspaceReady, workspaceProjectId, runGuidelineGeneration } =
+  const { daemonClient, daemonConnected, workspaceReady, workspaceProjectId, runGuidelineGeneration, mcpServers, mcpLoadState } =
     useWorkspace();
   const [productName, setProductName] = useState("");
   const [productNamePlaceholderIndex, setProductNamePlaceholderIndex] = useState(0);
@@ -38,6 +39,9 @@ export function FigmaGuidelineGeneratorScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const trimmedProductName = productName.trim();
+  const showFigmaMcpAlert =
+    daemonConnected && mcpLoadState === "ready" && !isFigmaMcpConnected(mcpServers);
+  const showBlockingAlert = !daemonConnected || showFigmaMcpAlert;
   const canSubmit =
     daemonConnected &&
     workspaceReady &&
@@ -102,51 +106,61 @@ export function FigmaGuidelineGeneratorScreen() {
         <WorkflowScreenShell className="writer-page-subheader-content-gap min-h-0 flex-1 overflow-y-auto pb-5">
           <WorkflowSessionPanel className="min-h-0">
             <div className="flex flex-col gap-4">
-            <p className="writer-home-section-description">
-              Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
-              appears in the Guidelines Log (often 16 minutes with AI).
-            </p>
-
-            <WriterFormField label="Product name" htmlFor="guide-product-name">
-              <WriterFormInput
-                id="guide-product-name"
-                value={productName}
-                onChange={(event) => setProductName(event.target.value)}
-                placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
-                disabled={starting}
-              />
-            </WriterFormField>
-
             {!daemonConnected ? (
               <InlineAlert
                 kind="warning"
                 title="Daemon unavailable"
                 subtitle="Reconnect to Writer's local service before generating guidelines."
               />
+            ) : showFigmaMcpAlert ? (
+              <InlineAlert
+                kind="warning"
+                title="Figma not connected"
+                subtitle="Turn on the Figma MCP in Settings to generate guidelines."
+              />
             ) : null}
 
-            {error ? (
-              <InlineAlert kind="error" title="Request failed" subtitle={error} onClose={() => setError(null)} />
-            ) : null}
+            <div className={showBlockingAlert ? "pointer-events-none opacity-40 select-none" : undefined}>
+              <div className="flex flex-col gap-4">
+                <p className="writer-home-section-description">
+                  Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
+                  appears in the Guidelines Log (often 16 minutes with AI).
+                </p>
 
-            <WorkflowGlassPanel title="Figma source">
-              <div className="grid gap-4">
-                <WriterFormField label="Figma frame URL" htmlFor="guide-figma-url">
+                <WriterFormField label="Product name" htmlFor="guide-product-name">
                   <WriterFormInput
-                    id="guide-figma-url"
-                    value={figmaUrl}
-                    onChange={(event) => setFigmaUrl(event.target.value)}
-                    placeholder="https://www.figma.com/design/..."
+                    id="guide-product-name"
+                    value={productName}
+                    onChange={(event) => setProductName(event.target.value)}
+                    placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
                     disabled={starting}
                   />
                 </WriterFormField>
-                <div className="flex justify-end">
-                  <WriterPrimaryButton disabled={!canSubmit} onClick={() => void handleGenerate()}>
-                    {starting ? "Starting…" : "Generate starter pack"}
-                  </WriterPrimaryButton>
-                </div>
+
+                {error ? (
+                  <InlineAlert kind="error" title="Request failed" subtitle={error} onClose={() => setError(null)} />
+                ) : null}
+
+                <WorkflowGlassPanel title="Figma source">
+                  <div className="grid gap-4">
+                    <WriterFormField label="Figma frame URL" htmlFor="guide-figma-url">
+                      <WriterFormInput
+                        id="guide-figma-url"
+                        value={figmaUrl}
+                        onChange={(event) => setFigmaUrl(event.target.value)}
+                        placeholder="https://www.figma.com/design/..."
+                        disabled={starting}
+                      />
+                    </WriterFormField>
+                    <div className="flex justify-end">
+                      <WriterPrimaryButton disabled={!canSubmit} onClick={() => void handleGenerate()}>
+                        {starting ? "Starting…" : "Generate starter pack"}
+                      </WriterPrimaryButton>
+                    </div>
+                  </div>
+                </WorkflowGlassPanel>
               </div>
-            </WorkflowGlassPanel>
+            </div>
             </div>
           </WorkflowSessionPanel>
         </WorkflowScreenShell>
