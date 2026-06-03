@@ -1,4 +1,6 @@
 import { BookOpen, ChevronRight, MessageCircle } from "lucide-react";
+
+import "../styles/writer-home-screen.css";
 import type { KeyboardEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -98,9 +100,9 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
   const name = userName;
 
   return (
-    <div className="writer-content-fade-in relative mt-[76px] flex h-full w-full items-center justify-center">
+    <div className="relative mt-[76px] flex h-full w-full items-center justify-center">
       <div className="flex -translate-y-[108px] flex-col gap-16">
-        <div className="flex flex-col gap-6">
+        <div className="home-item home-item--1 flex flex-col gap-6">
           <div className="writer-home-text writer-home-heading flex flex-col">
             <span>{name ? `Hi ${name},` : "Hi,"}</span>
             <span>{greeting()}</span>
@@ -109,6 +111,7 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
         </div>
 
         <div className="flex gap-6">
+          <div className="home-item home-item--2">
           <WorkflowCard
             type="Figma"
             description="Audit frames in Figma and write approved edits back."
@@ -124,6 +127,8 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
             }
             onClick={() => navigate("/figma-audit")}
           />
+          </div>
+          <div className="home-item home-item--3">
           <WorkflowCard
             type="Chat"
             description="Paste copy for a quick rewrite in chat."
@@ -134,6 +139,8 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
             }
             onClick={() => navigate("/text-copy")}
           />
+          </div>
+          <div className="home-item home-item--4">
           <WorkflowCard
             type="Guide"
             description="Generate background, glossary, and writing-guide files from Figma."
@@ -144,6 +151,7 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
             }
             onClick={() => navigate("/guide")}
           />
+          </div>
         </div>
       </div>
       {import.meta.env.DEV && onReplayWelcome ? (

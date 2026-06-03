@@ -12,12 +12,12 @@ export function WelcomeScreen({ onGo }: { onGo: () => void }) {
 
   function handleGo() {
     setFadingOut(true);
-    setTimeout(onGo, 150);
+    setTimeout(onGo, 320);
   }
 
   return (
     <div
-      className={`${fadingOut ? "writer-content-fade-out" : ""} flex h-full w-full flex-col items-center justify-center gap-[38px] -translate-y-[24px]`}
+      className={`${fadingOut ? "welcome-exit" : ""} flex h-full w-full flex-col items-center justify-center gap-[38px] -translate-y-[24px]`}
     >
       <p className="welcome-item welcome-item--1 writer-home-text text-[42px] font-extralight text-center tracking-[2.5px]">
         {userName ? `Hi ${userName}` : "Hi"}

@@ -1,0 +1,28 @@
+@keyframes home-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes home-slide {
+  from { transform: translateY(12px); }
+  to   { transform: translateY(0); }
+}
+
+.home-item {
+  opacity: 0;
+  animation:
+    home-fade  800ms ease                          both,
+    home-slide 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.home-item--1 { animation-delay:  50ms,  50ms; }
+.home-item--2 { animation-delay: 180ms, 180ms; }
+.home-item--3 { animation-delay: 280ms, 280ms; }
+.home-item--4 { animation-delay: 380ms, 380ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-item {
+    animation: home-fade 300ms ease both;
+    transform: none;
+  }
+}
