@@ -625,7 +625,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                       <ConnectionIssueNotice text={diagnosticText} />
                     ) : null}
 
-                    {adapter.id === "devin" ? (
+                    {adapter.id === "devin" && adapter.available ? (
                       <div className="grid w-full grid-cols-1 gap-3 pt-1 md:grid-cols-2">
                         <WriterFormField label="Model">
                           {devinModelOptions.length > 0 ? (
