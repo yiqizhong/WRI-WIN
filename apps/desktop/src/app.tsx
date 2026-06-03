@@ -12,7 +12,7 @@ import { FigmaGuidelineGeneratorScreen } from "./screens/figma-guideline-generat
 import { GuidelineDetailScreen } from "./screens/guideline-detail-screen";
 import { GuidelinesListScreen } from "./screens/guidelines-list-screen";
 import { GuidelinesRouteLayout } from "./layout/guidelines-route-layout";
-import { HomeScreen, resetHomeAnimation } from "./screens/home-screen";
+import { HomeScreen } from "./screens/home-screen";
 import { SettingsScreen } from "./screens/settings-screen";
 import { TextCopyScreen } from "./screens/text-copy-screen";
 import { AppShell } from "./shell/AppShell";
@@ -20,17 +20,17 @@ import { ProductChrome } from "./shell/ProductChrome";
 import { WorkspaceProvider, useWorkspace } from "./workspace-context";
 import { WelcomeScreen } from "./screens/welcome-screen";
 
-function RoutedApp({ showWelcome, onGo, onReplayWelcome }: { showWelcome: boolean; onGo: () => void; onReplayWelcome: () => void }) {
+function RoutedApp({ showWelcome, onGo }: { showWelcome: boolean; onGo: () => void }) {
   const { daemonConnected } = useWorkspace();
 
-  if (daemonConnected && showWelcome) {
-    return <WelcomeScreen onGo={onGo} />;
+  if (showWelcome) {
+    return daemonConnected ? <WelcomeScreen onGo={onGo} /> : null;
   }
 
   return (
     <ProductChrome>
       <Routes>
-        <Route path="/" element={<HomeScreen onReplayWelcome={onReplayWelcome} />} />
+        <Route path="/" element={<HomeScreen />} />
         <Route path="/figma-audit" element={<FigmaAuditScreen />} />
         <Route path="/guide" element={<FigmaGuidelineGeneratorScreen />} />
         <Route path="/guide/log" element={<GuidelinesRouteLayout />}>
@@ -57,7 +57,7 @@ export function App() {
       <MemoryRouter>
         <WorkspaceProvider>
           <AppShell hideSettings={showWelcome}>
-            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} onReplayWelcome={() => { resetHomeAnimation(); setShowWelcome(true); }} />
+            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} />
           </AppShell>
           <Toaster richColors position="top-right" />
         </WorkspaceProvider>

@@ -99,7 +99,7 @@ function WorkflowCard({
   );
 }
 
-export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }) {
+export function HomeScreen() {
   const navigate = useNavigate();
   const { userName } = useWorkspace();
   const name = userName;
@@ -161,16 +161,6 @@ export function HomeScreen({ onReplayWelcome }: { onReplayWelcome?: () => void }
           </div>
         </div>
       </div>
-      {import.meta.env.DEV && onReplayWelcome ? (
-        <button
-          type="button"
-          onClick={onReplayWelcome}
-          className="absolute bottom-4 right-4 rounded px-2 py-1 text-xs text-[#e5f1ff]/30 transition-colors hover:text-[#e5f1ff]/60"
-          aria-label="Replay welcome animation"
-        >
-          ▶ replay intro
-        </button>
-      ) : null}
     </div>
   );
 }
