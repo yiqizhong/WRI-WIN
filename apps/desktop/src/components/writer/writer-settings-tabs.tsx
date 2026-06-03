@@ -10,8 +10,6 @@ import {
   WRITER_MINIMAL_TAB_TRIGGER_CLASS,
   WriterMinimalTabsList
 } from "./writer-minimal-tabs";
-import { UpdateSection } from "./update-section";
-
 const SETTINGS_TABS = ["guidelines", "agents"] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
@@ -63,7 +61,6 @@ export function WriterSettingsTabs({ defaultTab }: { defaultTab: SettingsTab }) 
         </SettingsTabPanel>
         <SettingsTabPanel value="agents">
           <AgentsScreen />
-          <UpdateSection />
         </SettingsTabPanel>
       </div>
     </Tabs>
