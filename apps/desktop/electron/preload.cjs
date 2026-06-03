@@ -23,13 +23,17 @@ contextBridge.exposeInMainWorld("writerDesktop", {
     ipcRenderer.invoke("writer:set-background-material", material)
 });
 
-contextBridge.exposeInMainWorld("writerUpdate", {
-  check: () => ipcRenderer.invoke("writer-update:check"),
-  download: () => ipcRenderer.invoke("writer-update:download"),
-  restartToInstall: () => ipcRenderer.invoke("writer-update:restart"),
-  onState: (callback) => {
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on("writer-update:state", listener);
-    return () => ipcRenderer.removeListener("writer-update:state", listener);
-  }
-});
+const isPackaged = process.argv.includes("--is-packaged=true");
+
+if (isPackaged) {
+  contextBridge.exposeInMainWorld("writerUpdate", {
+    check: () => ipcRenderer.invoke("writer-update:check"),
+    download: () => ipcRenderer.invoke("writer-update:download"),
+    restartToInstall: () => ipcRenderer.invoke("writer-update:restart"),
+    onState: (callback) => {
+      const listener = (_event, state) => callback(state);
+      ipcRenderer.on("writer-update:state", listener);
+      return () => ipcRenderer.removeListener("writer-update:state", listener);
+    }
+  });
+}

@@ -1,6 +1,6 @@
 const path = require("node:path");
 
-const { BrowserWindow } = require("electron");
+const { BrowserWindow, app } = require("electron");
 
 const { applyWindowEffects, applyBorderColorEffect } = require("./windows-window-effects.cjs");
 
@@ -9,7 +9,8 @@ function getMainWindowOptions() {
   const webPreferences = {
     preload: path.join(__dirname, "preload.cjs"),
     contextIsolation: true,
-    nodeIntegration: false
+    nodeIntegration: false,
+    additionalArguments: [`--is-packaged=${app.isPackaged}`]
   };
 
   /** Figma frame 1060:829 — fixed 1280×860, no resize */

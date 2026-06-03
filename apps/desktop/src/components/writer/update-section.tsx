@@ -34,18 +34,18 @@ export function UpdateSection() {
       <p className="text-sm text-[#e5f1ff]/80">{updateLabel(state)}</p>
       <div className="flex flex-wrap gap-2">
         <WriterPrimaryButton
-          onClick={() => api.check()}
-          disabled={state.status === "checking"}
+          onClick={() => void api.check().catch(() => undefined)}
+          disabled={state.status === "checking" || state.status === "downloading"}
         >
           Check for updates
         </WriterPrimaryButton>
         {state.status === "available" && (
-          <WriterPrimaryButton onClick={() => api.download()}>
+          <WriterPrimaryButton onClick={() => void api.download().catch(() => undefined)}>
             Download
           </WriterPrimaryButton>
         )}
         {state.status === "downloaded" && (
-          <WriterPrimaryButton onClick={() => api.restartToInstall()}>
+          <WriterPrimaryButton onClick={() => void api.restartToInstall().catch(() => undefined)}>
             Restart to install
           </WriterPrimaryButton>
         )}
