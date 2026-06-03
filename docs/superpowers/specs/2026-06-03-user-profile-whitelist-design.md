@@ -38,7 +38,12 @@ userProfile: { name: string } | null
 **Whitelist:** a hardcoded string array in the daemon (e.g. `apps/daemon/src/profile.ts`):
 
 ```ts
-const WHITELIST = ["Alice", "Bob", "Yiqi"]; // case-insensitive match
+const WHITELIST = [
+  "Jair", "Brenda", "Christopher", "Mallory", "Michelle",
+  "Jorge", "Scott", "Alexis", "Aylin", "Vicky",
+  "Greg", "Danielle", "Lucy", "Kathryn", "Martin",
+  "Jaegon", "Elliot", "Amy", "Yiqi"
+]; // case-insensitive match (Michelle appears once; duplicate removed)
 ```
 
 **New route:** `POST /profile/setup`
