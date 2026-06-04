@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.8.1] - 2026-06-04
+- Welcome screen shown on first launch of v0.8.1
+
 ## [0.8.0] - 2026-06-04
 - No more false "Update failed" alerts from flaky corporate DNS — transient network errors now retry silently
 - Update check retries widened for slow/unreliable networks
