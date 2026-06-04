@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, statSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import yaml from "js-yaml";
 
 const client = new S3Client({
@@ -51,8 +52,23 @@ function patchLatestYml(ymlPath, notes) {
   const raw = readFileSync(ymlPath, "utf8");
   const doc = yaml.load(raw);
   doc.releaseNotes = notes;
+
+  // Inject blockMapSize into each file entry so electron-updater activates
+  // differential downloads. Without this field it falls back to a full download,
+  // re-downloading llama/CUDA binaries even when they haven't changed.
+  const distDir = dirname(ymlPath);
+  for (const file of doc.files ?? []) {
+    if (!file.blockMapSize) {
+      try {
+        file.blockMapSize = statSync(join(distDir, file.url + ".blockmap")).size;
+      } catch {
+        console.warn(`  [warn] No blockmap found for ${file.url} — differential updates disabled for this file`);
+      }
+    }
+  }
+
   writeFileSync(ymlPath, yaml.dump(doc, { lineWidth: -1 }));
-  console.log(`  Patched latest.yml with release notes for v${VERSION}`);
+  console.log(`  Patched latest.yml with release notes and blockMapSize for v${VERSION}`);
 }
 
 // Release notes are required — abort if the changelog entry is missing.
