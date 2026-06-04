@@ -15,6 +15,8 @@ export function WelcomeScreen({ onGo }: { onGo: () => void }) {
     setTimeout(onGo, 320);
   }
 
+  const appVersion = window.writerDesktop?.appVersion;
+
   return (
     <div
       className={`${fadingOut ? "welcome-exit" : ""} flex h-full w-full flex-col items-center justify-center gap-[38px] -translate-y-[24px]`}
@@ -34,6 +36,12 @@ export function WelcomeScreen({ onGo }: { onGo: () => void }) {
           <ChevronRight className="size-5" strokeWidth={2} aria-hidden />
         </WriterPrimaryButton>
       </div>
+
+      {appVersion && (
+        <p className="absolute bottom-6 left-0 right-0 text-center text-[12px] text-[#e5f1ff]/30">
+          {appVersion}
+        </p>
+      )}
     </div>
   );
 }

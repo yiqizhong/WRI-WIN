@@ -718,10 +718,10 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             <WriterFormSelect
                               value={devinReasoning}
                               disabled={!connected || devinSettingsBusy}
-                              displayValue={resolveDevinReasoningLabel(devinReasoning)}
+                              displayValue={resolveDevinReasoningLabel(devinReasoning, devinModelId || DEVIN_DEFAULT_MODEL_ID)}
                               options={devinReasoningOptions.map((option) => ({
                                 value: option,
-                                label: resolveDevinReasoningLabel(option)
+                                label: resolveDevinReasoningLabel(option, devinModelId || DEVIN_DEFAULT_MODEL_ID)
                               }))}
                               onValueChange={(value) => {
                                 const preference = value as DevinReasoningPreference;

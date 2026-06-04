@@ -1,4 +1,4 @@
-import { ArrowUp, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { AppUpdateState } from "@writer/contracts";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +51,6 @@ export function UpdatePill({ state, onClick }: UpdatePillProps) {
         VARIANT_CLASSES[variant]
       )}
     >
-      {state.status === "available"   && <ArrowUp size={11} strokeWidth={2.5} aria-hidden />}
       {state.status === "downloading" && <Loader2 size={11} className="animate-spin" aria-hidden />}
       {label}
     </button>

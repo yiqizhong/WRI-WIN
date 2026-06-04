@@ -5,6 +5,7 @@ export {};
 declare global {
   interface Window {
     writerDesktop: {
+      appVersion: string;
       platform: string;
       windowChrome: "transparent" | "opaque";
       windowMinimize: () => void;

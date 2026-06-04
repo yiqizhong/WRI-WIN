@@ -30,12 +30,9 @@ export const DEVIN_MODEL_LABELS: Record<(typeof DEVIN_CURATED_MODEL_IDS)[number]
   "swe-1.6": "SWE 1.6 (free)"
 };
 
-const DEVIN_REASONING_LABELS: Partial<Record<string, string>> = {
-  off: "off (free)"
-};
-
-export function resolveDevinReasoningLabel(option: string): string {
-  return DEVIN_REASONING_LABELS[option] ?? option;
+export function resolveDevinReasoningLabel(option: string, modelId?: string): string {
+  if (option === "off" && modelId === "swe-1.6") return "off (free)";
+  return option;
 }
 
 export function resolveDevinModelOptions(_apiOptions: string[]): string[] {

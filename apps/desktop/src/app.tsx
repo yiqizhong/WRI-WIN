@@ -49,15 +49,26 @@ function RoutedApp({ showWelcome, onGo }: { showWelcome: boolean; onGo: () => vo
   );
 }
 
+const WELCOME_SEEN_KEY = "writer.welcomeSeenVersion";
+
 export function App() {
-  const [showWelcome, setShowWelcome] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    const currentVersion = window.writerDesktop?.appVersion;
+    return localStorage.getItem(WELCOME_SEEN_KEY) !== currentVersion;
+  });
+
+  function handleGo() {
+    const currentVersion = window.writerDesktop?.appVersion;
+    if (currentVersion) localStorage.setItem(WELCOME_SEEN_KEY, currentVersion);
+    setShowWelcome(false);
+  }
 
   return (
     <TooltipProvider delay={200}>
       <MemoryRouter>
         <WorkspaceProvider>
           <AppShell hideSettings={showWelcome}>
-            <RoutedApp showWelcome={showWelcome} onGo={() => setShowWelcome(false)} />
+            <RoutedApp showWelcome={showWelcome} onGo={handleGo} />
           </AppShell>
           <Toaster richColors position="top-right" />
         </WorkspaceProvider>

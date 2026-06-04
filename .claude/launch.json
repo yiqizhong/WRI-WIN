@@ -1,11 +1,11 @@
-{
+﻿{
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "writer-desktop",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["--workspace", "@writer/desktop", "run", "dev:renderer"],
-      "port": 5173
+      "name": "update-modal-preview",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "3131", ".superpowers/brainstorm/update-modal-preview"],
+      "port": 3131
     }
   ]
 }

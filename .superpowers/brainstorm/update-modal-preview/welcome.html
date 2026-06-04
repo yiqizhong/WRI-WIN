@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome Screen — Writer UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,100;14..32,200;14..32,300;14..32,400;14..32,500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --writer-accent-blue: #2083ea;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Page chrome */
+body {
+  background: #060c18;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 24px;
+  gap: 20px;
+}
+
+/* ── App window ── */
+.app-window {
+  position: relative;
+  width: 960px;
+  height: 600px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #21366b;
+  /* Win32 figma gradient */
+  background:
+    linear-gradient(0deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.08) 100%),
+    linear-gradient(176deg, rgba(48,100,125,0.66) -3%, rgba(14,26,62,0.86) 42%, rgba(1,3,17,0.88) 97%);
+}
+
+/* ── Masthead ── */
+.masthead {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  height: 46px;
+  flex-shrink: 0;
+}
+.masthead__buttons { display: flex; align-items: stretch; height: 100%; }
+.masthead__btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px;
+  background: transparent; border: none; cursor: pointer;
+  color: rgba(255,255,255,0.8);
+  transition: background 80ms;
+}
+.masthead__btn:hover { background: rgba(255,255,255,0.09); }
+.masthead__btn svg { width: 10px; height: 10px; }
+.masthead__btn--close:hover { background: #c42b1c; color: #fff; }
+.masthead__btn--maximize { color: rgba(255,255,255,0.3); cursor: not-allowed; }
+.masthead__btn--maximize:hover { background: rgba(255,255,255,0.04); }
+
+/* ── Welcome content area ── */
+.welcome-area {
+  position: absolute;
+  inset: 46px 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Centered content block, nudged up 24px */
+.welcome-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 38px;
+  transform: translateY(-24px);
+}
+
+/* Text items */
+.welcome-text {
+  color: #e5f1ff;
+  font-size: 42px;
+  font-weight: 200;
+  letter-spacing: 2.5px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Stagger-in animations */
+@keyframes welcome-fade  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes welcome-slide { from { transform: translateY(16px); } to { transform: translateY(0); } }
+
+.welcome-item {
+  opacity: 0;
+  animation:
+    welcome-fade  1200ms ease                           both,
+    welcome-slide  800ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.welcome-item--1 { animation-delay:   0ms,   0ms; }
+.welcome-item--2 { animation-delay: 200ms, 200ms; }
+.welcome-item--3 { animation-delay: 400ms, 400ms; }
+
+/* Exit animation */
+@keyframes welcome-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-12px); }
+}
+.welcome-exit .welcome-content {
+  animation: welcome-exit 350ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+
+/* ── Go button ── */
+.go-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  padding: 12px 6px;
+  background: var(--writer-accent-blue);
+  border: 1px solid rgba(32,131,234,0.28);
+  border-radius: 9999px;
+  color: #e5f1ff;
+  cursor: pointer;
+  transition: transform 160ms cubic-bezier(0.23,1,0.32,1);
+}
+.go-btn:hover svg { transform: translateX(3px); }
+.go-btn:active { transform: scale(0.97); }
+.go-btn svg {
+  width: 20px; height: 20px;
+  transition: transform 160ms cubic-bezier(0.23,1,0.32,1);
+}
+
+/* ── Version label ── */
+.version-label {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(229,241,255,0.30);
+  pointer-events: none;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* ── Replay button (dev only) ── */
+.replay-btn {
+  background: rgba(229,241,255,0.06);
+  border: 1px solid rgba(229,241,255,0.1);
+  border-radius: 6px;
+  color: rgba(229,241,255,0.5);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 16px;
+  transition: background 120ms, color 120ms;
+}
+.replay-btn:hover { background: rgba(229,241,255,0.1); color: rgba(229,241,255,0.8); }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-item { animation: welcome-fade 400ms ease both; }
+}
+</style>
+</head>
+<body>
+
+<div class="app-window" id="win">
+
+  <!-- Masthead -->
+  <div class="masthead">
+    <div class="masthead__buttons">
+      <button class="masthead__btn" aria-label="Minimize">
+        <svg viewBox="0 0 10 1" fill="currentColor"><rect width="10" height="1"/></svg>
+      </button>
+      <button class="masthead__btn masthead__btn--maximize" disabled aria-label="Maximize">
+        <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1"><rect x=".5" y=".5" width="9" height="9"/></svg>
+      </button>
+      <button class="masthead__btn masthead__btn--close" aria-label="Close">
+        <svg viewBox="0 0 10 10" fill="currentColor"><polygon points="0,0 1,0 5,4 9,0 10,0 10,1 6,5 10,9 10,10 9,10 5,6 1,10 0,10 0,9 4,5 0,1"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Welcome area -->
+  <div class="welcome-area" id="welcome-area">
+    <div class="welcome-content" id="welcome-content">
+      <p class="welcome-text welcome-item welcome-item--1">Hi Yiqi</p>
+      <p class="welcome-text welcome-item welcome-item--2">Welcome to the Writer.</p>
+      <div class="welcome-item welcome-item--3">
+        <button class="go-btn" onclick="handleGo()" aria-label="Go">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Version label -->
+    <p class="version-label">0.6.2</p>
+  </div>
+
+</div>
+
+<!-- Dev toolbar -->
+<button class="replay-btn" onclick="replay()">Replay animation</button>
+
+<script>
+function handleGo() {
+  document.getElementById('welcome-area').classList.add('welcome-exit');
+}
+
+function replay() {
+  const area = document.getElementById('welcome-area');
+  const content = document.getElementById('welcome-content');
+  area.classList.remove('welcome-exit');
+  // Re-trigger animations by cloning
+  const clone = content.cloneNode(true);
+  content.replaceWith(clone);
+  clone.querySelector('.go-btn').addEventListener('click', handleGo);
+  // Re-bind go
+  document.querySelectorAll('.welcome-item').forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetHeight;
+    el.style.animation = '';
+  });
+}
+</script>
+</body>
+</html>

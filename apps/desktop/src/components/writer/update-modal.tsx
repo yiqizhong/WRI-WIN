@@ -62,7 +62,7 @@ function resolveBody(s: AppUpdateState): ReactNode {
       return (
         <div className="flex flex-col gap-3">
           {s.releaseNotes ? (
-            <div className="rounded-lg bg-white/5 px-3 py-2.5 text-sm text-[#e5f1ff]/80 whitespace-pre-wrap leading-relaxed">
+            <div className="rounded-[2px] bg-white/5 px-3 py-2.5 text-sm text-[#e5f1ff]/80 whitespace-pre-wrap leading-relaxed">
               {s.releaseNotes}
             </div>
           ) : (
