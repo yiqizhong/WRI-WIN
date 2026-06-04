@@ -49,9 +49,15 @@ function parseChangelog(mdPath, version) {
  * electron-updater reads this field and exposes it as UpdateInfo.releaseNotes.
  */
 function patchLatestYml(ymlPath, notes) {
-  const yml = readFileSync(ymlPath, "utf8");
-  const patched = yml.replace(/^(version:.+\n)/, `$1releaseNotes: ${JSON.stringify(notes)}\n`);
-  writeFileSync(ymlPath, patched);
+  let yml = readFileSync(ymlPath, "utf8");
+  const notesLine = `releaseNotes: ${JSON.stringify(notes)}\n`;
+  if (/^releaseNotes:/m.test(yml)) {
+    // Replace the existing field — don't insert a duplicate
+    yml = yml.replace(/^releaseNotes:.+\n/m, notesLine);
+  } else {
+    yml = yml.replace(/^(version:.+\n)/, `$1${notesLine}`);
+  }
+  writeFileSync(ymlPath, yml);
   console.log(`  Patched latest.yml with release notes for v${VERSION}`);
 }
 
