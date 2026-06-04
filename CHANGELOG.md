@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.2] - 2026-06-04
+- Fix: opening the update modal no longer silently starts the download — Upgrade button is now the only thing that can begin a download
+
 ## [0.7.1] - 2026-06-04
 - Update modal now shows the real differential patch size (e.g. 12 MB) before you click Upgrade — computed from blockmap diff, no download required
 
