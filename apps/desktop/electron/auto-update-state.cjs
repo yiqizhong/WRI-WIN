@@ -9,10 +9,10 @@
  * Always returns a trimmed non-empty string or undefined.
  */
 function normalizeReleaseNotes(raw) {
-  if (!raw) return undefined;
+  if (raw == null) return undefined;
   if (typeof raw === "string") return raw.trim() || undefined;
   if (Array.isArray(raw)) {
-    return raw.map(function (e) { return e.note || ""; }).filter(Boolean).join("\n\n") || undefined;
+    return raw.map(function (e) { return e.note ?? ""; }).filter(Boolean).join("\n\n") || undefined;
   }
   return undefined;
 }
