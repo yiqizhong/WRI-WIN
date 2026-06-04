@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.4] - 2026-06-04
+- Remove misleading download size from update modal — differential updates are much smaller than the full installer
+
 ## [0.6.3] - 2026-06-04
 - Welcome screen now shown once per installed version — updating to a new version replays it
 - App version shown at the bottom of the welcome screen
