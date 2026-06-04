@@ -3,7 +3,7 @@ import { z } from "zod";
 export const appUpdateStateSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("idle") }),
   z.object({ status: z.literal("checking") }),
-  z.object({ status: z.literal("available"), version: z.string().min(1), releaseNotes: z.string().min(1).optional(), totalBytes: z.number().int().positive().optional() }),
+  z.object({ status: z.literal("available"), version: z.string().min(1), releaseNotes: z.string().min(1).optional(), totalBytes: z.number().int().positive().optional(), downloadBytes: z.number().int().positive().optional() }),
   z.object({ status: z.literal("not-available") }),
   z.object({
     status: z.literal("downloading"),
