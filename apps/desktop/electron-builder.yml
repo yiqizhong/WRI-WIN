@@ -71,7 +71,10 @@ asarUnpack:
 
 forceCodeSigning: false
 
+afterPack: scripts/after-pack.cjs
+
 win:
+  signAndEditExecutable: false
   target:
     - target: nsis
       arch:
