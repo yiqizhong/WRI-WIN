@@ -68,9 +68,7 @@ function resolveBody(s: AppUpdateState): ReactNode {
           ) : (
             <p className={muted}>A new version of Writer is ready to download.</p>
           )}
-          <p className="text-xs text-[#e5f1ff]/40">
-            {s.totalBytes ? `${formatBytes(s.totalBytes)} download · ` : ""}Your data and models will not be affected.
-          </p>
+          <p className="text-xs text-[#e5f1ff]/40">Your data and models will not be affected.</p>
         </div>
       );
     case "downloading": {
