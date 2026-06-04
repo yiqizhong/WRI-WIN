@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.8] - 2026-06-04
+- Fix update pill not appearing — update-available event was silently lost if it fired before the app window finished loading
+
 ## [0.6.7] - 2026-06-04
 - Fix window minimize/maximize/close buttons not working on some Windows configurations
 
