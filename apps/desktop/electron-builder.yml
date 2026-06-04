@@ -72,7 +72,6 @@ asarUnpack:
 forceCodeSigning: false
 
 win:
-  signAndEditExecutable: false
   target:
     - target: nsis
       arch:
