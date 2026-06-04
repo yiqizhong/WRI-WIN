@@ -44,12 +44,19 @@ function initAutoUpdate(getWindow) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
 
+  // Cache the latest state so the renderer can pull it synchronously on mount,
+  // avoiding the race where update-available fires before AppShell is ready.
+  let cachedState = { status: "idle" };
+
   const send = (state) => {
+    cachedState = state;
     const window = getWindow();
     if (window && !window.isDestroyed()) {
       window.webContents.send("writer-update:state", state);
     }
   };
+
+  ipcMain.handle("writer-update:get-state", () => cachedState);
 
   // Tracks silent background download state.
   // While true, download-progress events are suppressed from the renderer;

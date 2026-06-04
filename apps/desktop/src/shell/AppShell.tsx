@@ -29,7 +29,12 @@ export function AppShell({ children, hideSettings }: AppShellProps) {
 
   useEffect(() => {
     if (!api) return;
-    return api.onState(setUpdateState);
+    // Subscribe first, then pull the cached state so we don't miss events
+    // that fired before this component mounted (update-available fires on
+    // app launch, often before the renderer is ready).
+    const unsub = api.onState(setUpdateState);
+    void api.getState().then(setUpdateState);
+    return unsub;
   }, [api]);
 
   return (

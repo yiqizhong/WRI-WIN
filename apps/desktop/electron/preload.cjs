@@ -41,6 +41,7 @@ if (isPackaged) {
     check: () => ipcRenderer.invoke("writer-update:check"),
     download: () => ipcRenderer.invoke("writer-update:download"),
     restartToInstall: () => ipcRenderer.invoke("writer-update:restart"),
+    getState: () => ipcRenderer.invoke("writer-update:get-state"),
     onState: (callback) => {
       const listener = (_event, state) => callback(state);
       ipcRenderer.on("writer-update:state", listener);
