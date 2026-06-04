@@ -3,6 +3,13 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.3] - 2026-06-04
+- Welcome screen now shown once per installed version — updating to a new version replays it
+- App version shown at the bottom of the welcome screen
+- Update modal release-notes block uses sharp corners matching app style
+- Removed arrow icon from "Upgrade" pill in title bar
+- Devin reasoning "off" label only shows "(free)" when SWE 1.6 model is selected
+
 ## [0.6.2] - 2026-06-04
 - Fix app icon not appearing in taskbar and Start Menu
 
