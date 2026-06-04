@@ -113,6 +113,20 @@ function initAutoUpdate(getWindow) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
 
+  // Hard gate: replace downloadUpdate on the instance so it is impossible
+  // for any internal electron-updater logic (autoDownload race, re-check,
+  // etc.) to start a download without the user clicking Upgrade.
+  // The IPC handler below is the ONLY place that sets downloadConsented.
+  let downloadConsented = false;
+  const _originalDownloadUpdate = autoUpdater.downloadUpdate.bind(autoUpdater);
+  autoUpdater.downloadUpdate = (...args) => {
+    if (!downloadConsented) {
+      console.warn("[writer-update] downloadUpdate() blocked — waiting for user consent");
+      return Promise.resolve([]);
+    }
+    return _originalDownloadUpdate(...args);
+  };
+
   // Cache the latest state so the renderer can pull it synchronously on mount,
   // avoiding the race where update-available fires before AppShell is ready.
   let cachedState = { status: "idle" };
@@ -155,7 +169,10 @@ function initAutoUpdate(getWindow) {
   });
 
   ipcMain.handle("writer-update:check", () => checkWithRetry(autoUpdater));
-  ipcMain.handle("writer-update:download", () => autoUpdater.downloadUpdate());
+  ipcMain.handle("writer-update:download", () => {
+    downloadConsented = true;
+    return autoUpdater.downloadUpdate();
+  });
   ipcMain.handle("writer-update:restart", () => {
     // Hide the window before quitting so Windows never marks it "Not Responding"
     // while the NSIS installer launches (CreateProcess blocks the main thread briefly).
