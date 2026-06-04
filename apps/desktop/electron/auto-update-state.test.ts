@@ -20,6 +20,14 @@ describe("mapUpdaterEvent", () => {
       percent: 41
     });
   });
+  it("maps download-progress with bytes when available", () => {
+    expect(mapUpdaterEvent("download-progress", { percent: 42, transferred: 160_000_000, total: 380_000_000 })).toEqual({
+      status: "downloading",
+      percent: 42,
+      transferredBytes: 160_000_000,
+      totalBytes: 380_000_000
+    });
+  });
   it("maps update-downloaded to downloaded with version", () => {
     expect(mapUpdaterEvent("update-downloaded", { version: "0.2.0" })).toEqual({
       status: "downloaded",

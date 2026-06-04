@@ -1,5 +1,15 @@
 import type { ReactNode } from "react";
 import type { AppUpdateState } from "@writer/contracts";
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const gb = bytes / 1_073_741_824;
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / 1_048_576;
+  if (mb >= 1) return `${mb.toFixed(0)} MB`;
+  const kb = bytes / 1_024;
+  return `${kb.toFixed(0)} KB`;
+}
 import { WriterModal } from "@/components/writer/writer-modal";
 import { WriterPrimaryButton } from "@/components/writer/writer-primary-button";
 import { useModalLatch } from "@/lib/use-modal-latch";
@@ -61,25 +71,35 @@ function resolveBody(s: AppUpdateState): ReactNode {
           <p className="text-xs text-[#e5f1ff]/40">Your data and models will not be affected.</p>
         </div>
       );
-    case "downloading":
+    case "downloading": {
+      const hasBytes = (s.totalBytes ?? 0) > 0;
       return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <div
             role="progressbar"
             aria-valuenow={s.percent}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-label="Download progress"
-            className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+            className="flex w-full items-center gap-1"
           >
             <div
-              className="h-full rounded-full bg-[var(--writer-accent-blue)] transition-[width] duration-500 ease-linear"
-              style={{ width: `${s.percent}%` }}
+              className="h-[3.8px] min-w-px rounded-[0.95px] bg-[linear-gradient(to_right,#3b4df2,#bafde6_94.712%,white)] transition-[flex] duration-500 ease-linear"
+              style={{ flex: s.percent }}
+            />
+            <div
+              className="h-[3.8px] min-w-px rounded-[0.95px] bg-[#666] transition-[flex] duration-500 ease-linear"
+              style={{ flex: 100 - s.percent }}
             />
           </div>
-          <p className="text-xs text-[#e5f1ff]/50">{s.percent}%</p>
+          <p className="text-xs text-[#e5f1ff]/50">
+            {hasBytes
+              ? `${s.percent}% · ${formatBytes(s.transferredBytes ?? 0)} / ${formatBytes(s.totalBytes!)}`
+              : `${s.percent}%`}
+          </p>
         </div>
       );
+    }
     case "downloaded":
       return <p className={muted}>Writer will restart and reopen automatically.</p>;
     case "error":
@@ -121,7 +141,7 @@ function resolveFooter(
         </>
       );
     case "downloading":
-      return <SecondaryBtn onClick={dismiss}>Later</SecondaryBtn>;
+      return <SecondaryBtn onClick={dismiss}>Download in background</SecondaryBtn>;
     case "downloaded":
       return (
         <>
