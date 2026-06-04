@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.7] - 2026-06-04
+- Test release: 0.7.6 onward should now display the real differential patch size before download
+
 ## [0.7.6] - 2026-06-04
 - Fix patch size still not showing — updater config now read directly from app-update.yml
 
