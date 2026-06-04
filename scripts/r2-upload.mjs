@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, statSync, readFileSync, writeFileSync } from "node:fs";
+import yaml from "js-yaml";
 
 const client = new S3Client({
   region: "auto",
@@ -45,19 +46,16 @@ function parseChangelog(mdPath, version) {
 }
 
 /**
- * Patches latest.yml by inserting releaseNotes after the version line.
+ * Patches latest.yml by setting releaseNotes via proper YAML parse/dump.
  * electron-updater reads this field and exposes it as UpdateInfo.releaseNotes.
+ * Using js-yaml avoids regex fragility — works regardless of what
+ * electron-builder generates around the field.
  */
 function patchLatestYml(ymlPath, notes) {
-  let yml = readFileSync(ymlPath, "utf8");
-  const notesLine = `releaseNotes: ${JSON.stringify(notes)}\n`;
-  if (/^releaseNotes:/m.test(yml)) {
-    // Replace the existing field — don't insert a duplicate
-    yml = yml.replace(/^releaseNotes:.+\n/m, notesLine);
-  } else {
-    yml = yml.replace(/^(version:.+\n)/, `$1${notesLine}`);
-  }
-  writeFileSync(ymlPath, yml);
+  const raw = readFileSync(ymlPath, "utf8");
+  const doc = yaml.load(raw);
+  doc.releaseNotes = notes;
+  writeFileSync(ymlPath, yaml.dump(doc, { lineWidth: -1 }));
   console.log(`  Patched latest.yml with release notes for v${VERSION}`);
 }
 
