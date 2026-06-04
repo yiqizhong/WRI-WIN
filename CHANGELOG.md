@@ -3,6 +3,16 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - 2026-06-04
+- Gradient progress bar and byte counter on update download
+- "Download in background" replaces confusing "Later" button
+- Update modal shows instantly on Upgrade click (no freeze)
+- Local model verifying state shows informative alert
+- Removed redundant "Failed" badge next to Retry button
+- Figma MCP connection updates immediately on browser return (no polling delay)
+- Local model download progress persists across page navigation
+- New app icon
+
 ## [0.5.0] - 2026-06-03
 - Fixed "Not Responding" freeze during update install
 - Retry logic for slow corporate DNS (3 attempts, 10 s apart)
