@@ -1,0 +1,164 @@
+<!--
+Raw capture of brainstorming output for change: ui-improvements-and-update-pipeline
+Retrospective — implementation preceded documentation.
+-->
+
+# Brainstorm: UI Improvements & Update Pipeline Fixes
+
+## Background
+
+The Writer desktop app had several UX rough edges and update-pipeline bugs identified
+through hands-on review of the live app. Work was driven by screenshots and direct
+observation rather than a pre-written spec.
+
+---
+
+## Decision Log
+
+### Q1 — What is wrong with the update download modal?
+
+**Observation:** The downloading state showed a thin plain blue bar with only a percent
+label. The modal froze for several seconds after clicking "Upgrade" before reacting.
+The dismiss button said "Later" which is ambiguous when a download is already running.
+
+**Decision:**
+- Replace the thin bar with the two-div flex gradient bar already used in the local
+  model download (navy→cyan→white fill, grey remainder). Reuse the same visual language
+  across the app.
+- Show `{percent}% · {transferred} / {total}` using a shared `formatBytes` helper.
+- Rename "Later" → "Download in background" — this is what the action actually does.
+- Fix the freeze: set `{ status: "downloading", percent: 0 }` optimistically in
+  `AppShell.onDownload` before the first `download-progress` event arrives.
+- Thread `transferredBytes` and `totalBytes` through the contract and mapper so the
+  modal has the data it needs.
+
+---
+
+### Q2 — What is wrong with the local model tile states?
+
+**Observation (verifying state):** No feedback during checksum verification — the user
+sees a spinner and "Verifying" badge but doesn't know this can take several minutes.
+
+**Decision:** Add an `InlineAlert kind="info"` below the tile row during the verifying
+state: "Verifying download — This can take a few minutes — the model will be ready
+when complete." The existing `InlineAlert` component already supports `kind="info"`.
+
+**Observation (failed state):** The "Failed" red badge appeared next to the "Retry"
+button — redundant. The button already communicates failure.
+
+**Decision:** Suppress the badge when `isFailedState` (error diagnostic + showing
+Retry button). Pattern mirrors the existing `isNotDownloaded` suppression for the
+not-downloaded state.
+
+---
+
+### Q3 — Why does the Figma OAuth reconnect feel slow?
+
+**Observation:** After completing OAuth in the browser and switching back to Writer,
+the UI stays on "Connecting…" for up to 2 seconds before updating.
+
+**Root cause:** The polling loop sleeps 2 s _before_ checking:
+```
+await sleep(2000)    // waits first
+await listMcpServers()  // then checks
+```
+So the worst-case lag after returning from the browser is a full 2 s.
+
+**Decision:** Race the sleep against a `window.focus` event:
+```ts
+await Promise.race([
+  new Promise<void>(r => setTimeout(r, 2_000)),
+  new Promise<void>(r => window.addEventListener("focus", r, { once: true })),
+]);
+```
+When the user clicks back into Writer, the focus event fires immediately, the sleep
+resolves, and `listMcpServers()` runs right away. Latency drops from ≤2 s to ~50 ms.
+
+---
+
+### Q4 — Why does the download progress bar disappear on navigation?
+
+**Root cause:** `downloadProgress` and `downloadPollingActiveRef` are local component
+state in `AgentsPanel`. On unmount (navigate away) the state is lost. On remount a new
+`null` state is created — no reconnection to the in-progress daemon download.
+
+**Decision:** On mount, read `getLocalModelStatus()`. If `state.status === "downloading"`,
+immediately set `downloadProgress` and kick off a fresh polling loop. The `useEffect`
+cleanup sets `downloadPollingActiveRef.current = false` on unmount to stop both the
+old loop (from a previous mount) and the new loop when navigating away again.
+
+---
+
+### Q5 — App icon
+
+**Observation:** App used the default Electron atom icon everywhere (taskbar, Start Menu,
+installer). A custom `.ico` was provided.
+
+**Root cause of initial failure:** `signAndEditExecutable: false` in `electron-builder.yml`
+was disabling `rcedit` (the tool that embeds the icon) along with code signing.
+`forceCodeSigning: false` already handled the no-cert requirement — the extra flag was
+redundant and harmful.
+
+**Decision:** Keep `signAndEditExecutable: false` (removing it caused a signing attempt
+that failed due to symlink creation requiring admin privileges on Windows). Instead,
+add an `afterPack` hook (`scripts/after-pack.cjs`) that runs `rcedit.exe` directly on
+`Writer.exe` to embed the icon. `rcedit.exe` is already available in
+`node_modules/electron-winstaller/vendor/`.
+
+---
+
+### Q6 — Update modal shows no release notes; size misleads
+
+**Observation 1:** The modal showed "A new version of Writer is ready to download" with
+no release notes even after notes were added to `latest.yml`.
+
+**Root cause:** The `patchLatestYml` regex inserted a second `releaseNotes` key on top
+of one already generated by electron-builder → YAML parse error in the installed app →
+fell back to no-notes display.
+
+**Decision:** Replace regex patching with `js-yaml` parse/set/dump:
+```js
+const doc = yaml.load(raw);
+doc.releaseNotes = notes;
+writeFileSync(path, yaml.dump(doc, { lineWidth: -1 }));
+```
+Also enforce: abort upload if no CHANGELOG entry exists for the version (no silent
+skip).
+
+**Observation 2:** Modal showed the full installer size (553 MB) for an icon-only change.
+
+**Root cause (display):** `files[0].size` is the full installer. Shown as-is. Thread
+`totalBytes` from `UpdateInfo.files[0].size` through the contract into the available
+state body so the user sees the size before deciding to upgrade.
+
+---
+
+### Q7 — Why is every update 553 MB even for tiny changes?
+
+**Root cause:** `blockMapSize` was missing from the `files` entry in `latest.yml`.
+electron-updater checks for this field to activate differential (block-level) downloads.
+Without it, it downloads the full installer every time — even if only the icon changed.
+
+**Decision:** Inject `blockMapSize` into every file entry during `patchLatestYml`:
+```js
+for (const file of doc.files ?? []) {
+  if (!file.blockMapSize) {
+    file.blockMapSize = statSync(join(distDir, file.url + ".blockmap")).size;
+  }
+}
+```
+With `blockMapSize` present, electron-updater downloads the 593 KB blockmap, diffs it
+against the locally cached blockmap from the installed version, and only downloads
+changed blocks. llama/CUDA blocks that haven't changed are never re-downloaded.
+
+---
+
+## Design trade-offs considered
+
+| Decision | Alternative considered | Why rejected |
+|---|---|---|
+| Race sleep with `window.focus` | Reduce poll interval to 500 ms | Adds unnecessary backend load during active polling |
+| `afterPack` rcedit hook | Remove `signAndEditExecutable: false` | Causes `winCodeSign` extraction failure (symlink → needs admin) |
+| `js-yaml` parse/dump | Regex replace | Regex produces duplicate keys; fragile to format changes |
+| Inject `blockMapSize` in upload script | Change electron-builder config | electron-builder doesn't emit it with our current setup |
+| Show size before Upgrade | Show estimated differential size | Differential size isn't known until blockmap is fetched |

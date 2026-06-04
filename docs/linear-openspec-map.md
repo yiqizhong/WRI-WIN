@@ -526,3 +526,22 @@ Thin PoC slice: `electron-updater` + NSIS + `generic` provider → R2. Auto-chec
 **Prerequisite input:** public R2 update base URL (for WRI-225). Unsigned NSIS acceptable for first internal test (pending company policy).
 
 **Branch:** `feat/hot-update`
+
+## ui-improvements-and-update-pipeline (OpenSpec: `openspec/changes/ui-improvements-and-update-pipeline/`)
+
+**Epic:** [WRI-231](https://linear.app/uicb/issue/WRI-231) — UI improvements & update pipeline fixes — **Done**
+
+Retrospective change: implementation preceded documentation. All issues created in Done state.
+
+| OpenSpec task | Linear | Notes |
+|---|---|---|
+| §1 (1.1–1.3) Contract extensions | [WRI-232](https://linear.app/uicb/issue/WRI-232) | `totalBytes` on `available`; `transferredBytes`+`totalBytes` on `downloading` |
+| §2 (2.1–2.3) Electron mapper | [WRI-233](https://linear.app/uicb/issue/WRI-233) | Pass `files[0].size` + `transferred`/`total` from electron-updater |
+| §3 (3.1–3.6) Update modal UI | [WRI-234](https://linear.app/uicb/issue/WRI-234) | Gradient bar, bytes label, "Download in background", size disclosure, optimistic state |
+| §4 (4.1–4.4) Local model tile UX | [WRI-235](https://linear.app/uicb/issue/WRI-235) | Verifying alert, failed badge suppression, download progress persistence |
+| §5 (5.1) Figma OAuth | [WRI-236](https://linear.app/uicb/issue/WRI-236) | `Promise.race` sleep vs `window.focus` |
+| §6 (6.1–6.3) App icon | [WRI-237](https://linear.app/uicb/issue/WRI-237) | `afterPack` rcedit hook embeds `icon.ico` |
+| §7 (7.1–7.4) Release pipeline | [WRI-238](https://linear.app/uicb/issue/WRI-238) | js-yaml patch, enforced notes, `blockMapSize` for differential updates |
+| §8 (8.1–8.4) Release v0.6.0–v0.6.2 | [WRI-239](https://linear.app/uicb/issue/WRI-239) | Build + upload + verify across 3 patch releases |
+
+**Shipped:** v0.6.0 → v0.6.2 on Cloudflare R2
