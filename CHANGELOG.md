@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.1] - 2026-06-04
+- Show download size before upgrading (e.g. "553 MB download")
+
 ## [0.6.0] - 2026-06-04
 - Gradient progress bar and byte counter on update download
 - "Download in background" replaces confusing "Later" button
