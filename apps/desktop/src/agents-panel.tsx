@@ -275,21 +275,63 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   const [localModelSizeBytes, setLocalModelSizeBytes] = useState<number | null>(null);
   const [localModelBlockedReason, setLocalModelBlockedReason] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!connected) return;
-    void client.getLocalModelStatus()
-      .then((s) => {
-        setLocalModelSizeBytes(s.manifest.fileSizeBytes);
-        setLocalModelBlockedReason(s.blockedReason ?? null);
-      })
-      .catch(() => undefined);
-  }, [connected, client]);
   const [downloadProgress, setDownloadProgress] = useState<{
     adapterId: string;
     downloaded: number;
     total: number;
   } | null>(null);
   const downloadPollingActiveRef = useRef(false);
+
+  // On mount, read local model status. If a download is already in progress
+  // (e.g. user navigated away and back), resume the progress bar and polling
+  // rather than losing the in-progress state. Cleanup stops polling on unmount.
+  useEffect(() => {
+    if (!connected) return;
+
+    let cancelled = false;
+    const adapterId = localModelAdapters.find(Boolean)?.id ?? "local-gemma";
+
+    void (async () => {
+      try {
+        const s = await client.getLocalModelStatus();
+        if (cancelled) return;
+        setLocalModelSizeBytes(s.manifest.fileSizeBytes);
+        setLocalModelBlockedReason(s.blockedReason ?? null);
+
+        if (s.state.status !== "downloading") return;
+
+        // Resume progress polling for an in-progress download.
+        downloadPollingActiveRef.current = true;
+        setDownloadProgress({ adapterId, downloaded: s.state.downloadedBytes, total: s.state.totalBytes });
+
+        while (downloadPollingActiveRef.current) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+          if (!downloadPollingActiveRef.current || cancelled) break;
+          try {
+            const next = await client.getLocalModelStatus();
+            if (next.state.status === "downloading") {
+              setDownloadProgress({ adapterId, downloaded: next.state.downloadedBytes, total: next.state.totalBytes });
+            } else {
+              break;
+            }
+          } catch {
+            break;
+          }
+        }
+
+        downloadPollingActiveRef.current = false;
+        setDownloadProgress(null);
+        if (!cancelled) await refreshAgentDetection();
+      } catch {
+        // ignore — download state will reflect via adapter diagnostics
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      downloadPollingActiveRef.current = false;
+    };
+  }, [connected, client]);
   const panelRefreshing = daemonState.kind === "checking" || agentsRefreshing;
 
   const [busyMcpId, setBusyMcpId] = useState<string | null>(null);
