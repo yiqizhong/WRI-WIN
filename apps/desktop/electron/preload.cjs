@@ -1,5 +1,14 @@
 const { contextBridge, ipcRenderer } = require("electron");
-const { version: appVersion } = require("../package.json");
+
+// Wrapped in try-catch: a failure here must never prevent the rest of the
+// preload from running — losing writerDesktop would break ALL window buttons.
+let appVersion = "";
+try {
+  appVersion = require("../package.json").version || "";
+} catch (_) {
+  // Fallback: read from the Electron app version set by the main process.
+  // writerDesktop.appVersion will be "" — welcome-screen version label is hidden.
+}
 
 const usesNativeWindowBackdrop = process.platform === "darwin" || process.platform === "win32";
 

@@ -75,6 +75,10 @@
   padding: 0;
   color: rgba(255, 255, 255, 0.80);
   transition: background 80ms ease, color 80ms ease;
+  /* Explicit no-drag per button — child inheritance of no-drag is unreliable
+     on some Win10/11 DWM configurations when a parent has app-region: drag. */
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .writer-masthead__btn:hover {
