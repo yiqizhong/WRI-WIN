@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.5] - 2026-06-04
+- Update modal now shows installer size with a note that existing installs only download changed files
+
 ## [0.6.4] - 2026-06-04
 - Remove misleading download size from update modal — differential updates are much smaller than the full installer
 
