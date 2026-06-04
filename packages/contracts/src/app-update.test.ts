@@ -12,6 +12,10 @@ describe("appUpdateState", () => {
     expect(s).toEqual({ status: "available", version: "0.5.0", releaseNotes: "- Bug fixes" });
   });
 
+  it("rejects an available state with empty releaseNotes", () => {
+    expect(() => parseAppUpdateState({ status: "available", version: "0.5.0", releaseNotes: "" })).toThrow();
+  });
+
   it("parses an available state without releaseNotes", () => {
     const s = parseAppUpdateState({ status: "available", version: "0.5.0" });
     expect(s).toEqual({ status: "available", version: "0.5.0" });
