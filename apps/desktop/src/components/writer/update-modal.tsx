@@ -50,9 +50,16 @@ function resolveBody(s: AppUpdateState): ReactNode {
   switch (s.status) {
     case "available":
       return (
-        <p className={muted}>
-          A new version of Writer is ready to download. This won't delete any of your data.
-        </p>
+        <div className="flex flex-col gap-3">
+          {s.releaseNotes ? (
+            <div className="rounded-lg bg-white/5 px-3 py-2.5 text-sm text-[#e5f1ff]/80 whitespace-pre-wrap leading-relaxed">
+              {s.releaseNotes}
+            </div>
+          ) : (
+            <p className={muted}>A new version of Writer is ready to download.</p>
+          )}
+          <p className="text-xs text-[#e5f1ff]/40">Your data and models will not be affected.</p>
+        </div>
       );
     case "downloading":
       return (
