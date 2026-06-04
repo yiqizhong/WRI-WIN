@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.9] - 2026-06-04
+- Home screen now says "Good night!" after 10pm
+
 ## [0.6.8] - 2026-06-04
 - Fix update pill not appearing — update-available event was silently lost if it fired before the app window finished loading
 
