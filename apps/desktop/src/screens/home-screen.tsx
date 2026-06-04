@@ -33,11 +33,11 @@ function WorkflowCardIcon({ children }: { children: ReactNode }) {
 
 function greeting() {
   const h = new Date().getHours();
+  if (h < 5) return "Good night!";
   if (h < 12) return "Good morning!";
   if (h < 18) return "Good afternoon!";
   if (h < 22) return "Good evening!";
-  if (h < 24) return "Good night!";
-  return "Good morning!";
+  return "Good night!";
 }
 
 type WorkflowCardProps = {
