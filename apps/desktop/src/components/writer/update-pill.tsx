@@ -26,7 +26,7 @@ export function pillVariant(state: AppUpdateState): PillVariant | null {
 
 const VARIANT_CLASSES: Record<PillVariant, string> = {
   blue:    "bg-[var(--writer-accent-blue)] text-[#e5f1ff] hover:opacity-90",
-  gray:    "bg-white/10 text-[#e5f1ff]/50 cursor-default",
+  gray:    "bg-white/10 text-[#e5f1ff]/50 hover:bg-white/15 cursor-pointer",
   green:   "bg-[#1a7a4a] text-white hover:bg-[#166040]",
   warning: "bg-[#7a3010]/80 text-[#ffb89a] hover:bg-[#7a3010]",
 };
@@ -41,13 +41,10 @@ export function UpdatePill({ state, onClick }: UpdatePillProps) {
   const variant = pillVariant(state);
   if (!label || !variant) return null;
 
-  const isDownloading = state.status === "downloading";
-
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={isDownloading}
       className={cn(
         "self-center mr-2 flex items-center gap-1.5 rounded-full px-3 py-1",
         "text-xs font-medium tracking-wide transition-opacity",
