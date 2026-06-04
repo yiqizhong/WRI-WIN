@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.7] - 2026-06-04
+- Fix window minimize/maximize/close buttons not working on some Windows configurations
+
 ## [0.6.6] - 2026-06-04
 - Update modal now shows the actual differential download size (e.g. 38 MB) instead of the full installer size
 
