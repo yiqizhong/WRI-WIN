@@ -33,7 +33,7 @@ function WorkflowCardIcon({ children }: { children: ReactNode }) {
 
 function greeting() {
   const h = new Date().getHours();
-  if (h < 5) return "Still up?";
+  if (h < 5) return "Burning the midnight oil?";
   if (h < 12) return "Good morning!";
   if (h < 18) return "Good afternoon!";
   if (h < 22) return "Good evening!";

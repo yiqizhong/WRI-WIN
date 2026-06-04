@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.9] - 2026-06-04
+- Test release: verify patch size now displays on corporate network (0.7.8 onward, net-based probe)
+
 ## [0.7.8] - 2026-06-04
 - Fix patch size probe failing on corporate networks — now uses the proxy-aware network stack
 
