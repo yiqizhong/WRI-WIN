@@ -1,7 +1,6 @@
-const { app, ipcMain } = require("electron");
+const { app, ipcMain, net } = require("electron");
 const path = require("path");
 const zlib = require("zlib");
-const https = require("https");
 const fs = require("fs");
 const { mapUpdaterEvent } = require("./auto-update-state.cjs");
 
@@ -32,22 +31,31 @@ function probeLog(cacheDir, msg) {
   }
 }
 
-/** Single HTTPS GET → Buffer. Rejects on non-200 or transport error. */
-function httpsGetBuffer(url) {
+/**
+ * Single GET → Buffer using Electron's net module (Chromium network stack).
+ *
+ * Critical: net respects the system proxy and corporate SSL certificates,
+ * exactly like electron-updater's own downloads. Node's raw https module
+ * bypasses that config and is blocked / times out on managed corporate
+ * networks — which is why the probe failed while the real update download
+ * (via net) succeeded. Rejects on non-200 or transport error.
+ */
+function netGetBuffer(url) {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, (res) => {
-        if (res.statusCode !== 200) {
-          res.resume();
-          reject(new Error(`HTTP ${res.statusCode}`));
-          return;
-        }
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => resolve(Buffer.concat(chunks)));
-        res.on("error", reject);
-      })
-      .on("error", reject);
+    const request = net.request(url);
+    request.on("response", (response) => {
+      if (response.statusCode !== 200) {
+        response.on("data", () => {});
+        reject(new Error(`HTTP ${response.statusCode}`));
+        return;
+      }
+      const chunks = [];
+      response.on("data", (c) => chunks.push(c));
+      response.on("end", () => resolve(Buffer.concat(chunks)));
+      response.on("error", reject);
+    });
+    request.on("error", reject);
+    request.end();
   });
 }
 
@@ -66,7 +74,7 @@ async function fetchBlockMap(url, log = () => {}) {
   const DELAY_MS = 1500;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
-      const buf = await httpsGetBuffer(url);
+      const buf = await netGetBuffer(url);
       return JSON.parse(zlib.gunzipSync(buf).toString());
     } catch (e) {
       log(`fetchBlockMap attempt ${attempt}/${ATTEMPTS} failed: ${e.message}`);
