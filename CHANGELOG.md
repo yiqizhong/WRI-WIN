@@ -3,6 +3,11 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.0] - 2026-06-04
+- Update check now runs every 60 minutes and on window focus — upgrade pill appears without restarting the app
+- Update modal no longer shows a misleading download size before the download starts
+- Update modal no longer opens automatically — pill appears silently, user opens it when ready
+
 ## [0.6.9] - 2026-06-04
 - Home screen now says "Good night!" after 10pm
 
