@@ -467,7 +467,12 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
             return;
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 2_000));
+          // Race the 2s poll interval against a window focus event so the check
+          // fires immediately when the user returns from the browser after OAuth.
+          await Promise.race([
+            new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+            new Promise<void>((resolve) => window.addEventListener("focus", resolve, { once: true })),
+          ]);
 
           if (figmaAuthCancelRef.current) {
             return;
