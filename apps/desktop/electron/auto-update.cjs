@@ -5,6 +5,33 @@ const https = require("https");
 const fs = require("fs");
 const { mapUpdaterEvent } = require("./auto-update-state.cjs");
 
+/**
+ * Read the updater config (url + cache dir name) straight from app-update.yml
+ * in the app's resources directory. Avoids autoUpdater.configOnDisk, an
+ * undocumented internal whose Lazy getter does not behave reliably when
+ * called from our own code in a packaged build.
+ */
+function readUpdaterConfig() {
+  try {
+    const ymlPath = path.join(process.resourcesPath, "app-update.yml");
+    const text = fs.readFileSync(ymlPath, "utf8");
+    const url = (text.match(/^url:\s*(.+)$/m) || [])[1]?.trim().replace(/\/$/, "");
+    const cacheDirName = (text.match(/updaterCacheDirName:\s*['"]?([^'"\r\n]+)/) || [])[1]?.trim();
+    return { url, cacheDirName };
+  } catch {
+    return { url: null, cacheDirName: null };
+  }
+}
+
+/** Append a diagnostic line to probe.log in the updater cache dir (best-effort). */
+function probeLog(cacheDir, msg) {
+  try {
+    fs.appendFileSync(path.join(cacheDir, "probe.log"), `[${new Date().toISOString()}] ${msg}\n`);
+  } catch {
+    // ignore — logging must never affect behavior
+  }
+}
+
 /** Download a gzipped blockmap from a URL and return the parsed JSON, or null. */
 async function fetchBlockMap(url) {
   try {
@@ -46,17 +73,19 @@ async function fetchBlockMap(url) {
  *
  * Returns null on any failure (modal then shows no size, never a wrong one).
  */
-async function computePatchSize(autoUpdater, updateInfo) {
+async function computePatchSize(updateInfo) {
+  const { url: baseUrl, cacheDirName } = readUpdaterConfig();
+  const cacheDir = path.join(
+    process.env.LOCALAPPDATA || path.join(app.getPath("home"), "AppData", "Local"),
+    cacheDirName || app.name
+  );
   try {
-    const config = await autoUpdater.configOnDisk.value;
-    const baseUrl = (config.url || "").replace(/\/$/, "");
     const installerFile = updateInfo.files?.[0]?.url;
-    if (!baseUrl || !installerFile) return null;
-
-    const cacheDir = path.join(
-      process.env.LOCALAPPDATA || path.join(app.getPath("home"), "AppData", "Local"),
-      config.updaterCacheDirName || app.name
-    );
+    probeLog(cacheDir, `probe start: baseUrl=${baseUrl} installer=${installerFile} appVer=${app.getVersion()}`);
+    if (!baseUrl || !installerFile) {
+      probeLog(cacheDir, "abort: missing baseUrl or installer file");
+      return null;
+    }
 
     // --- Old blockmap ---
     let oldBlockMap = null;
@@ -64,19 +93,22 @@ async function computePatchSize(autoUpdater, updateInfo) {
     if (fs.existsSync(cachedOld)) {
       try {
         oldBlockMap = JSON.parse(zlib.gunzipSync(fs.readFileSync(cachedOld)).toString());
+        probeLog(cacheDir, "old blockmap: loaded from cache");
       } catch (e) {
-        console.warn("[writer-update] cached blockmap unreadable:", e.message);
+        probeLog(cacheDir, `cached blockmap unreadable: ${e.message}`);
       }
     }
     if (!oldBlockMap) {
       // Fallback: download the currently-installed version's blockmap from R2.
       const oldFile = `Writer Setup ${app.getVersion()}.exe.blockmap`;
       oldBlockMap = await fetchBlockMap(`${baseUrl}/${encodeURIComponent(oldFile)}`);
+      probeLog(cacheDir, `old blockmap: fetched from R2 (${oldFile}) -> ${oldBlockMap ? "ok" : "FAILED"}`);
     }
     if (!oldBlockMap) return null;
 
     // --- New blockmap ---
     const newBlockMap = await fetchBlockMap(`${baseUrl}/${installerFile.replace(/ /g, "%20")}.blockmap`);
+    probeLog(cacheDir, `new blockmap: ${newBlockMap ? "ok" : "FAILED"}`);
     if (!newBlockMap) return null;
 
     // --- Diff: sum sizes of blocks present in new but not in old ---
@@ -92,9 +124,10 @@ async function computePatchSize(autoUpdater, updateInfo) {
         if (!oldChecksums.has(checksums[i])) downloadBytes += sizes[i] || 0;
       }
     }
+    probeLog(cacheDir, `patch size computed: ${downloadBytes} bytes`);
     return downloadBytes > 0 ? downloadBytes : null;
   } catch (e) {
-    console.warn("[writer-update] patch size calculation failed:", e.message);
+    probeLog(cacheDir, `EXCEPTION: ${e.stack || e.message}`);
     return null;
   }
 }
@@ -193,7 +226,7 @@ function initAutoUpdate(getWindow) {
 
     // Probe the real patch size in the background — no download started.
     // Re-emits available with downloadBytes once the blockmap diff is done.
-    computePatchSize(autoUpdater, payload).then((downloadBytes) => {
+    computePatchSize(payload).then((downloadBytes) => {
       if (downloadBytes != null) {
         send({ ...state, downloadBytes });
       }
