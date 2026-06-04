@@ -51,12 +51,50 @@ function initAutoUpdate(getWindow) {
     }
   };
 
-  for (const event of UPDATE_EVENTS) {
-    autoUpdater.on(event, (payload) => send(mapUpdaterEvent(event, payload)));
-  }
+  // Tracks silent background download state.
+  // While true, download-progress events are suppressed from the renderer;
+  // the first event's `total` is used to patch the available state with the
+  // real differential download size.
+  let silentMode = false;
+  let lastAvailableState = null;
+
+  autoUpdater.on("checking-for-update", () => send(mapUpdaterEvent("checking-for-update")));
+  autoUpdater.on("update-not-available", () => send(mapUpdaterEvent("update-not-available")));
+  autoUpdater.on("update-downloaded", (payload) => send(mapUpdaterEvent("update-downloaded", payload)));
+  autoUpdater.on("error", (payload) => send(mapUpdaterEvent("error", payload)));
+
+  autoUpdater.on("update-available", (payload) => {
+    const state = mapUpdaterEvent("update-available", payload);
+    lastAvailableState = state;
+    send(state);
+
+    // Start a silent background download immediately so we can capture the real
+    // differential size from the first download-progress event.
+    silentMode = true;
+    autoUpdater.downloadUpdate().catch(() => {
+      // Errors surface via the "error" event — swallow the rejected promise here.
+    });
+  });
+
+  autoUpdater.on("download-progress", (payload) => {
+    if (silentMode) {
+      // Patch the available state with the real download size on the first tick.
+      if (lastAvailableState && (payload.total ?? 0) > 0) {
+        send({ ...lastAvailableState, downloadBytes: payload.total });
+        lastAvailableState = null;
+      }
+      return; // suppress progress UI until user clicks Upgrade
+    }
+    send(mapUpdaterEvent("download-progress", payload));
+  });
 
   ipcMain.handle("writer-update:check", () => checkWithRetry(autoUpdater));
-  ipcMain.handle("writer-update:download", () => autoUpdater.downloadUpdate());
+
+  ipcMain.handle("writer-update:download", () => {
+    // Switch from silent mode → visible mode so progress events reach the renderer.
+    silentMode = false;
+  });
+
   ipcMain.handle("writer-update:restart", () => {
     // Hide the window before quitting so Windows never marks it "Not Responding"
     // while the NSIS installer launches (CreateProcess blocks the main thread briefly).
