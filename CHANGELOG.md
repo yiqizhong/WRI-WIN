@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.4] - 2026-06-04
+- Fix patch size not showing in the update modal — now computed reliably from blockmap checksums
+
 ## [0.7.3] - 2026-06-04
 - Test release to verify differential update, patch size display, and no silent download
 
