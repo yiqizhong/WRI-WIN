@@ -11,6 +11,13 @@ describe("mapUpdaterEvent", () => {
       version: "0.2.0"
     });
   });
+  it("maps update-available with file size to totalBytes", () => {
+    expect(mapUpdaterEvent("update-available", { version: "0.6.0", files: [{ size: 580_171_500 }] })).toEqual({
+      status: "available",
+      version: "0.6.0",
+      totalBytes: 580_171_500,
+    });
+  });
   it("maps update-not-available", () => {
     expect(mapUpdaterEvent("update-not-available")).toEqual({ status: "not-available" });
   });

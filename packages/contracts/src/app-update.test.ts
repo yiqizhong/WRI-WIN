@@ -12,6 +12,11 @@ describe("appUpdateState", () => {
     expect(s).toEqual({ status: "available", version: "0.5.0", releaseNotes: "- Bug fixes" });
   });
 
+  it("parses an available state with totalBytes", () => {
+    const s = parseAppUpdateState({ status: "available", version: "0.6.0", totalBytes: 580_171_500 });
+    expect(s).toEqual({ status: "available", version: "0.6.0", totalBytes: 580_171_500 });
+  });
+
   it("rejects an available state with empty releaseNotes", () => {
     expect(() => parseAppUpdateState({ status: "available", version: "0.5.0", releaseNotes: "" })).toThrow();
   });

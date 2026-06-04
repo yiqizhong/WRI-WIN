@@ -23,7 +23,13 @@ function mapUpdaterEvent(event, payload) {
       return { status: "checking" };
     case "update-available": {
       const notes = normalizeReleaseNotes(payload.releaseNotes);
-      return { status: "available", version: payload.version, ...(notes ? { releaseNotes: notes } : {}) };
+      const size = payload.files?.[0]?.size;
+      return {
+        status: "available",
+        version: payload.version,
+        ...(notes ? { releaseNotes: notes } : {}),
+        ...(size > 0 ? { totalBytes: size } : {}),
+      };
     }
     case "update-not-available":
       return { status: "not-available" };
