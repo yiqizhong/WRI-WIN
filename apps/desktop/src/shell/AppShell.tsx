@@ -49,9 +49,15 @@ export function AppShell({ children, hideSettings }: AppShellProps) {
           open={modalOpen}
           onOpenChange={setModalOpen}
           state={updateState}
-          onDownload={() => { void api.download().catch(() => undefined); }}
+          onDownload={() => {
+            setUpdateState({ status: "downloading", percent: 0 });
+            void api.download().catch(() => undefined);
+          }}
           onRestart={() => { void api.restartToInstall().catch(() => undefined); }}
-          onRetry={() => { void api.download().catch(() => undefined); }}
+          onRetry={() => {
+            setUpdateState({ status: "downloading", percent: 0 });
+            void api.download().catch(() => undefined);
+          }}
         />
       )}
 

@@ -28,6 +28,15 @@ describe("appUpdateState", () => {
     });
   });
 
+  it("parses a downloading state with bytes", () => {
+    expect(parseAppUpdateState({ status: "downloading", percent: 42, transferredBytes: 160_000_000, totalBytes: 380_000_000 })).toEqual({
+      status: "downloading",
+      percent: 42,
+      transferredBytes: 160_000_000,
+      totalBytes: 380_000_000
+    });
+  });
+
   it("parses a downloaded state with a version", () => {
     expect(parseAppUpdateState({ status: "downloaded", version: "0.2.0" })).toEqual({
       status: "downloaded",

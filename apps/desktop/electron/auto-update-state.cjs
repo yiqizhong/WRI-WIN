@@ -27,8 +27,12 @@ function mapUpdaterEvent(event, payload) {
     }
     case "update-not-available":
       return { status: "not-available" };
-    case "download-progress":
-      return { status: "downloading", percent: Math.floor(payload.percent) };
+    case "download-progress": {
+      const state = { status: "downloading", percent: Math.floor(payload.percent) };
+      if (payload.transferred > 0) state.transferredBytes = payload.transferred;
+      if (payload.total > 0) state.totalBytes = payload.total;
+      return state;
+    }
     case "update-downloaded":
       return { status: "downloaded", version: payload.version };
     case "error":
