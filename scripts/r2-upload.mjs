@@ -31,14 +31,10 @@ function parseChangelog(mdPath, version) {
   try {
     text = readFileSync(mdPath, "utf8");
   } catch {
-    console.warn(`  [warn] Could not read ${mdPath} — skipping release notes`);
     return undefined;
   }
   const start = text.indexOf(`## [${version}]`);
-  if (start === -1) {
-    console.warn(`  [warn] No entry for v${version} in CHANGELOG.md — skipping release notes`);
-    return undefined;
-  }
+  if (start === -1) return undefined;
   const afterHeader = text.indexOf("\n", start) + 1;
   const nextSection = text.indexOf("\n## [", afterHeader);
   const block = text.slice(afterHeader, nextSection === -1 ? undefined : nextSection).trim();
@@ -59,11 +55,14 @@ function patchLatestYml(ymlPath, notes) {
   console.log(`  Patched latest.yml with release notes for v${VERSION}`);
 }
 
-// Inject release notes into latest.yml before uploading it
+// Release notes are required — abort if the changelog entry is missing.
 const notes = parseChangelog("CHANGELOG.md", VERSION);
-if (notes) {
-  patchLatestYml(`${DIST}\\latest.yml`, notes);
+if (!notes) {
+  console.error(`\n  [error] No changelog entry found for v${VERSION} in CHANGELOG.md.`);
+  console.error(`  Add a "## [${VERSION}]" section before running the upload.\n`);
+  process.exit(1);
 }
+patchLatestYml(`${DIST}\\latest.yml`, notes);
 
 for (const { local, key } of FILES) {
   const size = statSync(local).size;
