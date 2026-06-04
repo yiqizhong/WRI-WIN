@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.3] - 2026-06-04
+- Test release to verify differential update, patch size display, and no silent download
+
 ## [0.7.2] - 2026-06-04
 - Fix: opening the update modal no longer silently starts the download — Upgrade button is now the only thing that can begin a download
 
