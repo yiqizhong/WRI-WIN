@@ -172,13 +172,27 @@ const UPDATE_EVENTS = [
   "error"
 ];
 
-const CHECK_MAX_RETRIES = 3;
+const CHECK_MAX_RETRIES = 5;
 const CHECK_RETRY_DELAY_MS = 10_000;
 
-/** Returns true for transient network errors worth retrying (e.g. slow corporate DNS). */
+/**
+ * Returns true for transient network errors worth retrying and NOT worth
+ * alarming the user about (e.g. flaky corporate DNS that intermittently
+ * fails to resolve the Cloudflare R2 feed host). These recover on the next
+ * scheduled check, so we retry silently and never surface "Update failed".
+ */
 function isRetryableError(error) {
   const msg = error?.message || String(error);
-  return msg.includes("ERR_NAME_NOT_RESOLVED") || msg.includes("ERR_INTERNET_DISCONNECTED") || msg.includes("ENOTFOUND");
+  return (
+    msg.includes("ERR_NAME_NOT_RESOLVED") ||
+    msg.includes("ERR_INTERNET_DISCONNECTED") ||
+    msg.includes("ERR_NETWORK_CHANGED") ||
+    msg.includes("ERR_CONNECTION") ||
+    msg.includes("ERR_TIMED_OUT") ||
+    msg.includes("ENOTFOUND") ||
+    msg.includes("EAI_AGAIN") ||
+    msg.includes("ETIMEDOUT")
+  );
 }
 
 /** checkForUpdates with automatic retry on transient network errors. */
@@ -241,15 +255,27 @@ function initAutoUpdate(getWindow) {
     if (now - lastCheckTime < MIN_FOCUS_RECHECK_MS) return;
     lastCheckTime = now;
     checkWithRetry(autoUpdater).catch((error) => {
-      send({ status: "error", message: error?.message || String(error) });
+      // Transient network/DNS failures recover on the next scheduled check —
+      // stay silent rather than alarming the user with "Update failed".
+      if (!isRetryableError(error)) {
+        send({ status: "error", message: error?.message || String(error) });
+      }
     });
   };
 
   ipcMain.handle("writer-update:get-state", () => cachedState);
 
-  for (const event of ["checking-for-update", "update-not-available", "download-progress", "update-downloaded", "error"]) {
+  for (const event of ["checking-for-update", "update-not-available", "download-progress", "update-downloaded"]) {
     autoUpdater.on(event, (payload) => send(mapUpdaterEvent(event, payload)));
   }
+
+  // Errors get special handling: swallow transient network/DNS errors so a
+  // flaky corporate resolver never surfaces a false "Update failed". Real
+  // errors (signature, disk, etc.) still reach the UI.
+  autoUpdater.on("error", (payload) => {
+    if (isRetryableError(payload)) return;
+    send(mapUpdaterEvent("error", payload));
+  });
 
   autoUpdater.on("update-available", (payload) => {
     const state = mapUpdaterEvent("update-available", payload);
