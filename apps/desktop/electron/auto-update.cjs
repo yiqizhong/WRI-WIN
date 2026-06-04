@@ -5,43 +5,14 @@ const https = require("https");
 const fs = require("fs");
 const { mapUpdaterEvent } = require("./auto-update-state.cjs");
 
-/**
- * Compute the real differential (patch) download size WITHOUT starting the
- * actual download.
- *
- * Reads the cached blockmap for the currently installed version, downloads
- * the new version's blockmap from R2, runs computeOperations(), and sums
- * the DOWNLOAD operations to get the exact bytes that will be fetched.
- * Returns null if anything fails (falls back to showing no size).
- */
-async function computePatchSize(autoUpdater, updateInfo) {
+/** Download a gzipped blockmap from a URL and return the parsed JSON, or null. */
+async function fetchBlockMap(url) {
   try {
-    const { OperationKind, computeOperations } = require(
-      "electron-updater/out/differentialDownloader/downloadPlanBuilder"
-    );
-    const { getAppCacheDir } = require("electron-updater/out/AppAdapter");
-
-    // Resolve cache dir (mirrors electron-updater's own logic).
-    const config = await autoUpdater.configOnDisk.value;
-    const cacheDir = path.join(getAppCacheDir(), config.updaterCacheDirName || app.name);
-
-    // Read the old blockmap (gzip JSON) stored by the previous update.
-    const oldBlockMapFile = path.join(cacheDir, "current.blockmap");
-    if (!fs.existsSync(oldBlockMapFile)) return null;
-    const oldBlockMap = JSON.parse(zlib.gunzipSync(fs.readFileSync(oldBlockMapFile)).toString());
-
-    // Construct the new blockmap URL: <baseUrl>/<installerFilename>.blockmap
-    const baseUrl = (config.url || "").replace(/\/$/, "");
-    const installerFile = updateInfo.files?.[0]?.url;
-    if (!baseUrl || !installerFile) return null;
-    const newBlockMapUrl = `${baseUrl}/${installerFile.replace(/ /g, "%20")}.blockmap`;
-
-    // Download the new blockmap.
-    const newBlockMapBuf = await new Promise((resolve, reject) => {
-      https.get(newBlockMapUrl, (res) => {
+    const buf = await new Promise((resolve, reject) => {
+      https.get(url, (res) => {
         if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode} for ${newBlockMapUrl}`));
           res.resume();
+          reject(new Error(`HTTP ${res.statusCode} for ${url}`));
           return;
         }
         const chunks = [];
@@ -50,15 +21,76 @@ async function computePatchSize(autoUpdater, updateInfo) {
         res.on("error", reject);
       }).on("error", reject);
     });
-    const newBlockMap = JSON.parse(zlib.gunzipSync(newBlockMapBuf).toString());
+    return JSON.parse(zlib.gunzipSync(buf).toString());
+  } catch (e) {
+    console.warn("[writer-update] fetchBlockMap failed:", e.message);
+    return null;
+  }
+}
 
-    // Run the same operation planner electron-updater uses internally.
-    const noop = () => {};
-    const ops = computeOperations(oldBlockMap, newBlockMap, { debug: noop, info: noop, warn: noop, error: noop });
+/**
+ * Compute the real differential (patch) download size WITHOUT starting the
+ * actual download — using only the blockmap files, no electron-updater
+ * internal modules (those don't resolve reliably inside the packaged asar).
+ *
+ * A blockmap lists every block of the installer as parallel checksums[] and
+ * sizes[] arrays. Any block in the NEW installer whose checksum already
+ * exists in the OLD installer is copied locally (free); the rest must be
+ * downloaded. Summing the sizes of download-only blocks gives the exact
+ * patch size electron-updater will fetch.
+ *
+ * Old blockmap source order:
+ *   1. current.blockmap in the updater cache (written after a prior update)
+ *   2. <baseUrl>/Writer Setup <currentVersion>.exe.blockmap from R2 (fallback
+ *      for fresh manual installs that never ran a differential update)
+ *
+ * Returns null on any failure (modal then shows no size, never a wrong one).
+ */
+async function computePatchSize(autoUpdater, updateInfo) {
+  try {
+    const config = await autoUpdater.configOnDisk.value;
+    const baseUrl = (config.url || "").replace(/\/$/, "");
+    const installerFile = updateInfo.files?.[0]?.url;
+    if (!baseUrl || !installerFile) return null;
 
+    const cacheDir = path.join(
+      process.env.LOCALAPPDATA || path.join(app.getPath("home"), "AppData", "Local"),
+      config.updaterCacheDirName || app.name
+    );
+
+    // --- Old blockmap ---
+    let oldBlockMap = null;
+    const cachedOld = path.join(cacheDir, "current.blockmap");
+    if (fs.existsSync(cachedOld)) {
+      try {
+        oldBlockMap = JSON.parse(zlib.gunzipSync(fs.readFileSync(cachedOld)).toString());
+      } catch (e) {
+        console.warn("[writer-update] cached blockmap unreadable:", e.message);
+      }
+    }
+    if (!oldBlockMap) {
+      // Fallback: download the currently-installed version's blockmap from R2.
+      const oldFile = `Writer Setup ${app.getVersion()}.exe.blockmap`;
+      oldBlockMap = await fetchBlockMap(`${baseUrl}/${encodeURIComponent(oldFile)}`);
+    }
+    if (!oldBlockMap) return null;
+
+    // --- New blockmap ---
+    const newBlockMap = await fetchBlockMap(`${baseUrl}/${installerFile.replace(/ /g, "%20")}.blockmap`);
+    if (!newBlockMap) return null;
+
+    // --- Diff: sum sizes of blocks present in new but not in old ---
+    const oldChecksums = new Set();
+    for (const f of oldBlockMap.files || []) {
+      for (const c of f.checksums || []) oldChecksums.add(c);
+    }
     let downloadBytes = 0;
-    for (const op of ops) {
-      if (op.kind === OperationKind.DOWNLOAD) downloadBytes += op.end - op.start;
+    for (const f of newBlockMap.files || []) {
+      const checksums = f.checksums || [];
+      const sizes = f.sizes || [];
+      for (let i = 0; i < checksums.length; i++) {
+        if (!oldChecksums.has(checksums[i])) downloadBytes += sizes[i] || 0;
+      }
     }
     return downloadBytes > 0 ? downloadBytes : null;
   } catch (e) {
