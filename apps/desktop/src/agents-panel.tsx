@@ -716,6 +716,13 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                   !isLoading &&
                   !(localModelBlockedReason && adapter.id === "local-gemma") &&
                   (adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic);
+                // Failed state: Retry button is self-explanatory — suppress the redundant badge.
+                const isFailedState =
+                  stableConnected &&
+                  !adapter.available &&
+                  !isLoading &&
+                  adapter.diagnostic?.severity === "error" &&
+                  !(localModelBlockedReason && adapter.id === "local-gemma");
 
                 return (
                   <GlassCard
@@ -783,7 +790,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             </WriterPrimaryButton>
                           )
                         ) : null}
-                        {!isNotDownloaded && (
+                        {!isNotDownloaded && !isFailedState && (
                           <Badge variant={tagVariant(status.type)} className={hugWidth}>
                             {status.label}
                           </Badge>
@@ -816,6 +823,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                           {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
                         </span>
                       </div>
+                    ) : adapter.diagnostic?.code === "verifying" ? (
+                      <InlineAlert kind="info" title="Verifying download" subtitle="This can take a few minutes — the model will be ready when complete." />
                     ) : diagnosticText && adapter.diagnostic?.severity === "error" ? (
                       <ConnectionIssueNotice text={diagnosticText} />
                     ) : null}
