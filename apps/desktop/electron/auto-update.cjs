@@ -32,27 +32,50 @@ function probeLog(cacheDir, msg) {
   }
 }
 
-/** Download a gzipped blockmap from a URL and return the parsed JSON, or null. */
-async function fetchBlockMap(url) {
-  try {
-    const buf = await new Promise((resolve, reject) => {
-      https.get(url, (res) => {
+/** Single HTTPS GET → Buffer. Rejects on non-200 or transport error. */
+function httpsGetBuffer(url) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (res) => {
         if (res.statusCode !== 200) {
           res.resume();
-          reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+          reject(new Error(`HTTP ${res.statusCode}`));
           return;
         }
         const chunks = [];
         res.on("data", (c) => chunks.push(c));
         res.on("end", () => resolve(Buffer.concat(chunks)));
         res.on("error", reject);
-      }).on("error", reject);
-    });
-    return JSON.parse(zlib.gunzipSync(buf).toString());
-  } catch (e) {
-    console.warn("[writer-update] fetchBlockMap failed:", e.message);
-    return null;
+      })
+      .on("error", reject);
+  });
+}
+
+/**
+ * Download a gzipped blockmap and return the parsed JSON, or null.
+ *
+ * Retries on failure: a user who opens the app right as a release is
+ * published can hit a Cloudflare edge that has latest.yml but not yet the
+ * blockmap (brief propagation lag → fast 404). A few spaced retries cover
+ * that window; in the common case the first attempt succeeds instantly.
+ *
+ * @param {(msg: string) => void} [log] diagnostic sink
+ */
+async function fetchBlockMap(url, log = () => {}) {
+  const ATTEMPTS = 4;
+  const DELAY_MS = 1500;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    try {
+      const buf = await httpsGetBuffer(url);
+      return JSON.parse(zlib.gunzipSync(buf).toString());
+    } catch (e) {
+      log(`fetchBlockMap attempt ${attempt}/${ATTEMPTS} failed: ${e.message}`);
+      if (attempt < ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, DELAY_MS));
+      }
+    }
   }
+  return null;
 }
 
 /**
@@ -101,13 +124,13 @@ async function computePatchSize(updateInfo) {
     if (!oldBlockMap) {
       // Fallback: download the currently-installed version's blockmap from R2.
       const oldFile = `Writer Setup ${app.getVersion()}.exe.blockmap`;
-      oldBlockMap = await fetchBlockMap(`${baseUrl}/${encodeURIComponent(oldFile)}`);
+      oldBlockMap = await fetchBlockMap(`${baseUrl}/${encodeURIComponent(oldFile)}`, (m) => probeLog(cacheDir, m));
       probeLog(cacheDir, `old blockmap: fetched from R2 (${oldFile}) -> ${oldBlockMap ? "ok" : "FAILED"}`);
     }
     if (!oldBlockMap) return null;
 
     // --- New blockmap ---
-    const newBlockMap = await fetchBlockMap(`${baseUrl}/${installerFile.replace(/ /g, "%20")}.blockmap`);
+    const newBlockMap = await fetchBlockMap(`${baseUrl}/${installerFile.replace(/ /g, "%20")}.blockmap`, (m) => probeLog(cacheDir, m));
     probeLog(cacheDir, `new blockmap: ${newBlockMap ? "ok" : "FAILED"}`);
     if (!newBlockMap) return null;
 
