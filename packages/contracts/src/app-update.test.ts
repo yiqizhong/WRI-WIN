@@ -7,6 +7,16 @@ describe("appUpdateState", () => {
     expect(s).toEqual({ status: "available", version: "0.2.0" });
   });
 
+  it("parses an available state with releaseNotes", () => {
+    const s = parseAppUpdateState({ status: "available", version: "0.5.0", releaseNotes: "- Bug fixes" });
+    expect(s).toEqual({ status: "available", version: "0.5.0", releaseNotes: "- Bug fixes" });
+  });
+
+  it("parses an available state without releaseNotes", () => {
+    const s = parseAppUpdateState({ status: "available", version: "0.5.0" });
+    expect(s).toEqual({ status: "available", version: "0.5.0" });
+  });
+
   it("parses a downloading state with a percent", () => {
     expect(parseAppUpdateState({ status: "downloading", percent: 42 })).toEqual({
       status: "downloading",
