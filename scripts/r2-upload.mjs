@@ -15,7 +15,7 @@ const client = new S3Client({
 
 const BUCKET = "writerapp-updates";
 const DIST = "C:\\WRI\\Writer\\apps\\desktop\\dist-electron";
-const VERSION = "0.7.0"; // <-- bump this before each release
+const VERSION = "0.7.1"; // <-- bump this before each release
 
 const FILES = [
   { local: `${DIST}\\Writer Setup ${VERSION}.exe`,          key: `Writer Setup ${VERSION}.exe` },

@@ -3,6 +3,9 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.1] - 2026-06-04
+- Update modal now shows the real differential patch size (e.g. 12 MB) before you click Upgrade — computed from blockmap diff, no download required
+
 ## [0.7.0] - 2026-06-04
 - Update check now runs every 60 minutes and on window focus — upgrade pill appears without restarting the app
 - Update modal no longer shows a misleading download size before the download starts
