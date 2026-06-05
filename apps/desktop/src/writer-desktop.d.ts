@@ -32,7 +32,7 @@ declare global {
       check: () => Promise<unknown>;
       download: () => Promise<unknown>;
       restartToInstall: () => Promise<unknown>;
-      getState: () => Promise<unknown>;
+      getState: () => Promise<AppUpdateState>;
       onState: (callback: (state: AppUpdateState) => void) => () => void;
     };
   }

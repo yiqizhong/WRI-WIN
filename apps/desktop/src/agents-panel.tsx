@@ -513,7 +513,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
           // fires immediately when the user returns from the browser after OAuth.
           await Promise.race([
             new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
-            new Promise<void>((resolve) => window.addEventListener("focus", resolve, { once: true })),
+            new Promise<void>((resolve) => window.addEventListener("focus", () => resolve(), { once: true })),
           ]);
 
           if (figmaAuthCancelRef.current) {
