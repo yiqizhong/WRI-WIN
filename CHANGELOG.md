@@ -3,6 +3,10 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.8.2] - 2026-06-04
+- Update download now shows the real differential patch size (e.g. "1 MB") instead of the full installer size
+- "Update ready" pill no longer reverts to "Upgrade" after a background download finishes
+
 ## [0.8.1] - 2026-06-04
 - Welcome screen shown on first launch of v0.8.1
 
