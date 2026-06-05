@@ -242,6 +242,15 @@ function initAutoUpdate(getWindow) {
   let cachedState = { status: "idle" };
   let lastCheckTime = 0;
 
+  // The real differential (network) patch size from the most recent probe, plus
+  // the version it belongs to and whether the user has consented to download it.
+  // These let us (a) show the true patch size during download instead of
+  // electron-updater's full reconstructed-file size, and (b) ignore re-checks
+  // that would otherwise revert a download already in flight / finished.
+  let patchBytes = null;
+  let handledVersion = null;
+  let downloadStarted = false;
+
   const send = (state) => {
     cachedState = state;
     const window = getWindow();
@@ -265,9 +274,30 @@ function initAutoUpdate(getWindow) {
 
   ipcMain.handle("writer-update:get-state", () => cachedState);
 
-  for (const event of ["checking-for-update", "update-not-available", "download-progress", "update-downloaded"]) {
+  for (const event of ["checking-for-update", "update-not-available", "update-downloaded"]) {
     autoUpdater.on(event, (payload) => send(mapUpdaterEvent(event, payload)));
   }
+
+  // Report progress against the real differential patch size, not electron-updater's
+  // full reconstructed-file size. A differential update copies ~550 MB of unchanged
+  // CUDA/llama blocks locally from the old installer and counts them as "transferred",
+  // which made the bar read e.g. 549/553 MB even though only ~1 MB came over the wire.
+  // We already know the true patch size from the probe, so scale by percent instead.
+  autoUpdater.on("download-progress", (payload) => {
+    const percent = Math.floor(payload.percent);
+    if (patchBytes != null) {
+      send({
+        status: "downloading",
+        percent,
+        totalBytes: patchBytes,
+        transferredBytes: Math.min(patchBytes, Math.round((patchBytes * percent) / 100)),
+      });
+      return;
+    }
+    // No probe result (full-download fallback or probe failed) — fall back to
+    // electron-updater's own byte counts.
+    send(mapUpdaterEvent("download-progress", payload));
+  });
 
   // Errors get special handling: swallow transient network/DNS errors so a
   // flaky corporate resolver never surfaces a false "Update failed". Real
@@ -279,12 +309,24 @@ function initAutoUpdate(getWindow) {
 
   autoUpdater.on("update-available", (payload) => {
     const state = mapUpdaterEvent("update-available", payload);
+
+    // A focus / 60-min re-check re-fires update-available for the SAME version
+    // we're already downloading or have downloaded. Ignore it so the pill and
+    // modal don't revert from "Update ready" back to "Upgrade".
+    if (downloadStarted && payload.version === handledVersion) return;
+
+    handledVersion = payload.version;
+    patchBytes = null;
     send(state);
 
     // Probe the real patch size in the background — no download started.
     // Re-emits available with downloadBytes once the blockmap diff is done.
     computePatchSize(payload).then((downloadBytes) => {
-      if (downloadBytes != null) {
+      if (downloadBytes == null) return;
+      patchBytes = downloadBytes;
+      // Only surface it if we're still on the 'available' screen for this
+      // version — never clobber a download that has since started or finished.
+      if (cachedState.status === "available" && payload.version === handledVersion) {
         send({ ...state, downloadBytes });
       }
     });
@@ -293,6 +335,7 @@ function initAutoUpdate(getWindow) {
   ipcMain.handle("writer-update:check", () => checkWithRetry(autoUpdater));
   ipcMain.handle("writer-update:download", () => {
     downloadConsented = true;
+    downloadStarted = true;
     return autoUpdater.downloadUpdate();
   });
   ipcMain.handle("writer-update:restart", () => {
