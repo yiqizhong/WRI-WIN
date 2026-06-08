@@ -149,6 +149,7 @@ export type LocalGemmaAdapterOptions = {
   getModelState: () => LocalModelState | null;
   contextSize?: number;
   getDraftSettings?: () => DraftSettings | undefined;
+  displayName?: string;
 };
 
 async function getLlamaBinaryPath(): Promise<string | null> {
@@ -204,21 +205,23 @@ function buildAdapter(input: {
   binaryPath?: string;
   modelPath?: string;
   diagnosticCode?: import("@writer/contracts").ConnectionDiagnosticCode;
+  displayName?: string;
 }): AgentDetectionResult {
+  const name = input.displayName ?? DISPLAY_NAME;
   const adapter: AgentAdapter = {
     id: ADAPTER_ID,
-    displayName: DISPLAY_NAME,
+    displayName: name,
     available: input.available,
     runtimeKind: "local",
     authState: input.available ? "ready" : "unknown",
     setupMessage: input.setupMessage,
     executablePath: input.binaryPath,
     diagnostic: input.available
-      ? { code: "ready", severity: "info", message: `${DISPLAY_NAME} is ready.`, command: input.binaryPath }
+      ? { code: "ready", severity: "info", message: `${name} is ready.`, command: input.binaryPath }
       : {
           code: input.diagnosticCode ?? "not_installed",
           severity: input.diagnosticCode === "install_failed" ? "error" : "info",
-          message: input.setupMessage ?? `${DISPLAY_NAME} model is not installed.`,
+          message: input.setupMessage ?? `${name} model is not installed.`,
           recoveryAction: "Go to Settings → LLM & MCP to download it."
         },
     capabilities: [{ id: "review", label: "UX copy review", enabled: input.available }]
@@ -226,7 +229,7 @@ function buildAdapter(input: {
   return { adapter };
 }
 
-async function detect(getModelState: () => LocalModelState | null): Promise<AgentDetectionResult> {
+async function detect(getModelState: () => LocalModelState | null, displayName?: string): Promise<AgentDetectionResult> {
   const modelState = getModelState();
   const status = modelState?.status ?? "not_installed";
 
@@ -246,7 +249,8 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
     return buildAdapter({
       available: false,
       setupMessage: messages[status] ?? "Model is not ready.",
-      diagnosticCode: (codeMap[status] ?? "not_installed") as import("@writer/contracts").ConnectionDiagnosticCode
+      diagnosticCode: (codeMap[status] ?? "not_installed") as import("@writer/contracts").ConnectionDiagnosticCode,
+      displayName
     });
   }
 
@@ -256,7 +260,8 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
     return buildAdapter({
       available: false,
       setupMessage:
-        "llama-cli not found. Install llama.cpp or set WRITER_LLAMA_CLI to the binary path."
+        "llama-cli not found. Install llama.cpp or set WRITER_LLAMA_CLI to the binary path.",
+      displayName
     });
   }
 
@@ -271,7 +276,8 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
           "Most likely the CUDA 12 runtime is missing: place cudart64_12.dll, " +
           "cublas64_12.dll, and cublasLt64_12.dll next to llama-cli.exe (or install " +
           "the CUDA 12 Toolkit). Set WRITER_GPU_LAYERS=0 to allow CPU inference.",
-        diagnosticCode: "gpu_not_available"
+        diagnosticCode: "gpu_not_available",
+        displayName
       });
     }
   }
@@ -279,7 +285,8 @@ async function detect(getModelState: () => LocalModelState | null): Promise<Agen
   return buildAdapter({
     available: true,
     binaryPath,
-    modelPath: modelState?.modelPath ?? undefined
+    modelPath: modelState?.modelPath ?? undefined,
+    displayName
   });
 }
 
@@ -571,7 +578,7 @@ async function run(
 export function createLocalGemmaAdapter(options: LocalGemmaAdapterOptions): AgentAdapterImplementation {
   return {
     id: ADAPTER_ID,
-    detect: () => detect(options.getModelState),
+    detect: () => detect(options.getModelState, options.displayName),
     run: (request) => run(request, options.getModelState, options.contextSize, options.getDraftSettings)
   };
 }

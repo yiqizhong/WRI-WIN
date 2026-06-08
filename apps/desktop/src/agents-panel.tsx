@@ -298,9 +298,9 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         setLocalModelSizeBytes(s.manifest.fileSizeBytes);
         setLocalModelBlockedReason(s.blockedReason ?? null);
 
-        if (s.state.status !== "downloading") return;
+        if (s.state.status !== "downloading" && s.state.status !== "verifying") return;
 
-        // Resume progress polling for an in-progress download.
+        // Resume progress polling for an in-progress download or SHA verification.
         downloadPollingActiveRef.current = true;
         setDownloadProgress({ adapterId, downloaded: s.state.downloadedBytes, total: s.state.totalBytes });
 
@@ -311,6 +311,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
             const next = await client.getLocalModelStatus();
             if (next.state.status === "downloading") {
               setDownloadProgress({ adapterId, downloaded: next.state.downloadedBytes, total: next.state.totalBytes });
+            } else if (next.state.status === "verifying") {
+              // Keep spinner alive; no byte progress to show during SHA check.
             } else {
               break;
             }

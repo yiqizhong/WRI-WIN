@@ -35,8 +35,9 @@ import {
 } from "@writer/agent-adapters";
 
 import type { DaemonState } from "./state";
-import { GEMMA_4_E4B_MANIFEST } from "./local-model-manifest";
+import { GEMMA_4_12B_Q4KM_MANIFEST, resolveLocalModelManifest } from "./local-model-manifest";
 import { getDraftFilePath } from "./local-models";
+import { detectNvidiaVram } from "@writer/agent-adapters";
 
 const createAgentRunInputSchema = z.object({
   sessionId: z.string().min(1),
@@ -95,17 +96,27 @@ function createDaemonRegistry(state: DaemonState): AgentAdapterRegistry {
     registry.register(adapter);
   }
 
+  let resolvedDisplayName: string | undefined;
   registry.register(
     createLocalGemmaAdapter({
       getModelState: () => state.store.getLocalModel(),
-      contextSize: GEMMA_4_E4B_MANIFEST.defaultContext,
+      contextSize: GEMMA_4_12B_Q4KM_MANIFEST.defaultContext,
       getDraftSettings: () => {
         const dec = state.store.getSpeculativeDecoding();
         const path = dec.enabled ? getDraftFilePath(state) : null;
         return { enabled: dec.enabled, path };
+      },
+      // Lazily resolved on first detect call so VRAM detection stays async.
+      get displayName() {
+        return resolvedDisplayName;
       }
     })
   );
+  // Kick off VRAM detection once so displayName is ready before the first /agents poll.
+  void detectNvidiaVram().then((vram) => {
+    const resolution = resolveLocalModelManifest(vram);
+    if ("manifest" in resolution) resolvedDisplayName = resolution.manifest.displayName;
+  });
 
   return registry;
 }

@@ -74,15 +74,17 @@ const VALID_SPEC_TYPES = ["none", "ngram-simple", "ngram-mod", "ngram-map-k", "n
 export type SpecType = (typeof VALID_SPEC_TYPES)[number];
 
 /**
- * env value > default 'ngram-simple'.
- * 'none' disables speculative decoding entirely.
+ * env value > default 'none' (no speculative drafting).
+ * Benchmarks on the 12B showed every drafter variant (ngram + draft-model) is
+ * neutral-to-harmful on the power-capped laptop GPU, so the plain decode is the
+ * default. Opt back in via WRITER_LOCAL_SPEC_TYPE if a machine benefits.
  * Only valid spec types are accepted; anything else falls back to the default.
  */
 export function resolveSpecType(envValue: string | undefined): SpecType {
   if (envValue && (VALID_SPEC_TYPES as readonly string[]).includes(envValue)) {
     return envValue as SpecType;
   }
-  return "ngram-simple";
+  return "none";
 }
 
 /**
@@ -118,7 +120,7 @@ export function buildSpawnArgs(input: {
     "--reasoning", "off",
     "-fa", input.flashAttn,
     "-ub", String(input.ubatch),
-    "-n", "512",
+    "-n", "1024",
     "--log-disable"
   ];
   if (input.kvType !== "f16") {
@@ -456,8 +458,12 @@ export function stripTurn(raw: string): string {
   // Remove a leading ready prompt line ("> ") if present.
   text = text.replace(/^>\s*\n?/, "");
   // Defensive: strip a thinking block if the model emitted one anyway.
+  // E4B format: [Start thinking]...[End thinking]
   const endThink = text.search(/\[End thinking\]/i);
   if (endThink !== -1) text = text.slice(endThink + "[End thinking]".length);
   text = text.replace(/\[Start thinking\][\s\S]*$/i, "");
+  // 12B format: thinking content...[Final answer]\n
+  const finalAnswer = text.search(/\[Final answer\]/i);
+  if (finalAnswer !== -1) text = text.slice(finalAnswer + "[Final answer]".length);
   return text.trim();
 }

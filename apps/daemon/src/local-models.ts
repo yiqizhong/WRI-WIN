@@ -10,6 +10,7 @@ import type { DaemonState } from "./state";
 import {
   GEMMA_4_E4B_MANIFEST,
   GEMMA_4_E4B_Q4KM_MANIFEST,
+  GEMMA_4_12B_Q4KM_MANIFEST,
   resolveLocalModelManifest
 } from "./local-model-manifest";
 
@@ -179,7 +180,7 @@ export async function getLocalModelStatus(state: DaemonState): Promise<LocalMode
   const resolution = resolveLocalModelManifest(vram);
   if ("blocked" in resolution) {
     return {
-      manifest: GEMMA_4_E4B_MANIFEST,
+      manifest: GEMMA_4_12B_Q4KM_MANIFEST,
       state: stored ?? buildState(),
       blockedReason: resolution.reason
     };
@@ -349,8 +350,10 @@ export async function resetModelDownload(state: DaemonState): Promise<void> {
     : [
         join(modelsDir, GEMMA_4_E4B_MANIFEST.fileName),
         join(modelsDir, GEMMA_4_E4B_Q4KM_MANIFEST.fileName),
+        join(modelsDir, GEMMA_4_12B_Q4KM_MANIFEST.fileName),
         join(modelsDir, `${GEMMA_4_E4B_MANIFEST.fileName}.tmp`),
-        join(modelsDir, `${GEMMA_4_E4B_Q4KM_MANIFEST.fileName}.tmp`)
+        join(modelsDir, `${GEMMA_4_E4B_Q4KM_MANIFEST.fileName}.tmp`),
+        join(modelsDir, `${GEMMA_4_12B_Q4KM_MANIFEST.fileName}.tmp`)
       ];
 
   await mkdir(modelsDir, { recursive: true });

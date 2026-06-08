@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   GEMMA_4_E4B_MANIFEST,
   GEMMA_4_E4B_Q4KM_MANIFEST,
+  GEMMA_4_12B_Q4KM_MANIFEST,
   resolveLocalModelManifest
 } from "./local-model-manifest";
 
@@ -39,23 +40,45 @@ describe("GEMMA_4_E4B_Q4KM_MANIFEST", () => {
   });
 });
 
+describe("GEMMA_4_12B_Q4KM_MANIFEST", () => {
+  it("has confirmed fileName", () => {
+    expect(GEMMA_4_12B_Q4KM_MANIFEST.fileName).toBe("gemma-4-12B-it-Q4_K_M.gguf");
+  });
+
+  it("has confirmed fileSizeBytes", () => {
+    expect(GEMMA_4_12B_Q4KM_MANIFEST.fileSizeBytes).toBe(7662531872);
+  });
+
+  it("has confirmed expectedSha256", () => {
+    expect(GEMMA_4_12B_Q4KM_MANIFEST.expectedSha256).toBe(
+      "d333b368be6cd655563fce18aede26027e208fdb13816d35eb06983ce054044b"
+    );
+  });
+
+  it("has a larger modelMaxContext than E4B", () => {
+    expect(GEMMA_4_12B_Q4KM_MANIFEST.modelMaxContext).toBeGreaterThan(
+      GEMMA_4_E4B_MANIFEST.modelMaxContext
+    );
+  });
+});
+
 describe("resolveLocalModelManifest", () => {
-  it("returns Q8_0 for VRAM >= 12000 (exact boundary)", () => {
+  it("returns 12B Q4_K_M for VRAM >= 12000 (exact boundary)", () => {
     const result = resolveLocalModelManifest(12000);
-    expect("manifest" in result && result.manifest).toBe(GEMMA_4_E4B_MANIFEST);
+    expect("manifest" in result && result.manifest).toBe(GEMMA_4_12B_Q4KM_MANIFEST);
   });
 
-  it("returns Q8_0 for VRAM = 12288 (real 12 GB card)", () => {
+  it("returns 12B Q4_K_M for VRAM = 12288 (real 12 GB card)", () => {
     const result = resolveLocalModelManifest(12288);
-    expect("manifest" in result && result.manifest).toBe(GEMMA_4_E4B_MANIFEST);
+    expect("manifest" in result && result.manifest).toBe(GEMMA_4_12B_Q4KM_MANIFEST);
   });
 
-  it("returns Q4_K_M for VRAM = 11999 (just below threshold)", () => {
+  it("returns E4B Q4_K_M for VRAM = 11999 (just below threshold)", () => {
     const result = resolveLocalModelManifest(11999);
     expect("manifest" in result && result.manifest).toBe(GEMMA_4_E4B_Q4KM_MANIFEST);
   });
 
-  it("returns Q4_K_M for VRAM = 8192 (8 GB GPU)", () => {
+  it("returns E4B Q4_K_M for VRAM = 8192 (8 GB GPU)", () => {
     const result = resolveLocalModelManifest(8192);
     expect("manifest" in result && result.manifest).toBe(GEMMA_4_E4B_Q4KM_MANIFEST);
   });

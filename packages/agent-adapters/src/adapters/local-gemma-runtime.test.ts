@@ -268,19 +268,20 @@ describe("isDraftLoadFailure", () => {
 });
 
 describe("resolveSpecType", () => {
-  it("defaults to ngram-simple when unset", () => {
-    expect(resolveSpecType(undefined)).toBe("ngram-simple");
+  it("defaults to none when unset", () => {
+    expect(resolveSpecType(undefined)).toBe("none");
   });
   it("accepts valid spec types", () => {
     expect(resolveSpecType("none")).toBe("none");
+    expect(resolveSpecType("ngram-simple")).toBe("ngram-simple");
     expect(resolveSpecType("ngram-mod")).toBe("ngram-mod");
     expect(resolveSpecType("ngram-map-k")).toBe("ngram-map-k");
     expect(resolveSpecType("ngram-map-k4v")).toBe("ngram-map-k4v");
     expect(resolveSpecType("ngram-cache")).toBe("ngram-cache");
   });
-  it("falls back to ngram-simple for unrecognized values", () => {
-    expect(resolveSpecType("invalid")).toBe("ngram-simple");
-    expect(resolveSpecType("")).toBe("ngram-simple");
+  it("falls back to none for unrecognized values", () => {
+    expect(resolveSpecType("invalid")).toBe("none");
+    expect(resolveSpecType("")).toBe("none");
   });
 });
 

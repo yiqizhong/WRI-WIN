@@ -49,7 +49,7 @@ describe("local model lifecycle", () => {
     const status = await getLocalModelStatus(state);
     expect(status.state.status).toBe("not_installed");
     expect(status.state.modelPath).toBeNull();
-    expect(status.manifest.modelId).toBe("gemma-4-e4b");
+    expect(status.manifest.modelId).toBe("gemma-4-12b");
   });
 
   it("resets interrupted download to not_installed on init", async () => {

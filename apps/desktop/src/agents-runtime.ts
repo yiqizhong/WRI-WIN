@@ -59,18 +59,12 @@ export function mergeLlmAdapters(
 export const LOCAL_MODEL_PLACEHOLDERS: AgentAdapter[] = [
   {
     id: "local-gemma",
-    displayName: "Gemma 4 E4B",
+    displayName: "Gemma 4 12B",
     available: false,
     runtimeKind: "local",
     capabilities: []
   }
 ];
-
-/** Keep UI labels aligned with placeholders. */
-function canonicalizeLocalModelDisplay(adapter: AgentAdapter): AgentAdapter {
-  const preset = LOCAL_MODEL_PLACEHOLDERS.find((p) => p.id === adapter.id);
-  return preset ? { ...adapter, displayName: preset.displayName } : adapter;
-}
 
 export function mergeLocalModelAdapters(
   current: AgentAdapter[],
@@ -79,8 +73,7 @@ export function mergeLocalModelAdapters(
   return LOCAL_MODEL_ADAPTER_IDS.map((id) => {
     const next = fetched.find((a) => a.id === id);
     const previous = current.find((a) => a.id === id);
-    const merged = next ?? previous ?? LOCAL_MODEL_PLACEHOLDERS.find((a) => a.id === id)!;
-    return canonicalizeLocalModelDisplay(merged);
+    return next ?? previous ?? LOCAL_MODEL_PLACEHOLDERS.find((a) => a.id === id)!;
   });
 }
 
