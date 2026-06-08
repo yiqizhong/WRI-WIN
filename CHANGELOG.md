@@ -3,6 +3,11 @@
 All notable changes to Writer desktop are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0] - 2026-06-08
+- New, more capable local model: Gemma 4 12B now runs on-device for GPUs with 12 GB or more VRAM (smaller GPUs continue using Gemma 4 E4B)
+- Larger local context window (24K tokens) for longer conversations
+- Fixed the Local LLM panel occasionally getting stuck on "Verifying" after a model finished downloading
+
 ## [0.8.3] - 2026-06-04
 - UI bug fix
 
