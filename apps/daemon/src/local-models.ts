@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import { Readable, Transform } from "node:stream";
 
 import type { LocalModelManifest, LocalModelState, LocalModelStatusResponse } from "@writer/contracts";
 import { detectNvidiaVram, shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
@@ -290,35 +292,31 @@ async function runDownload(state: DaemonState, _resumeHint: number, manifest: Lo
   let downloadedBytes = startBytes;
   let lastSave = Date.now();
 
-  const reader = response.body?.getReader();
-  if (!reader) {
+  if (!response.body) {
     throw new Error("Response body is empty");
   }
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      await new Promise<void>((resolve, reject) => {
-        fileStream.write(value, (err) => (err ? reject(err) : resolve()));
-      });
-
-      downloadedBytes += value.length;
-
+  const progressTransform = new Transform({
+    transform(chunk: Buffer, _enc: string, callback: (err: Error | null, data?: Buffer) => void) {
+      downloadedBytes += chunk.length;
       const now = Date.now();
+      // Throttle store saves to at most once every 2 s to avoid I/O contention.
       if (now - lastSave > 2000) {
-        state.store.setLocalModel(
-          buildState({ status: "downloading", downloadedBytes, totalBytes })
-        );
-        await state.store.save();
+        state.store.setLocalModel(buildState({ status: "downloading", downloadedBytes, totalBytes }));
         lastSave = now;
+        state.store.save().then(() => callback(null, chunk), (err: Error) => callback(err));
+      } else {
+        callback(null, chunk);
       }
     }
-  } finally {
-    reader.releaseLock();
-    await new Promise<void>((resolve) => fileStream.end(resolve));
-  }
+  });
+
+  // response.body is typed as the WHATWG ReadableStream from lib.dom.d.ts, which
+  // is nominally distinct from node:stream/web's ReadableStream even though they
+  // are structurally identical at runtime. The cast avoids a spurious TS error.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const webStream = response.body as any;
+  await pipeline(Readable.fromWeb(webStream), progressTransform, fileStream);
 
   activeDownload = null;
 
