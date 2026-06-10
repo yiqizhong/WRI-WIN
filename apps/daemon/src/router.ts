@@ -37,7 +37,7 @@ function resolveDevCorsOrigin(origin: string | string[] | undefined): string {
 function applyDevCors(request: IncomingMessage, response: ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", resolveDevCorsOrigin(request.headers.origin));
   response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  response.setHeader("Access-Control-Allow-Headers", "content-type");
+  response.setHeader("Access-Control-Allow-Headers", "content-type, authorization");
 }
 
 export function createRequestHandler(config: DaemonConfig, state: DaemonState) {

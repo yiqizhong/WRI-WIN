@@ -10,6 +10,13 @@ function getMainWindowOptions() {
     preload: path.join(__dirname, "preload.cjs"),
     contextIsolation: true,
     nodeIntegration: false,
+    // The preload reads Node builtins (node:fs/os/path) to load the per-launch
+    // daemon auth token. Electron sandboxes renderers by default (v20+), and a
+    // sandboxed preload cannot require Node builtins — it throws before
+    // exposing `writerDesktop`, so the renderer gets no token and every daemon
+    // request 401s. Disabling the sandbox (contextIsolation stays on) lets the
+    // preload use Node while keeping the renderer isolated from it.
+    sandbox: false,
     additionalArguments: [`--is-packaged=${app.isPackaged}`]
   };
 
