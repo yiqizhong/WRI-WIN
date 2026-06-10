@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { AgentRunEvent, PasteTextConversation, PasteTextMessage } from "@writer/contracts";
 
 import type { DaemonClient } from "../daemon-client";
+import { createRunPoller } from "../lib/create-run-poller";
 import { isOptimisticMessageId } from "./optimistic-turn";
 import { isTerminalRunStatus, RUN_POLL_INTERVAL_MS, streamingTextFromEvents } from "./message-display";
 
@@ -84,12 +85,10 @@ export function usePasteTextRunSync({
       }
     };
 
-    void poll();
-    const timer = window.setInterval(() => void poll(), RUN_POLL_INTERVAL_MS);
-
+    const stop = createRunPoller(poll, RUN_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      stop();
     };
   }, [client, conversation?.id, onConversationChange, pendingAssistant?.agentRunId, pendingAssistant?.id]);
 

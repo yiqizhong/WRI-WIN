@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { InlineAlert } from "@/components/writer/inline-alert";
 
+import { createRunPoller } from "./lib/create-run-poller";
+import { RUN_POLL_INTERVAL_MS } from "./paste-text-chat-runtime/message-display";
 import type { DaemonClient } from "./daemon-client";
 import { DaemonClientError } from "./daemon-client";
 import { useWorkspace } from "./workspace-context";
@@ -155,12 +157,10 @@ export function PasteTextChatPanel({ client, daemonConnected }: PasteTextChatPan
       }
     };
 
-    void poll();
-    const timer = window.setInterval(() => void poll(), 100);
-
+    const stop = createRunPoller(poll, RUN_POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      stop();
     };
   }, [client, conversation?.id, pendingAssistant?.id, pendingAssistant?.agentRunId]);
 
