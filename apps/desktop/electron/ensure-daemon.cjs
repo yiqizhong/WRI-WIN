@@ -1,5 +1,6 @@
 const { spawn, execSync } = require("node:child_process");
 const { createRequire } = require("node:module");
+const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const os = require("node:os");
 const http = require("node:http");
@@ -33,6 +34,36 @@ let spawnedByDesktop = false;
 // single place to read when "Daemon did not become ready" appears.
 const spawnLogDir = process.env.WRITER_DAEMON_LOG_DIR ?? path.join(os.homedir(), ".writer", "logs");
 const spawnLogFile = path.join(spawnLogDir, "daemon-spawn.log");
+
+// Shared secret between the daemon and the renderer (read at preload from the
+// same file). The daemon historically minted a fresh randomUUID() on every
+// start, so any daemon restart silently invalidated the token the renderer had
+// already captured — every subsequent request 401'd (surfacing as a cryptic
+// "Unexpected end of JSON input" in the UI). Persist the token once and pass it
+// to every spawned daemon so it stays stable across restarts.
+const daemonTokenFile = path.join(os.homedir(), ".writer", "daemon-token");
+
+function resolveDaemonToken() {
+  if (process.env.WRITER_DAEMON_TOKEN) {
+    return process.env.WRITER_DAEMON_TOKEN;
+  }
+  try {
+    const existing = fs.readFileSync(daemonTokenFile, "utf8").trim();
+    if (existing) return existing;
+  } catch {
+    // No token file yet — generate and persist one below.
+  }
+  const token = randomUUID();
+  try {
+    fs.mkdirSync(path.dirname(daemonTokenFile), { recursive: true });
+    fs.writeFileSync(daemonTokenFile, token, { mode: 0o600 });
+  } catch {
+    // Best-effort: the daemon also writes this file on startup.
+  }
+  return token;
+}
+
+const daemonToken = resolveDaemonToken();
 
 function appendSpawnLog(text) {
   try {
@@ -230,6 +261,7 @@ function spawnDaemon() {
       ...process.env,
       WRITER_DAEMON_HOST: daemonHost,
       WRITER_DAEMON_PORT: String(daemonPort),
+      WRITER_DAEMON_TOKEN: daemonToken,
       WRITER_DAEMON_VERSION: expectedVersion,
       WRITER_DAEMON_API_REVISION: expectedApiRevision,
       // Trust the OS certificate store so remote MCP servers (e.g. Figma at

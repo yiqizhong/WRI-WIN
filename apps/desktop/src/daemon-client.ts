@@ -89,6 +89,13 @@ function throwDaemonResponseError(response: Response, payload: unknown): never {
     throw new DaemonClientError(diagnostic.code ?? "service_unavailable", parts.join(" "));
   }
 
+  if (response.status === 401) {
+    throw new DaemonClientError(
+      "unauthorized",
+      "Lost the connection to the local Writer service (auth token out of date). Fully quit Writer and reopen the app."
+    );
+  }
+
   if (response.status === 404) {
     throw new DaemonClientError(
       "not_found",
@@ -138,7 +145,26 @@ async function moduleRequest<T>(
     { ...init, headers: { ...authHeaders, ...init?.headers } },
     timeoutMs
   );
-  const payload: unknown = await response.json();
+
+  // Read the body as text first so an empty or non-JSON response (e.g. a
+  // bodiless 401/403/5xx) surfaces as the real HTTP status rather than a
+  // cryptic "Unexpected end of JSON input" from response.json().
+  const text = await response.text();
+  let payload: unknown = null;
+  if (text.length > 0) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      if (response.ok) {
+        throw new DaemonClientError(
+          "invalid_response",
+          `Daemon returned a non-JSON response (HTTP ${response.status}).`
+        );
+      }
+      // Non-JSON error body: fall through with null payload so the status-based
+      // handler below produces an actionable message.
+    }
+  }
 
   if (!response.ok) {
     throwDaemonResponseError(response, payload);
