@@ -1,6 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { EventEmitter } from "node:events";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 
-import { extractResponse, splitCopywriterPrompt, parseNvidiaVramMib } from "./local-gemma-adapter";
+// Module-level mock for node:child_process — hoisted by Vitest so it takes
+// effect before any import resolves. We expose a writable `spawnImpl` ref
+// so individual tests can swap in their own fake.
+let spawnImpl: (...args: unknown[]) => unknown = () => { throw new Error("spawnImpl not set"); };
+
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...actual,
+    spawn: (...args: unknown[]) => spawnImpl(...args)
+  };
+});
+
+import { extractResponse, splitCopywriterPrompt, parseNvidiaVramMib, detectNvidiaVram, resetGpuDeviceCache } from "./local-gemma-adapter";
 
 describe("splitCopywriterPrompt", () => {
   it("splits system and user on the --- separator", () => {
@@ -128,5 +142,49 @@ describe("parseNvidiaVramMib", () => {
   it("extracts total MiB (first number) not free MiB (second number)", () => {
     const lines = ["CUDA0: NVIDIA RTX 3070 (8192 MiB, 7500 MiB free)"];
     expect(parseNvidiaVramMib(lines)).toBe(8192);
+  });
+});
+
+describe("GPU device cache", () => {
+  const fakeBinary = process.platform === "win32" ? "C:\\fake\\llama-cli.exe" : "/fake/llama-cli";
+
+  beforeEach(() => {
+    process.env["WRITER_LLAMA_CLI"] = fakeBinary;
+  });
+
+  afterEach(() => {
+    resetGpuDeviceCache();
+    delete process.env["WRITER_LLAMA_CLI"];
+  });
+
+  it("calls spawn --list-devices at most once across repeated detectNvidiaVram() calls", async () => {
+    let listDevicesSpawnCount = 0;
+
+    spawnImpl = (_bin: unknown, args: unknown) => {
+      const proc = new EventEmitter();
+      const stdout = new EventEmitter();
+      const stderr = new EventEmitter();
+      (proc as unknown as Record<string, unknown>).stdout = stdout;
+      (proc as unknown as Record<string, unknown>).stderr = stderr;
+
+      if (Array.isArray(args) && args.includes("--list-devices")) {
+        listDevicesSpawnCount++;
+        setImmediate(() => {
+          stdout.emit("data", Buffer.from("CUDA0: NVIDIA RTX 4070 (12288 MiB, 11000 MiB free)\n"));
+          proc.emit("close", 0);
+        });
+      } else {
+        setImmediate(() => proc.emit("close", 0));
+      }
+
+      return proc;
+    };
+
+    // First call — cache is cold, should spawn llama-cli --list-devices once.
+    await detectNvidiaVram();
+    // Second call — cachedGpuDevices is populated; no new spawn expected.
+    await detectNvidiaVram();
+
+    expect(listDevicesSpawnCount).toBe(1);
   });
 });

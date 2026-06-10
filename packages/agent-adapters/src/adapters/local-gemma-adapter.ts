@@ -186,6 +186,19 @@ export function parseNvidiaVramMib(deviceLines: string[]): number | null {
 }
 
 let cachedNvidiaVram: number | null | undefined;
+let cachedGpuDevices: string[] | undefined;
+
+async function listGpuDevicesCached(binaryPath: string): Promise<string[]> {
+  if (cachedGpuDevices !== undefined) return cachedGpuDevices;
+  cachedGpuDevices = await listGpuDevices(binaryPath);
+  return cachedGpuDevices;
+}
+
+/** Reset the GPU device list cache. Intended for test teardown only. */
+export function resetGpuDeviceCache(): void {
+  cachedGpuDevices = undefined;
+  cachedNvidiaVram = undefined;
+}
 
 export async function detectNvidiaVram(): Promise<number | null> {
   if (cachedNvidiaVram !== undefined) return cachedNvidiaVram;
@@ -194,7 +207,7 @@ export async function detectNvidiaVram(): Promise<number | null> {
     cachedNvidiaVram = null;
     return null;
   }
-  const devices = await listGpuDevices(binaryPath);
+  const devices = await listGpuDevicesCached(binaryPath);
   cachedNvidiaVram = parseNvidiaVramMib(devices);
   return cachedNvidiaVram;
 }
@@ -267,7 +280,7 @@ async function detect(getModelState: () => LocalModelState | null, displayName?:
 
   const layers = getGpuLayers();
   if (layers !== "0") {
-    const gpuDevices = await listGpuDevices(binaryPath);
+    const gpuDevices = await listGpuDevicesCached(binaryPath);
     if (gpuDevices.length === 0) {
       return buildAdapter({
         available: false,
