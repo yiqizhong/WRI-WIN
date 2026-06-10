@@ -104,7 +104,7 @@ function DropZone({
       onClick={() => !disabled && fileInputRef.current?.click()}
       className={cn(
         "rounded-[2px] border border-dashed p-6 text-center transition-colors",
-        over ? "border-primary bg-accent/40" : "border-border bg-card",
+        over ? "border-primary bg-accent/40" : "border-border",
         disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
       )}
     >

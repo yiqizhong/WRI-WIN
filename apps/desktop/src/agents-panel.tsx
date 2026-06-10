@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Loader2, RotateCw } from "lucide-react";
 import {
   type AgentAdapter,
@@ -443,8 +444,9 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
     setLocalModelLoading(adapterId);
     try {
       await client.startLocalModelDownload();
-    } catch {
+    } catch (error) {
       setLocalModelLoading(null);
+      toast.error(error instanceof Error ? error.message : "Failed to start model download.");
       return;
     }
     setLocalModelLoading(null);
@@ -538,8 +540,14 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         replaceMcpServers(refreshed.servers);
         return;
       }
-    } catch {
-      // Server list refresh on next panel Refresh shows the failure.
+
+      if (result.status === "error") {
+        const msg = result.diagnostic?.message ?? "Failed to start Figma authentication.";
+        const recovery = result.diagnostic?.recoveryAction;
+        toast.error(recovery ? `${msg} ${recovery}` : msg);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to connect Figma MCP.");
     } finally {
       setFigmaAuthPending(false);
       setBusyMcpId(null);

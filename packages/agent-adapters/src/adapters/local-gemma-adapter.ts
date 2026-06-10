@@ -11,7 +11,7 @@ import type {
   AgentRunHandle,
   AgentRunRequest
 } from "../types";
-import { commandExists } from "../cli-runner";
+import { commandExists, runCliCommand } from "../cli-runner";
 import { LocalGemmaRuntime, resolveCtxSize, resolveDraftModelPath, resolveKvType, resolveFlashAttn, resolveUbatch, type DraftSettings } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
@@ -200,15 +200,42 @@ export function resetGpuDeviceCache(): void {
   cachedNvidiaVram = undefined;
 }
 
-export async function detectNvidiaVram(): Promise<number | null> {
-  if (cachedNvidiaVram !== undefined) return cachedNvidiaVram;
-  const binaryPath = await getLlamaBinaryPath();
-  if (!binaryPath) {
-    cachedNvidiaVram = null;
+// Fallback VRAM probe used when llama-cli is not yet available (dev mode, or
+// first run before the model download). nvidia-smi is present on any machine
+// with NVIDIA drivers installed and reads VRAM directly from the driver.
+async function detectVramViaNvidiaSmi(): Promise<number | null> {
+  try {
+    const result = await runCliCommand({
+      executable: "nvidia-smi",
+      args: ["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+      timeoutMs: 5_000
+    });
+    if (result.exitCode !== 0) return null;
+    const mib = parseInt(result.stdout.trim().split(/\r?\n/)[0] ?? "", 10);
+    return isNaN(mib) ? null : mib;
+  } catch {
     return null;
   }
-  const devices = await listGpuDevicesCached(binaryPath);
-  cachedNvidiaVram = parseNvidiaVramMib(devices);
+}
+
+export async function detectNvidiaVram(): Promise<number | null> {
+  if (cachedNvidiaVram !== undefined) return cachedNvidiaVram;
+
+  // Primary: llama-cli --list-devices. This is the authoritative check because
+  // it validates that the CUDA backend is actually loadable (not just present).
+  // If the binary is found but reports no GPU devices, we respect that result
+  // and do NOT fall through — a missing ggml-cuda.dll would report 0 devices.
+  const binaryPath = await getLlamaBinaryPath();
+  if (binaryPath) {
+    const devices = await listGpuDevicesCached(binaryPath);
+    cachedNvidiaVram = parseNvidiaVramMib(devices);
+    return cachedNvidiaVram;
+  }
+
+  // llama-cli is not available yet (dev mode / before first download).
+  // Fall back to nvidia-smi: weaker (doesn't validate CUDA backend) but
+  // sufficient to unblock the initial model download.
+  cachedNvidiaVram = await detectVramViaNvidiaSmi();
   return cachedNvidiaVram;
 }
 

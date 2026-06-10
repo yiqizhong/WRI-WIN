@@ -151,13 +151,64 @@ export function spawnCliStream(options: CliRunOptions): CliStreamHandle {
   };
 }
 
+// Cached fresh PATH built from the Windows registry (Machine + User env vars).
+// Process-lifetime cache: we only need to pay the PowerShell startup cost once.
+let cachedWindowsFreshPath: string | null | undefined;
+
+// On Windows, the process inherits PATH at spawn time. If the user installs a
+// CLI (e.g. devin) after the parent process started, its directory is in the
+// registry but not in process.env.PATH. Reading Machine/User PATH from the
+// registry via PowerShell and merging it with the inherited PATH picks up any
+// newly-installed binaries without requiring a process restart.
+async function getFreshWindowsPath(): Promise<string | null> {
+  if (cachedWindowsFreshPath !== undefined) return cachedWindowsFreshPath;
+
+  try {
+    const result = await runCliCommand({
+      executable: "powershell.exe",
+      args: [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "$m=[Environment]::GetEnvironmentVariable('Path','Machine');$u=[Environment]::GetEnvironmentVariable('Path','User');($m,$u|Where-Object{$_})-join';'"
+      ],
+      timeoutMs: 8_000
+    });
+
+    if (result.exitCode === 0 && result.stdout.trim()) {
+      // Merge registry PATH with inherited PATH, deduplicating entries while
+      // preserving the registry entries (where new installs land) first.
+      const parts = new Set(
+        [...result.stdout.trim().split(";"), ...(process.env.PATH ?? "").split(";")]
+          .map((p) => p.trim())
+          .filter(Boolean)
+      );
+      cachedWindowsFreshPath = [...parts].join(";");
+    } else {
+      cachedWindowsFreshPath = null;
+    }
+  } catch {
+    cachedWindowsFreshPath = null;
+  }
+
+  return cachedWindowsFreshPath;
+}
+
 export async function commandExists(command: string): Promise<string | null> {
   // Windows has no `which`; the equivalent is `where`. `where` is resolved via
   // PATH and prints one CRLF-terminated absolute path per match.
   const isWindows = platform() === "win32";
+
+  let envOverride: Partial<NodeJS.ProcessEnv> | undefined;
+  if (isWindows) {
+    const freshPath = await getFreshWindowsPath();
+    if (freshPath) envOverride = { PATH: freshPath };
+  }
+
   const result = await runCliCommand({
     executable: isWindows ? "where" : "/usr/bin/which",
     args: [command],
+    env: envOverride as NodeJS.ProcessEnv | undefined,
     timeoutMs: 5_000
   });
 
