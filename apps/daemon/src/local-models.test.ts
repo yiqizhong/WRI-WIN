@@ -226,6 +226,13 @@ describe("local model lifecycle", () => {
     expect(status.state.downloadedBytes).toBe(0);
   });
 
+  it("resetModelDownload shuts down the resident runtime", async () => {
+    const spy = vi.spyOn(agentAdapters, "shutdownLocalGemmaRuntime");
+    await resetModelDownload(state);
+    expect(spy).toHaveBeenCalledOnce();
+    spy.mockRestore();
+  });
+
   it("getLocalModelStatus reflects persisted state", async () => {
     const installedAt = new Date().toISOString();
     state.store.setLocalModel({

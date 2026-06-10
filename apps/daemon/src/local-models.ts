@@ -378,4 +378,5 @@ export async function resetModelDownload(state: DaemonState): Promise<void> {
 
   state.store.setLocalModel(buildState());
   await state.store.save();
+  shutdownLocalGemmaRuntime();
 }
