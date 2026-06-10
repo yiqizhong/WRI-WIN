@@ -165,13 +165,15 @@ async function resolveAdapterForRun(
   }
 
   // Gate on the known-adapter allowlist before any registry lookup or spawn.
-  // The registry also holds dev-only adapters (e.g. `echo`) that must never be
-  // runnable from request-supplied input, since echo reaches cmd.exe on Windows.
+  // `echo` IS registered in the production daemon registry, but it stays
+  // unreachable here because `isKnownAdapterId("echo")` is false and the gate
+  // below also requires stubs mode — so request-supplied input can never run it
+  // (echo reaches cmd.exe on Windows).
   //
   // The one exception is explicit stubs mode (WRITER_AGENT_STUBS=1): a
   // server-side, trusted dev/test posture where the registry contains ONLY the
-  // echo stub and no real adapters. That flag is never derived from request
-  // input, so production (flag unset) still refuses echo.
+  // echo stub. That flag is never derived from request input, so production
+  // (flag unset) still refuses echo.
   const stubsOnly = process.env["WRITER_AGENT_STUBS"] === "1";
   const selectable = isKnownAdapterId(adapterId) || (stubsOnly && adapterId === "echo");
 

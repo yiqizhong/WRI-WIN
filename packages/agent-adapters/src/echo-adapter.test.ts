@@ -39,9 +39,14 @@ describe("echo-adapter", () => {
 
   it("routes the Windows echo prompt through the cmd.exe escaper", () => {
     // buildEchoSpawn branches on the host OS. On Windows the prompt must be
-    // escaped in-place; on non-Windows there is no cmd.exe layer to escape, so
-    // assert the escaped form does not let metacharacters break out regardless.
+    // escaped in-place; on non-Windows it takes the unescaped `/bin/echo`
+    // pass-through branch, so assert each branch separately.
     const { args } = buildEchoSpawn('" & calc & "');
-    expect(args.join(" ")).not.toMatch(/\s&\scalc\s&/);
+    if (process.platform === "win32") {
+      expect(args.join(" ")).not.toMatch(/\s&\scalc\s&/);
+      expect(args[2]).toContain("^&"); // escaped on the cmd.exe branch
+    } else {
+      expect(args).toEqual(['" & calc & "']); // pass-through on /bin/echo branch
+    }
   });
 });

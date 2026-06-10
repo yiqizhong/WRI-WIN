@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { getPasteTextParseResultPath, PlatformStore } from "@writer/storage";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { invalidateCache, setCachedTree } from "./guidelines/cache";
 import { discoverGuidelines } from "./guidelines/discovery";
@@ -24,6 +24,10 @@ import type { DaemonState } from "./state";
 // allowlist (see agents.ts resolveAdapterForRun); stubs mode is the trusted,
 // server-side opt-in that makes echo selectable for tests.
 process.env["WRITER_AGENT_STUBS"] = "1";
+// Explicit cleanup so the flag can't leak if vitest isolation settings change.
+afterAll(() => {
+  delete process.env["WRITER_AGENT_STUBS"];
+});
 
 registerImporter(new MarkdownImporter());
 
