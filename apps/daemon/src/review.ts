@@ -236,7 +236,9 @@ export function repairStoredReviewChanges(state: DaemonState, sessionId: string 
   }
 
   if (dirty) {
-    void state.store.save();
+    state.store.save().catch((err: unknown) => {
+      console.warn("[store] save failed in repairStoredReviewChanges:", err);
+    });
   }
 
   return normalized;

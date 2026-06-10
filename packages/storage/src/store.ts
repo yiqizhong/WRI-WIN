@@ -89,6 +89,7 @@ export class PlatformStore {
   private snapshot: PlatformStoreSnapshot;
   private pending: Promise<void> | null = null;
   private dirty = false;
+  private lastSaveError: Error | null = null;
 
   constructor(options: PlatformStoreOptions = {}) {
     this.dataDir = options.dataDir ?? getDefaultDataDir();
@@ -193,11 +194,21 @@ export class PlatformStore {
   }
 
   private async writeSnapshotToDisk(): Promise<void> {
-    await mkdir(this.dataDir, { recursive: true });
-    const payload = JSON.stringify(this.snapshot); // compact: machine-read file
-    const tempPath = `${this.filePath}.tmp`;
-    await this.writeFileImpl(tempPath, payload);
-    await rename(tempPath, this.filePath);
+    try {
+      await mkdir(this.dataDir, { recursive: true });
+      const payload = JSON.stringify(this.snapshot); // compact: machine-read file
+      const tempPath = `${this.filePath}.tmp`;
+      await this.writeFileImpl(tempPath, payload);
+      await rename(tempPath, this.filePath);
+      this.lastSaveError = null; // clear on success
+    } catch (err) {
+      this.lastSaveError = err instanceof Error ? err : new Error(String(err));
+      throw err; // re-throw so save() IIFE catches it
+    }
+  }
+
+  getLastSaveError(): Error | null {
+    return this.lastSaveError;
   }
 
   /** Seam for tests; real impl writes utf8. */

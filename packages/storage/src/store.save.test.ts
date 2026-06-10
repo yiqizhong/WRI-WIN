@@ -28,4 +28,16 @@ describe("store save", () => {
     await vi.runAllTimersAsync();
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it("records the last save error when a write fails, clears it on recovery", async () => {
+    const store = new PlatformStore({ dataDir: undefined });
+    const spy = vi.spyOn(store as any, "writeFileImpl").mockRejectedValue(new Error("disk full"));
+    await expect(store.save()).rejects.toThrow("disk full");
+    expect(store.getLastSaveError()?.message).toBe("disk full");
+
+    // Subsequent successful save should clear the error
+    spy.mockResolvedValue(undefined);
+    await store.save();
+    expect(store.getLastSaveError()).toBeNull();
+  });
 });
