@@ -1,4 +1,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
+const os = require("node:os");
+const fsp = require("node:fs");
+const { join: joinPath } = require("node:path");
 
 // Wrapped in try-catch: a failure here must never prevent the rest of the
 // preload from running — losing writerDesktop would break ALL window buttons.
@@ -10,10 +13,21 @@ try {
   // writerDesktop.appVersion will be "" — welcome-screen version label is hidden.
 }
 
+// Per-launch daemon bearer token, written by the daemon at startup. Read here
+// so the renderer can authenticate against the loopback daemon. Missing file
+// (daemon not yet started) leaves it "" — requests will 401 until present.
+let daemonToken = "";
+try {
+  daemonToken = fsp.readFileSync(joinPath(os.homedir(), ".writer", "daemon-token"), "utf8").trim();
+} catch (_) {
+  // No token file yet; renderer falls back to unauthenticated (will 401).
+}
+
 const usesNativeWindowBackdrop = process.platform === "darwin" || process.platform === "win32";
 
 contextBridge.exposeInMainWorld("writerDesktop", {
   appVersion,
+  daemonToken,
   platform: process.platform,
   windowChrome: usesNativeWindowBackdrop ? "transparent" : "opaque",
   windowMinimize: () => ipcRenderer.send("window:minimize"),

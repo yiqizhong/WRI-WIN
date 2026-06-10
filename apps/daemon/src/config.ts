@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import revisionJson from "@writer/contracts/daemon-api-revision.json";
@@ -9,6 +10,7 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 export type DaemonConfig = {
   host: string;
   port: number;
+  token: string;
   logDir: string;
   logLevel: LogLevel;
   version: string;
@@ -38,6 +40,7 @@ export function loadDaemonConfig(env: NodeJS.ProcessEnv = process.env): DaemonCo
   return {
     host: env.WRITER_DAEMON_HOST ?? "127.0.0.1",
     port: parsePort(env.WRITER_DAEMON_PORT, 47631),
+    token: env.WRITER_DAEMON_TOKEN ?? randomUUID(),
     logDir: env.WRITER_DAEMON_LOG_DIR ?? join(homedir(), ".writer", "logs"),
     logLevel: parseLogLevel(env.WRITER_DAEMON_LOG_LEVEL),
     version: env.WRITER_DAEMON_VERSION ?? "0.1.0",

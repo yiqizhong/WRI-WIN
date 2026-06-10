@@ -125,14 +125,19 @@ function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 60_00
     .finally(() => clearTimeout(timer));
 }
 
-async function request<T>(
+async function moduleRequest<T>(
   baseUrl: string,
   path: string,
   init?: RequestInit,
   parse?: (payload: unknown) => T,
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  authHeaders: Record<string, string> = {}
 ): Promise<T> {
-  const response = await fetchWithTimeout(`${baseUrl}${path}`, init, timeoutMs);
+  const response = await fetchWithTimeout(
+    `${baseUrl}${path}`,
+    { ...init, headers: { ...authHeaders, ...init?.headers } },
+    timeoutMs
+  );
   const payload: unknown = await response.json();
 
   if (!response.ok) {
@@ -142,8 +147,12 @@ async function request<T>(
   return parse ? parse(payload) : (payload as T);
 }
 
-async function deleteRequest(baseUrl: string, path: string): Promise<void> {
-  const response = await fetchWithTimeout(`${baseUrl}${path}`, { method: "DELETE" });
+async function moduleDeleteRequest(
+  baseUrl: string,
+  path: string,
+  authHeaders: Record<string, string> = {}
+): Promise<void> {
+  const response = await fetchWithTimeout(`${baseUrl}${path}`, { method: "DELETE", headers: authHeaders });
   if (response.ok) {
     return;
   }
@@ -169,7 +178,29 @@ export type ReviewQueue = {
   diagnostic?: import("@writer/contracts").ConnectionDiagnostic;
 };
 
-export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
+export function createDaemonClient(baseUrl = DEFAULT_BASE_URL, token = "") {
+  const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+  // Local wrappers that thread the auth header into every request without
+  // touching each call site. They shadow the module-level helpers below.
+  const request = <T>(
+    base: string,
+    path: string,
+    init?: RequestInit,
+    parse?: (payload: unknown) => T,
+    timeoutMs?: number
+  ): Promise<T> => moduleRequest(base, path, init, parse, timeoutMs ?? 60_000, authHeaders);
+  const deleteRequest = (base: string, path: string): Promise<void> =>
+    moduleDeleteRequest(base, path, authHeaders);
+
+  // Append the bearer token as a ?token= query param for URLs that can't carry
+  // an Authorization header (e.g. <img src> screenshots, template downloads).
+  const withToken = (url: string): string => {
+    if (!token) return url;
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}token=${encodeURIComponent(token)}`;
+  };
+
   return {
     getHealth: () => request(baseUrl, "/health", undefined, parseDaemonHealth),
 
@@ -253,7 +284,9 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       request(baseUrl, `/sessions/${encodeURIComponent(sessionId)}`, undefined, parseReviewSession),
 
     sessionScreenshotUrl: (sessionId: string, frameId: string) =>
-      `${baseUrl}/sessions/${encodeURIComponent(sessionId)}/screenshots/${encodeURIComponent(frameId.replace(/:/g, "-"))}`,
+      withToken(
+        `${baseUrl}/sessions/${encodeURIComponent(sessionId)}/screenshots/${encodeURIComponent(frameId.replace(/:/g, "-"))}`
+      ),
 
     createPastedTextSession: (input: { projectId: string; productId: string; text: string }) =>
       request(
@@ -350,7 +383,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     exportMarkdown: async (sessionId: string) => {
       const response = await fetch(
-        `${baseUrl}/review/export/markdown?sessionId=${encodeURIComponent(sessionId)}`
+        `${baseUrl}/review/export/markdown?sessionId=${encodeURIComponent(sessionId)}`,
+        { headers: authHeaders }
       );
       if (!response.ok) {
         throw new DaemonClientError("service_unavailable", "Markdown export failed.");
@@ -411,7 +445,8 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
 
     exportHtml: async (sessionId: string) => {
       const response = await fetch(
-        `${baseUrl}/review/export/html?sessionId=${encodeURIComponent(sessionId)}`
+        `${baseUrl}/review/export/html?sessionId=${encodeURIComponent(sessionId)}`,
+        { headers: authHeaders }
       );
       if (!response.ok) {
         throw new DaemonClientError("service_unavailable", "HTML export failed.");
@@ -747,12 +782,12 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
       }),
 
     deleteGuideline: (id: string) =>
-      fetchWithTimeout(`${baseUrl}/guidelines/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+      fetchWithTimeout(`${baseUrl}/guidelines/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders }).then((r) => {
         if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
       }),
 
     deleteGlossary: (id: string) =>
-      fetchWithTimeout(`${baseUrl}/glossaries/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => {
+      fetchWithTimeout(`${baseUrl}/glossaries/${encodeURIComponent(id)}`, { method: "DELETE", headers: authHeaders }).then((r) => {
         if (!r.ok) throw new DaemonClientError("service_unavailable", `Delete failed: HTTP ${r.status}`);
       }),
 
@@ -781,13 +816,13 @@ export function createDaemonClient(baseUrl = DEFAULT_BASE_URL) {
         parseProject
       ),
 
-    companyBaseTemplateUrl: () => `${baseUrl}/guidelines/templates/company-base.md`,
-    softwareWritingTemplateUrl: () => `${baseUrl}/guidelines/templates/software-writing.md`,
-    productBackgroundTemplateUrl: () => `${baseUrl}/guidelines/templates/product-background.md`,
-    productWritingGuideTemplateUrl: () => `${baseUrl}/guidelines/templates/product-writing-guide.md`,
-    glossaryTemplateUrl: () => `${baseUrl}/guidelines/templates/glossary.csv`,
+    companyBaseTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/company-base.md`),
+    softwareWritingTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/software-writing.md`),
+    productBackgroundTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/product-background.md`),
+    productWritingGuideTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/product-writing-guide.md`),
+    glossaryTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/glossary.csv`),
     /** @deprecated */
-    guidelineTemplateUrl: () => `${baseUrl}/guidelines/templates/guideline.md`,
+    guidelineTemplateUrl: () => withToken(`${baseUrl}/guidelines/templates/guideline.md`),
 
     getLocalModelStatus: (): Promise<LocalModelStatusResponse> =>
       request(baseUrl, "/local-models", undefined, parseLocalModelStatusResponse),

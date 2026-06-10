@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { DaemonConfig } from "./config";
+import { isRequestAuthorized, isHostAllowed, isOriginAllowed } from "./auth";
 import { getDaemonCapabilities } from "./capabilities";
 import { invalidRequest, notFound } from "./errors";
 import { handleHealthRequest } from "./routes/health";
@@ -45,6 +46,18 @@ export function createRequestHandler(config: DaemonConfig, state: DaemonState) {
 
     if (request.method === "OPTIONS") {
       response.writeHead(204);
+      response.end();
+      return;
+    }
+
+    if (!isHostAllowed(request.headers.host, config.port) ||
+        !isOriginAllowed(request.headers.origin, config.port)) {
+      response.writeHead(403);
+      response.end();
+      return;
+    }
+    if (!isRequestAuthorized(request.headers, request.url ?? "", config.token)) {
+      response.writeHead(401);
       response.end();
       return;
     }

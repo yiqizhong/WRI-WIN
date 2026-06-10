@@ -6,6 +6,7 @@ declare global {
   interface Window {
     writerDesktop: {
       appVersion: string;
+      daemonToken: string;
       platform: string;
       windowChrome: "transparent" | "opaque";
       windowMinimize: () => void;

@@ -113,7 +113,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [mcpLoadState, setMcpLoadState] = useState<AgentsLoadState>("idle");
 
   const statusView = useMemo(() => getDaemonStatusView(daemonState), [daemonState]);
-  const daemonClient = useMemo(() => createDaemonClient(), []);
+  const daemonClient = useMemo(
+    () => createDaemonClient(undefined, window.writerDesktop?.daemonToken ?? ""),
+    []
+  );
   const daemonConnected = daemonState.kind === "connected" || daemonState.kind === "degraded";
   const workspaceReady = daemonConnected && workspaceProjectId != null;
 

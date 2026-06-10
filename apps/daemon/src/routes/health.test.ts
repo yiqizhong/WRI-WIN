@@ -29,6 +29,7 @@ describe("health route", () => {
       config: {
         host: "127.0.0.1",
         port: 47631,
+        token: "test-token",
         logDir: "/tmp",
         logLevel: "info",
         version: "0.1.0",

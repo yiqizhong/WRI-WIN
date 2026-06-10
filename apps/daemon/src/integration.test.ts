@@ -31,15 +31,24 @@ const FRAME_METADATA = `
 </frame>
 `;
 
+const TEST_TOKEN = "integration-token";
+
 describe("daemon integration smoke", () => {
   let baseUrl = "";
   let server: Server;
   let testState: DaemonState;
 
+  // All daemon routes (except /health) now require a bearer token and a
+  // loopback Host header matching the daemon port. Node's fetch sets the Host
+  // header automatically; we inject the Authorization header here.
+  const authFetch = (url: string, init: RequestInit = {}) =>
+    fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${TEST_TOKEN}` } });
+
   beforeAll(async () => {
     const config: DaemonConfig = {
       host: "127.0.0.1",
       port: 0,
+      token: TEST_TOKEN,
       logDir: await mkdtemp(join(tmpdir(), "writer-integration-logs-")),
       logLevel: "error",
       version: "test",
@@ -59,6 +68,9 @@ describe("daemon integration smoke", () => {
       throw new Error("Failed to bind integration test server");
     }
 
+    // The Host allowlist requires config.port to match the bound port; port 0
+    // lets the OS pick a free port, so backfill the real one.
+    config.port = address.port;
     baseUrl = `http://127.0.0.1:${address.port}`;
   });
 
@@ -72,7 +84,7 @@ describe("daemon integration smoke", () => {
     const health = await fetch(`${baseUrl}/health`);
     expect(health.ok).toBe(true);
 
-    const agents = await fetch(`${baseUrl}/agents`);
+    const agents = await authFetch(`${baseUrl}/agents`);
     expect(agents.ok).toBe(true);
     const agentPayload = (await agents.json()) as { adapters: Array<{ id: string }> };
     expect(agentPayload.adapters.length).toBeGreaterThan(0);
@@ -89,7 +101,7 @@ describe("daemon integration smoke", () => {
   });
 
   it("exposes implicit workspace without folder pick", async () => {
-    const workspaceRes = await fetch(`${baseUrl}/workspace`);
+    const workspaceRes = await authFetch(`${baseUrl}/workspace`);
     expect(workspaceRes.ok).toBe(true);
     const workspace = (await workspaceRes.json()) as { projectId: string; products: unknown[] };
     expect(workspace.projectId).toBeTruthy();
@@ -97,7 +109,7 @@ describe("daemon integration smoke", () => {
   });
 
   it("runs echo agent end to end", async () => {
-    const projectRes = await fetch(`${baseUrl}/projects`, {
+    const projectRes = await authFetch(`${baseUrl}/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Integration", rootPath: "/tmp/writer-integration" })
@@ -105,7 +117,7 @@ describe("daemon integration smoke", () => {
     expect(projectRes.ok).toBe(true);
     const project = (await projectRes.json()) as { id: string };
 
-    const sessionRes = await fetch(`${baseUrl}/sessions`, {
+    const sessionRes = await authFetch(`${baseUrl}/sessions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -117,7 +129,7 @@ describe("daemon integration smoke", () => {
     expect(sessionRes.ok).toBe(true);
     const session = (await sessionRes.json()) as { id: string };
 
-    const runRes = await fetch(`${baseUrl}/agents/runs`, {
+    const runRes = await authFetch(`${baseUrl}/agents/runs`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -132,7 +144,7 @@ describe("daemon integration smoke", () => {
   });
 
   it("parses figma urls and extracts text nodes", async () => {
-    const parseRes = await fetch(`${baseUrl}/figma/parse-url`, {
+    const parseRes = await authFetch(`${baseUrl}/figma/parse-url`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ url: "https://www.figma.com/design/abc123/Demo?node-id=1-2" })
@@ -141,7 +153,7 @@ describe("daemon integration smoke", () => {
 
     const parsed = (await parseRes.json()) as { suggestedScope: { kind: string }; frameName?: string };
     expect(parsed.frameName).toBeUndefined();
-    const extractRes = await fetch(`${baseUrl}/figma/extract`, {
+    const extractRes = await authFetch(`${baseUrl}/figma/extract`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ scope: parsed.suggestedScope })
@@ -185,7 +197,7 @@ describe("daemon integration smoke", () => {
       close: async () => undefined
     };
 
-    const parseRes = await fetch(`${baseUrl}/figma/parse-url`, {
+    const parseRes = await authFetch(`${baseUrl}/figma/parse-url`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ url: "https://www.figma.com/design/abc123/Demo?node-id=1-2" })
@@ -238,14 +250,14 @@ describe("daemon integration smoke", () => {
       close: async () => undefined
     };
 
-    const projectRes = await fetch(`${baseUrl}/projects`, {
+    const projectRes = await authFetch(`${baseUrl}/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Figma MCP", rootPath: "/tmp/writer-figma-mcp" })
     });
     const project = (await projectRes.json()) as { id: string };
 
-    const sessionRes = await fetch(`${baseUrl}/sessions/figma`, {
+    const sessionRes = await authFetch(`${baseUrl}/sessions/figma`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -265,7 +277,7 @@ describe("daemon integration smoke", () => {
     // stub/seed fallback path (which is what this smoke test asserts on).
     testState.store.setActiveAdapterId(null);
 
-    const auditRes = await fetch(`${baseUrl}/review/audit/run`, {
+    const auditRes = await authFetch(`${baseUrl}/review/audit/run`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ sessionId: session.id })

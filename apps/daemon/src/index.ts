@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,6 +23,20 @@ async function startDaemon() {
 
   const state = await createDaemonState();
   logger.info("Platform store loaded", { dataDir: state.store.dataDir });
+
+  // Share the per-launch auth token with the desktop app. createDaemonState()
+  // loads the platform store, which creates ~/.writer, so the dir exists here;
+  // mkdir defensively in case the store layout changes. 0600 keeps it readable
+  // only by the current user.
+  try {
+    const writerDir = join(homedir(), ".writer");
+    mkdirSync(writerDir, { recursive: true });
+    writeFileSync(join(writerDir, "daemon-token"), config.token, { mode: 0o600 });
+  } catch (error) {
+    logger.warn("Could not write daemon token file", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 
   await startGuidelinesWatcher();
   logger.info("Guidelines watcher started");
