@@ -77,9 +77,10 @@ function throwDaemonResponseError(response: Response, payload: unknown): never {
     throw new DaemonClientError(payload.code, parts.join(" "));
   }
 
-  const diagnostic = (payload as {
-    diagnostic?: { code?: string; message?: string; recoveryAction?: string };
-  }).diagnostic;
+  const diagnostic =
+    payload && typeof payload === "object"
+      ? (payload as { diagnostic?: { code?: string; message?: string; recoveryAction?: string } }).diagnostic
+      : undefined;
 
   if (diagnostic?.message) {
     const parts = [diagnostic.message];
