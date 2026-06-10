@@ -6,6 +6,7 @@ const { createMainWindow } = require("./create-main-window.cjs");
 const { ensureDaemonRunning, stopManagedDaemon } = require("./ensure-daemon.cjs");
 const { initAutoUpdate } = require("./auto-update.cjs");
 const { isSafeExternalUrl } = require("./url-guard.cjs");
+const { approvePath, consumePath } = require("./write-guard.cjs");
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
 
@@ -154,15 +155,24 @@ ipcMain.handle("writer:pick-save-file", async (_event, options = {}) => {
     return null;
   }
 
+  approvePath(result.filePath);
   return result.filePath;
 });
 
 ipcMain.handle("writer:save-text-file", async (_event, filePath, content) => {
+  if (!consumePath(filePath)) {
+    console.warn("[write-guard] rejected un-approved write path:", filePath);
+    throw new Error("Write path was not approved by a save dialog.");
+  }
   await writeFile(filePath, content, "utf8");
   return filePath;
 });
 
 ipcMain.handle("writer:export-pdf-from-html", async (_event, filePath, html) => {
+  if (!consumePath(filePath)) {
+    console.warn("[write-guard] rejected un-approved export path:", filePath);
+    throw new Error("Export path was not approved by a save dialog.");
+  }
   const window = new BrowserWindow({
     show: false,
     webPreferences: {
