@@ -140,6 +140,73 @@ describe("local model lifecycle", () => {
     vi.unstubAllGlobals();
   });
 
+  it("restarts (does not append) when a resume gets HTTP 200 with Range ignored", async () => {
+    // 8 GB GPU → Q4_K_M manifest, fileName gemma-4-E4B-it-Q4_K_M.gguf
+    vi.spyOn(agentAdapters, "detectNvidiaVram").mockResolvedValue(8192);
+
+    const modelsDir = join(dataDir, "models");
+    await mkdir(modelsDir, { recursive: true });
+    const tempPath = join(modelsDir, "gemma-4-E4B-it-Q4_K_M.gguf.tmp");
+
+    // Simulate an interrupted download: a partial .tmp already on disk, and the
+    // store carrying a (possibly under-counted) downloadedBytes from a crash.
+    const partialBytes = 5000;
+    await writeFile(tempPath, Buffer.alloc(partialBytes, 1));
+    state.store.setLocalModel({
+      status: "failed",
+      modelPath: null,
+      downloadedBytes: 3000, // under-counts the real 5000-byte .tmp
+      totalBytes: 5_335_289_824,
+      errorMessage: "Download interrupted",
+      installedAt: null
+    });
+    await state.store.save();
+
+    // Server IGNORES the Range header and returns the FULL body with HTTP 200.
+    const fullBody = Buffer.alloc(20000, 2);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(fullBody));
+          controller.close();
+        }
+      }),
+      headers: new Headers({ "content-length": String(fullBody.length) })
+    }));
+
+    const result = await startModelDownload(state);
+    expect(result.started).toBe(true);
+
+    // runDownload is fire-and-forget; wait for it to settle (SHA mismatch on the
+    // mocked body → status leaves "downloading"/"verifying").
+    for (let i = 0; i < 200; i++) {
+      const s = state.store.getLocalModel();
+      if (s && s.status !== "downloading" && s.status !== "verifying") break;
+      await new Promise((r) => setTimeout(r, 10));
+    }
+
+    const stored = state.store.getLocalModel();
+    // Restart (truncate) — bytes written equal the full body, NOT partial + full.
+    expect(stored?.downloadedBytes).toBe(fullBody.length);
+    expect(stored?.downloadedBytes).not.toBe(partialBytes + fullBody.length);
+
+    // The .tmp must not have grown to partial+full (no corruption-by-append).
+    let tmpStillThere = true;
+    let tmpSize = 0;
+    try {
+      tmpSize = (await stat(tempPath)).size;
+    } catch {
+      tmpStillThere = false;
+    }
+    if (tmpStillThere) {
+      expect(tmpSize).toBeLessThanOrEqual(fullBody.length);
+    }
+
+    vi.unstubAllGlobals();
+  });
+
   it("resetModelDownload clears state to not_installed", async () => {
     state.store.setLocalModel({
       status: "failed",

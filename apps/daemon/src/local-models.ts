@@ -7,6 +7,7 @@ import type { LocalModelManifest, LocalModelState, LocalModelStatusResponse } fr
 import { detectNvidiaVram, shutdownLocalGemmaRuntime } from "@writer/agent-adapters";
 
 import type { DaemonState } from "./state";
+import { planResume, classifyResumeResponse } from "./download-resume";
 import {
   GEMMA_4_E4B_MANIFEST,
   GEMMA_4_E4B_Q4KM_MANIFEST,
@@ -233,19 +234,30 @@ export async function startModelDownload(state: DaemonState): Promise<{ started:
   return { started: true };
 }
 
-async function runDownload(state: DaemonState, resumeFrom: number, manifest: LocalModelManifest): Promise<void> {
+async function runDownload(state: DaemonState, _resumeHint: number, manifest: LocalModelManifest): Promise<void> {
   const modelsDir = getModelsDir(state);
   const finalPath = getModelFilePath(state, manifest);
   const tempPath = `${finalPath}.tmp`;
 
   await mkdir(modelsDir, { recursive: true });
 
+  // The actual size of the partial .tmp on disk is the source of truth for the
+  // resume offset — NOT the periodically-saved downloadedBytes (which under-counts
+  // after a crash and would cause us to append from the wrong offset).
+  let tmpSize = 0;
+  try {
+    tmpSize = (await stat(tempPath)).size;
+  } catch {
+    tmpSize = 0;
+  }
+  const { resumeFrom, rangeHeader } = planResume(tmpSize);
+
   activeDownload = new AbortController();
   const { signal } = activeDownload;
 
   const headers: Record<string, string> = {};
-  if (resumeFrom > 0) {
-    headers["Range"] = `bytes=${resumeFrom}-`;
+  if (rangeHeader) {
+    headers["Range"] = rangeHeader;
   }
 
   // Optional HF auth token for if the repo ever becomes gated.
@@ -260,15 +272,22 @@ async function runDownload(state: DaemonState, resumeFrom: number, manifest: Loc
     redirect: "follow"
   });
 
-  if (response.status !== 200 && response.status !== 206) {
+  const action = classifyResumeResponse(response.status, resumeFrom);
+  if (action === "error") {
     throw new Error(`Download failed: HTTP ${response.status}`);
   }
 
-  const contentLength = Number(response.headers.get("content-length") ?? 0);
-  const totalBytes = resumeFrom + contentLength || manifest.fileSizeBytes;
+  // append → 206 resume; restart → server ignored Range (200 on a resume);
+  // write → first-time 200. Anything but "append" starts the .tmp from scratch
+  // so we never concatenate a full body onto an existing partial.
+  const append = action === "append";
+  const startBytes = append ? resumeFrom : 0;
 
-  const fileStream = createWriteStream(tempPath, { flags: resumeFrom > 0 ? "a" : "w" });
-  let downloadedBytes = resumeFrom;
+  const contentLength = Number(response.headers.get("content-length") ?? 0);
+  const totalBytes = (startBytes + contentLength) || manifest.fileSizeBytes;
+
+  const fileStream = createWriteStream(tempPath, { flags: append ? "a" : "w" });
+  let downloadedBytes = startBytes;
   let lastSave = Date.now();
 
   const reader = response.body?.getReader();
