@@ -545,3 +545,38 @@ Retrospective change: implementation preceded documentation. All issues created 
 | §8 (8.1–8.4) Release v0.6.0–v0.6.2 | [WRI-239](https://linear.app/uicb/issue/WRI-239) | Build + upload + verify across 3 patch releases |
 
 **Shipped:** v0.6.0 → v0.6.2 on Cloudflare R2
+
+## harden-local-trust-boundaries (OpenSpec: `openspec/changes/harden-local-trust-boundaries/`)
+
+**Epic:** [WRI-240](https://linear.app/uicb/issue/WRI-240) — Harden local trust boundaries (security audit 2026-06-09)
+
+Source: full-codebase audit `docs/code-quality-audit-2026-06-09.md` (verified + cross-checked). Security epic of a two-epic split (quality epic = WRI-241).
+
+| OpenSpec task | Linear | Sev | Notes |
+|---------------|--------|-----|-------|
+| §1 (1.1–1.6) | [WRI-242](https://linear.app/uicb/issue/WRI-242) | HIGH | V1 — daemon auth token + Host/Origin enforcement (spec: `local-daemon`) — amplifier |
+| §2 (2.1–2.3) | [WRI-243](https://linear.app/uicb/issue/WRI-243) | HIGH | V2 — gate `resolveAdapterForRun` on `isKnownAdapterId` + escape echo cmd.exe args (spec: `agent-adapter-runtime`) |
+| §3 (3.1–3.3) | [WRI-244](https://linear.app/uicb/issue/WRI-244) | HIGH | V3 — confine paste-text `filePath` to allowed root (spec: `local-daemon`) |
+| §4 (4.1–4.3) | [WRI-245](https://linear.app/uicb/issue/WRI-245) | MED | V4 — validate `sessionId` + `assertInsideDir` for screenshots (spec: `local-daemon`) |
+| §5 (5.1–5.3) | [WRI-246](https://linear.app/uicb/issue/WRI-246) | MED | V5 — allowlist URL schemes in `openExternal` + `setWindowOpenHandler` (spec: `desktop-shell`) |
+| §6 (6.1–6.2) | [WRI-247](https://linear.app/uicb/issue/WRI-247) | LOW | V6 — confine renderer-supplied write paths (backlog) (spec: `desktop-shell`) |
+
+**Suggested order:** WRI-242 → WRI-243 → WRI-244 → WRI-245 → WRI-246 → WRI-247 → close WRI-240
+
+## improve-robustness-and-efficiency (OpenSpec: `openspec/changes/improve-robustness-and-efficiency/`)
+
+**Epic:** [WRI-241](https://linear.app/uicb/issue/WRI-241) — Improve robustness & efficiency (audit 2026-06-09)
+
+Source: same audit. Quality epic (robustness + efficiency only; no security). Cross-check downgraded E1 framing, E2, R2.
+
+| OpenSpec task | Linear | Sev | Notes |
+|---------------|--------|-----|-------|
+| §1 (1.1–1.3) | [WRI-248](https://linear.app/uicb/issue/WRI-248) | MED | R1 — download resume: `stat(tmp)` offset + require 206 (spec: `local-daemon`) — user-visible |
+| §2 (2.1–2.4) | [WRI-249](https://linear.app/uicb/issue/WRI-249) | MED | E1 — bounded store writes: compact JSON + debounce (spec: `store-eviction`/`review-session-storage`) — user-visible |
+| §3 (3.1–3.4) | [WRI-250](https://linear.app/uicb/issue/WRI-250) | MED | E3 — run-status poll: interval + in-flight guard + dedupe (spec: `renderer-polling-stability`) — user-visible |
+| §4 (4.1–4.2) | [WRI-251](https://linear.app/uicb/issue/WRI-251) | LOW | E2 — cache `listGpuDevices` in `detect()` (backlog) (spec: `agent-adapter-runtime`) |
+| §5 (5.1–5.2) | [WRI-252](https://linear.app/uicb/issue/WRI-252) | LOW | E4 — stream `pipeline()` for download writes (backlog) (spec: `local-daemon`) |
+| §6 (6.1–6.2) | [WRI-253](https://linear.app/uicb/issue/WRI-253) | LOW | R2 — surface the one fire-and-forget save error (backlog) (spec: `store-eviction`) |
+| §7 (7.1–7.2) | [WRI-254](https://linear.app/uicb/issue/WRI-254) | LOW | R3 — evict resident runtime on model reset (backlog) (spec: `agent-adapter-runtime`) |
+
+**Suggested order:** WRI-248 → WRI-249 → WRI-250 → (WRI-251, WRI-252, WRI-253, WRI-254 backlog) → close WRI-241
