@@ -5,6 +5,7 @@ const path = require("node:path");
 const { createMainWindow } = require("./create-main-window.cjs");
 const { ensureDaemonRunning, stopManagedDaemon } = require("./ensure-daemon.cjs");
 const { initAutoUpdate } = require("./auto-update.cjs");
+const { isSafeExternalUrl } = require("./url-guard.cjs");
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL || "http://127.0.0.1:5173";
 
@@ -16,7 +17,11 @@ function createWindow() {
   mainWindow = window;
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isSafeExternalUrl(url)) {
+      shell.openExternal(url);
+    } else {
+      console.warn("[writer] blocked openExternal for unsafe URL:", url);
+    }
     return { action: "deny" };
   });
 
@@ -51,6 +56,10 @@ ipcMain.handle("writer:set-background-material", (_event, material) => {
 });
 
 ipcMain.handle("writer:open-external", async (_event, url) => {
+  if (!isSafeExternalUrl(url)) {
+    console.warn("[writer] blocked openExternal for unsafe URL:", url);
+    return false;
+  }
   await shell.openExternal(url);
   return true;
 });
