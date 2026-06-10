@@ -108,7 +108,10 @@ describe("daemon integration smoke", () => {
     expect(Array.isArray(workspace.products)).toBe(true);
   });
 
-  it("runs echo agent end to end", async () => {
+  it("refuses a POST /agents/runs that selects the dev echo adapter", async () => {
+    // The echo dev adapter reaches cmd.exe on Windows. A run request must not be
+    // able to select it from request input — the route rejects it before any
+    // adapter spawn. (Echo stays usable only under server-side stubs mode.)
     const projectRes = await authFetch(`${baseUrl}/projects`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -138,9 +141,8 @@ describe("daemon integration smoke", () => {
         prompt: "integration-smoke"
       })
     });
-    expect(runRes.ok).toBe(true);
-    const runPayload = (await runRes.json()) as { run: { status: string } };
-    expect(runPayload.run.status).toBe("completed");
+    expect(runRes.ok).toBe(false);
+    expect(runRes.status).toBe(400);
   });
 
   it("parses figma urls and extracts text nodes", async () => {

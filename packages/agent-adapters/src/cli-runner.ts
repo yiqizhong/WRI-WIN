@@ -20,7 +20,7 @@ const isWindows = platform() === "win32";
 // CommandLineToArgvW layer; this protects the extra cmd.exe parsing layer that
 // runs when we invoke a `.cmd`/`.bat` via cmd.exe. Together they prevent a
 // prompt like `a & whoami` from breaking out and executing.
-function escapeCmdMetacharacters(arg: string): string {
+export function escapeCmdMetacharacters(arg: string): string {
   return arg.replace(/[()%!^"<>&|]/g, "^$&");
 }
 

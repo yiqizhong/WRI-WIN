@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createEchoAdapter } from "./echo-adapter";
+import { createEchoAdapter, buildEchoSpawn } from "./echo-adapter";
+import { escapeCmdMetacharacters } from "./cli-runner";
 
 describe("echo-adapter", () => {
   it("detects as available on the current platform", async () => {
@@ -26,5 +27,21 @@ describe("echo-adapter", () => {
     }
 
     expect(text).toContain("hello-writer");
+  });
+
+  it("escapes cmd.exe metacharacters so a prompt cannot break out", () => {
+    // Direct unit test of the escaper, host-independent: `& calc &` must be
+    // neutralized so it cannot run as a separate command.
+    const escaped = escapeCmdMetacharacters('" & calc & "');
+    expect(escaped).not.toMatch(/\s&\scalc\s&/);
+    expect(escaped).toContain("^&");
+  });
+
+  it("routes the Windows echo prompt through the cmd.exe escaper", () => {
+    // buildEchoSpawn branches on the host OS. On Windows the prompt must be
+    // escaped in-place; on non-Windows there is no cmd.exe layer to escape, so
+    // assert the escaped form does not let metacharacters break out regardless.
+    const { args } = buildEchoSpawn('" & calc & "');
+    expect(args.join(" ")).not.toMatch(/\s&\scalc\s&/);
   });
 });

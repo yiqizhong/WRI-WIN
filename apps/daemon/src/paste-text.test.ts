@@ -19,6 +19,12 @@ import {
 import { createProject } from "./state";
 import type { DaemonState } from "./state";
 
+// These conversations are rewritten by the `echo` dev adapter as a deterministic
+// test backend. Request-supplied adapter ids are gated on the known-adapter
+// allowlist (see agents.ts resolveAdapterForRun); stubs mode is the trusted,
+// server-side opt-in that makes echo selectable for tests.
+process.env["WRITER_AGENT_STUBS"] = "1";
+
 registerImporter(new MarkdownImporter());
 
 const PRODUCT_BACKGROUND_MD = `---

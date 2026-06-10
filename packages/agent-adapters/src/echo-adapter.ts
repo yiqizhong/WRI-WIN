@@ -6,6 +6,7 @@ import { platform } from "node:os";
 import type { AgentAdapter, AgentRun, AgentRunEvent } from "@writer/contracts";
 
 import type { AgentAdapterImplementation, AgentDetectionResult, AgentRunHandle, AgentRunRequest } from "./types";
+import { escapeCmdMetacharacters } from "./cli-runner";
 
 const isWindows = platform() === "win32";
 
@@ -16,9 +17,12 @@ const ECHO_PATH = isWindows
   ? `${process.env.SystemRoot ?? "C:\\Windows"}\\System32\\cmd.exe`
   : "/bin/echo";
 
-function buildEchoSpawn(prompt: string): { command: string; args: string[] } {
+export function buildEchoSpawn(prompt: string): { command: string; args: string[] } {
+  // On Windows the prompt is parsed by cmd.exe, so escape metacharacters
+  // (`& | < > ^ ( ) " %`) as defense-in-depth — a prompt like `" & calc & "`
+  // must not break out and run a second command.
   return isWindows
-    ? { command: ECHO_PATH, args: ["/c", "echo", prompt] }
+    ? { command: ECHO_PATH, args: ["/c", "echo", escapeCmdMetacharacters(prompt)] }
     : { command: ECHO_PATH, args: [prompt] };
 }
 

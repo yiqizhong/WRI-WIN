@@ -95,7 +95,10 @@ describe("agent discovery and runs", () => {
     );
   });
 
-  it("runs echo adapter and persists events", async () => {
+  it("refuses to run the dev echo adapter from request input", async () => {
+    // `echo` is registered for dev but is not a known/selectable adapter. A run
+    // request must be gated on isKnownAdapterId so echo can never be spawned via
+    // POST /agents/runs (it reaches cmd.exe on Windows). See agents.run-gate.test.ts.
     const state = await createTestState();
     const project = await createProject(state, { name: "Demo", rootPath: "/tmp/demo" });
     const session = await createSession(state, {
@@ -104,15 +107,13 @@ describe("agent discovery and runs", () => {
       scope: { kind: "file", fileKey: "abc" }
     });
 
-    const result = await startAgentRun(state, {
-      sessionId: session.id,
-      adapterId: "echo",
-      prompt: "hello-writer"
-    });
-
-    expect(result.run.status).toBe("completed");
-    expect(result.events.some((event) => event.type === "text")).toBe(true);
-    expect(state.store.getAgentRun(result.run.id)?.status).toBe("completed");
+    await expect(
+      startAgentRun(state, {
+        sessionId: session.id,
+        adapterId: "echo",
+        prompt: "hello-writer"
+      })
+    ).rejects.toThrow(/not selectable/i);
   });
 
   it("persists devin provider settings and reports capability status", async () => {
