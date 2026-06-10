@@ -87,7 +87,8 @@ export class PlatformStore {
   readonly filePath: string;
 
   private snapshot: PlatformStoreSnapshot;
-  private saveChain: Promise<void> = Promise.resolve();
+  private pending: Promise<void> | null = null;
+  private dirty = false;
 
   constructor(options: PlatformStoreOptions = {}) {
     this.dataDir = options.dataDir ?? getDefaultDataDir();
@@ -172,19 +173,36 @@ export class PlatformStore {
     }
   }
 
+  /** Marks dirty and coalesces a synchronous burst into a single write. */
   async save(): Promise<void> {
-    const next = this.saveChain.then(() => this.writeSnapshotToDisk());
-    this.saveChain = next.catch(() => undefined);
-    return next;
+    this.dirty = true;
+    if (!this.pending) {
+      this.pending = (async () => {
+        try {
+          await Promise.resolve(); // collapse synchronous burst into one write
+          while (this.dirty) {
+            this.dirty = false;
+            await this.writeSnapshotToDisk();
+          }
+        } finally {
+          this.pending = null;
+        }
+      })();
+    }
+    return this.pending;
   }
 
   private async writeSnapshotToDisk(): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
-
-    const payload = JSON.stringify(this.snapshot, null, 2);
+    const payload = JSON.stringify(this.snapshot); // compact: machine-read file
     const tempPath = `${this.filePath}.tmp`;
-    await writeFile(tempPath, payload, "utf8");
+    await this.writeFileImpl(tempPath, payload);
     await rename(tempPath, this.filePath);
+  }
+
+  /** Seam for tests; real impl writes utf8. */
+  private async writeFileImpl(path: string, data: string): Promise<void> {
+    await writeFile(path, data, "utf8");
   }
 
   listProjects(): ProjectList {
