@@ -6,7 +6,8 @@ import {
   auditRunStatusBadgeClassName,
   deriveAuditRunStatus,
   deriveWritebackDisplay,
-  formatAuditCreatedDate
+  formatAuditCreatedDate,
+  isAuditWritebackFinalized
 } from "./audit-run-status";
 
 function session(partial: Partial<ReviewSession>): ReviewSession {
@@ -146,5 +147,68 @@ describe("deriveWritebackDisplay", () => {
         })
       ).label
     ).toBe("Written back");
+  });
+});
+
+describe("isAuditWritebackFinalized", () => {
+  it("locks the audit detail after a successful writeback", () => {
+    expect(
+      isAuditWritebackFinalized(
+        session({
+          status: "completed",
+          writebackReport: {
+            attemptedAt: "2026-05-25T12:00:00.000Z",
+            written: 2,
+            skipped: 0,
+            failed: []
+          }
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("locks the audit detail when writeback skipped every row", () => {
+    expect(
+      isAuditWritebackFinalized(
+        session({
+          status: "completed",
+          writebackReport: {
+            attemptedAt: "2026-05-25T12:00:00.000Z",
+            written: 0,
+            skipped: 3,
+            failed: []
+          }
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("keeps the audit detail editable while approval is pending", () => {
+    expect(
+      isAuditWritebackFinalized(
+        session({
+          status: "completed",
+          scope: {
+            extraction: { nodes: [{ id: "1:1" }] }
+          }
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("keeps the audit detail editable after a partial writeback", () => {
+    expect(
+      isAuditWritebackFinalized(
+        session({
+          status: "completed",
+          writebackReport: {
+            attemptedAt: "2026-05-25T12:00:00.000Z",
+            written: 1,
+            skipped: 0,
+            failed: [{ nodeId: "1:11", errorCode: "write_failed", errorMessage: "Denied" }]
+          }
+        })
+      )
+    ).toBe(false);
   });
 });

@@ -142,9 +142,10 @@
   background: var(--writer-settings-tab-indicator);
   pointer-events: none;
   transform: translateX(var(--active-tab-left));
-  /* Snap with text — sliding underline lags `data-active` and looks misaligned */
-  transition: none;
-  will-change: transform;
+  transition:
+    transform var(--writer-settings-motion-duration-indicator) var(--writer-settings-motion-ease-out),
+    width var(--writer-settings-motion-duration-indicator) var(--writer-settings-motion-ease-out);
+  will-change: transform, width;
 }
 
 .writer-settings-panels {

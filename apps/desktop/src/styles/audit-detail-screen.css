@@ -100,6 +100,39 @@
   white-space: nowrap;
 }
 
+.writer-audit-findings-table__edit-cell {
+  padding: 8px 12px;
+  vertical-align: top;
+  min-width: 18rem;
+  width: 18rem;
+}
+
+.writer-audit-findings-table__edit-input {
+  min-height: 4.5rem;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgb(229 241 255 / 0.12);
+  border-radius: 2px;
+  background: rgb(0 0 0 / 0.2);
+  padding: 8px 10px;
+  color: rgb(229 241 255 / 0.95);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-shadow: none;
+}
+
+.writer-audit-findings-table__edit-input::placeholder {
+  font-size: inherit;
+  line-height: inherit;
+  color: rgb(229 241 255 / 35%);
+}
+
+.writer-audit-findings-table__edit-input:focus-visible {
+  border-color: var(--writer-accent-blue);
+  outline: none;
+  box-shadow: 0 0 0 1px rgb(32 131 234 / 0.35);
+}
+
 .writer-audit-findings-table__empty {
   padding: 32px 16px;
   text-align: center;

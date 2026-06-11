@@ -62,7 +62,9 @@ export const createFigmaSessionInputSchema = z.discriminatedUnion("mode", [
     fileKey: z.string().min(1),
     nodeIds: z.array(z.string().min(1)).min(1),
     flowName: z.string().optional(),
-    nodeNames: z.record(z.string().min(1), z.string().min(1)).optional()
+    nodeNames: z.record(z.string().min(1), z.string().min(1)).optional(),
+    /** Page or frame URL from All in one / single-frame entry; shown once in session details. */
+    url: z.string().url().optional()
   })
 ]);
 

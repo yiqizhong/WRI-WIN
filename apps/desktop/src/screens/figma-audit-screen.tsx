@@ -288,7 +288,8 @@ export function FigmaAuditScreen() {
       description: trimmedDescription,
       fileKey: payload.fileKey,
       nodeIds: payload.nodeIds,
-      nodeNames: payload.nodeNames
+      nodeNames: payload.nodeNames,
+      url: payload.url
     });
   }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
 import { parseFigmaReviewScope, resolveFigmaFrameDisplayName } from "@writer/contracts";
@@ -8,7 +8,7 @@ import { WriterPageSubheader } from "@/components/writer/writer-page-subheader";
 import { formatAuditDetailPageTitle } from "@/lib/writer-product-display";
 
 import { AuditSessionDetailsAccordion } from "../audit-session-details-accordion";
-import { deriveAuditRunStatus } from "../audit-run-status";
+import { deriveAuditRunStatus, isAuditWritebackFinalized } from "../audit-run-status";
 import { AuditDetailFrameSection } from "../audit-detail-frame-section";
 import { AuditWritebackButton } from "../audit-writeback-button";
 import { WorkflowGlassPanel } from "../layout/workflow-screen-shell";
@@ -125,7 +125,6 @@ function activeLayerLabel(session: ReviewSession): string {
 
 export function AuditDetailScreen() {
   const { sessionId = "" } = useParams();
-  const navigate = useNavigate();
   const { daemonClient } = useWorkspace();
   const [session, setSession] = useState<ReviewSession | null>(null);
   const [changes, setChanges] = useState<ReviewChange[]>([]);
@@ -228,14 +227,17 @@ export function AuditDetailScreen() {
     );
   }, [frameIds, session]);
 
-  const rows = changes.map((change) => ({
-    changeId: change.id,
-    finalText: editsByChange[change.id] ?? change.after
-  }));
+  const rows = changes.map((change) => {
+    const userEdit = editsByChange[change.id]?.trim();
+    return {
+      changeId: change.id,
+      finalText: userEdit ? editsByChange[change.id] : change.after
+    };
+  });
 
   const scrollSyncKey =
     loadState === "ready" && session
-      ? `${session.id}-${changes.length}-${frameIds.length}-${deriveAuditRunStatus(session).variant}`
+      ? `${session.id}-${changes.length}-${frameIds.length}-${deriveAuditRunStatus(session).variant}-${session.writebackReport?.attemptedAt ?? "pending"}`
       : loadState;
 
   if (loadState === "loading") {
@@ -261,6 +263,7 @@ export function AuditDetailScreen() {
   }
 
   const { nodeCount, diagnosticMessage } = extractionSummary(session);
+  const writebackFinalized = isAuditWritebackFinalized(session);
 
   return (
     <AuditDetailPageShell title={pageTitle} scrollSyncKey={scrollSyncKey}>
@@ -271,13 +274,6 @@ export function AuditDetailScreen() {
           subtitle="Findings will appear here when the run finishes. This page refreshes automatically."
         />
       ) : null}
-
-      <AuditSessionDetailsAccordion
-        session={session}
-        guidelinesLabel={activeLayerLabel(session)}
-        nodeCount={nodeCount}
-        reviewRowCount={changes.length}
-      />
 
       {diagnosticMessage ? (
         <InlineAlert kind="warning" title="Figma extraction issue" subtitle={diagnosticMessage} />
@@ -303,6 +299,13 @@ export function AuditDetailScreen() {
         <InlineAlert kind="info" title="No frames" subtitle="No frame scope found on this session." />
       ) : null}
 
+      <AuditSessionDetailsAccordion
+        session={session}
+        guidelinesLabel={activeLayerLabel(session)}
+        nodeCount={nodeCount}
+        reviewRowCount={changes.length}
+      />
+
       {frameIds.map((frameId) => (
         <AuditDetailFrameSection
           key={frameId}
@@ -311,27 +314,35 @@ export function AuditDetailScreen() {
           frameId={frameId}
           frameLabel={frameLabelsById[frameId] ?? frameId}
           changes={changes}
+          editsLocked={writebackFinalized}
           onEditsChange={(edits) => setEditsByChange((current) => ({ ...current, ...edits }))}
         />
       ))}
 
-      <WorkflowGlassPanel>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="writer-home-text text-sm text-[#e5f1ff]/70">
-            Approve edits and push changes back to Figma when ready.
-          </p>
-          <AuditWritebackButton
-            client={daemonClient}
-            session={session}
-            rows={rows}
-            changes={changes}
-            onComplete={() => {
-              void daemonClient.getSession(sessionId).then(setSession);
-              navigate("/audits");
-            }}
-          />
-        </div>
-      </WorkflowGlassPanel>
+      {writebackFinalized ? null : (
+        <WorkflowGlassPanel>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="writer-home-text text-sm text-[#e5f1ff]/70">
+              Approve edits and push changes back to Figma when ready.
+            </p>
+            <AuditWritebackButton
+              client={daemonClient}
+              session={session}
+              rows={rows}
+              changes={changes}
+              onComplete={() => {
+                void Promise.all([
+                  daemonClient.getSession(sessionId),
+                  daemonClient.getReviewQueue(sessionId)
+                ]).then(([nextSession, queue]) => {
+                  setSession(nextSession);
+                  setChanges(queue.changes);
+                });
+              }}
+            />
+          </div>
+        </WorkflowGlassPanel>
+      )}
     </AuditDetailPageShell>
   );
 }

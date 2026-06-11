@@ -96,7 +96,7 @@ function createDaemonRegistry(state: DaemonState): AgentAdapterRegistry {
     registry.register(adapter);
   }
 
-  let resolvedDisplayName: string | undefined;
+  let resolvedDisplayName = "Gemma 4";
   registry.register(
     createLocalGemmaAdapter({
       getModelState: () => state.store.getLocalModel(),
@@ -115,7 +115,9 @@ function createDaemonRegistry(state: DaemonState): AgentAdapterRegistry {
   // Kick off VRAM detection once so displayName is ready before the first /agents poll.
   void detectNvidiaVram().then((vram) => {
     const resolution = resolveLocalModelManifest(vram);
-    if ("manifest" in resolution) resolvedDisplayName = resolution.manifest.displayName;
+    if ("manifest" in resolution) {
+      resolvedDisplayName = resolution.manifest.displayName;
+    }
   });
 
   return registry;

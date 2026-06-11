@@ -9,6 +9,8 @@ import {
 import { GlassCard } from "@/components/writer/glass-card";
 import { formatProductDisplayName } from "@/lib/writer-product-display";
 
+import { resolveAuditSessionFigmaLinks } from "./audit-session-figma-links";
+
 const SESSION_DETAILS_ITEM = "session-details";
 
 type AuditSessionDetailsAccordionProps = {
@@ -24,6 +26,8 @@ export function AuditSessionDetailsAccordion({
   nodeCount,
   reviewRowCount
 }: AuditSessionDetailsAccordionProps) {
+  const figmaLinks = resolveAuditSessionFigmaLinks(session);
+
   return (
     <GlassCard variant="outline" className="writer-audit-session-accordion p-4">
       <Accordion defaultValue={[]}>
@@ -37,6 +41,40 @@ export function AuditSessionDetailsAccordion({
                 <dt className="text-[#e5f1ff]/60">Product</dt>
                 <dd>{session.productId ? formatProductDisplayName(session.productId) : "—"}</dd>
               </div>
+              {figmaLinks.length > 0 ? (
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-[#e5f1ff]/60">Figma</dt>
+                  <dd className="min-w-0">
+                    {figmaLinks.length === 1 ? (
+                      <a
+                        href={figmaLinks[0]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="writer-text-action-link break-all"
+                        title={figmaLinks[0]}
+                      >
+                        {figmaLinks[0]}
+                      </a>
+                    ) : (
+                      <ul className="grid gap-1">
+                        {figmaLinks.map((link) => (
+                          <li key={link}>
+                            <a
+                              href={link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="writer-text-action-link break-all"
+                              title={link}
+                            >
+                              {link}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-[#e5f1ff]/60">Guidelines</dt>
                 <dd>{guidelinesLabel}</dd>

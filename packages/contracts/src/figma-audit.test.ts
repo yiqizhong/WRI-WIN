@@ -52,6 +52,22 @@ describe("figma-audit contracts", () => {
     }
   });
 
+  it("parses workflow with optional All in one page URL", () => {
+    const parsed = parseCreateFigmaSessionInput({
+      mode: "workflow",
+      projectId: "proj-1",
+      featureName: "Onboarding",
+      description: "All in one page",
+      fileKey: "abc123",
+      nodeIds: ["1:10", "1:20"],
+      url: "https://www.figma.com/design/abc123/Page?node-id=1-10"
+    });
+    expect(parsed.mode).toBe("workflow");
+    if (parsed.mode === "workflow") {
+      expect(parsed.url).toContain("figma.com/design/abc123");
+    }
+  });
+
   it("rejects workflow without nodeIds", () => {
     expect(() =>
       createFigmaSessionInputSchema.parse({
