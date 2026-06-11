@@ -3,6 +3,7 @@ import {
   LLM_PROVIDER_ADAPTER_IDS,
   type AgentAdapter,
   type AgentAdapterList,
+  type LocalModelManifest,
   type McpServer
 } from "@writer/contracts";
 
@@ -59,12 +60,23 @@ export function mergeLlmAdapters(
 export const LOCAL_MODEL_PLACEHOLDERS: AgentAdapter[] = [
   {
     id: "local-gemma",
-    displayName: "Gemma 4 12B",
+    displayName: "Gemma 4",
     available: false,
     runtimeKind: "local",
     capabilities: []
   }
 ];
+
+/** Generic label when GPU is blocked; hardware-specific variant otherwise. */
+export function resolveLocalModelDisplayName(
+  manifest: LocalModelManifest,
+  blockedReason: string | null | undefined
+): string {
+  if (blockedReason) {
+    return "Gemma 4";
+  }
+  return manifest.displayName;
+}
 
 export function mergeLocalModelAdapters(
   current: AgentAdapter[],

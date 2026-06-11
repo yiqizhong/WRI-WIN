@@ -15,7 +15,7 @@ import { commandExists, runCliCommand } from "../cli-runner";
 import { LocalGemmaRuntime, resolveCtxSize, resolveDraftModelPath, resolveKvType, resolveFlashAttn, resolveUbatch, type DraftSettings } from "./local-gemma-runtime";
 
 const ADAPTER_ID = "local-gemma";
-const DISPLAY_NAME = "Local Gemma";
+const DISPLAY_NAME = "Gemma 4";
 
 // Single resident process shared across all runs (the model is identical for
 // every session, and VRAM holds one copy). Lazily created on first run.

@@ -9,7 +9,8 @@ import {
   MCP_SERVER_PLACEHOLDERS,
   mergeLlmAdapters,
   mergeMcpServers,
-  resolveActiveAfterLoad
+  resolveActiveAfterLoad,
+  resolveLocalModelDisplayName
 } from "./agents-runtime";
 
 describe("agents-runtime", () => {
@@ -106,6 +107,24 @@ describe("agents-runtime", () => {
       });
       expect(next).toBe("devin");
     });
+  });
+
+  it("uses a generic label when the local model is blocked", () => {
+    expect(
+      resolveLocalModelDisplayName(
+        { displayName: "Gemma 4 12B" } as import("@writer/contracts").LocalModelManifest,
+        "No compatible NVIDIA GPU detected"
+      )
+    ).toBe("Gemma 4");
+  });
+
+  it("uses the resolved manifest label when hardware is supported", () => {
+    expect(
+      resolveLocalModelDisplayName(
+        { displayName: "Gemma 4 E4B" } as import("@writer/contracts").LocalModelManifest,
+        null
+      )
+    ).toBe("Gemma 4 E4B");
   });
 
   it("applyAgentAdapterList updates active adapter id", () => {

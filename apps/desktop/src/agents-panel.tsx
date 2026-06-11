@@ -33,7 +33,7 @@ import {
   resolveDevinModelOptions,
   resolveDevinReasoningLabel
 } from "./devin-model-options";
-import { isAdapterStatusLoading } from "./agents-runtime";
+import { isAdapterStatusLoading, resolveLocalModelDisplayName } from "./agents-runtime";
 import {
   formatConnectionDiagnostic,
   mcpConnectionStatusLabel,
@@ -275,6 +275,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   const [localModelLoading, setLocalModelLoading] = useState<string | null>(null);
   const [localModelSizeBytes, setLocalModelSizeBytes] = useState<number | null>(null);
   const [localModelBlockedReason, setLocalModelBlockedReason] = useState<string | null>(null);
+  const [localModelDisplayName, setLocalModelDisplayName] = useState("Gemma 4");
 
   const [downloadProgress, setDownloadProgress] = useState<{
     adapterId: string;
@@ -298,6 +299,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         if (cancelled) return;
         setLocalModelSizeBytes(s.manifest.fileSizeBytes);
         setLocalModelBlockedReason(s.blockedReason ?? null);
+        setLocalModelDisplayName(resolveLocalModelDisplayName(s.manifest, s.blockedReason));
 
         if (s.state.status !== "downloading" && s.state.status !== "verifying") return;
 
@@ -310,6 +312,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
           if (!downloadPollingActiveRef.current || cancelled) break;
           try {
             const next = await client.getLocalModelStatus();
+            setLocalModelDisplayName(resolveLocalModelDisplayName(next.manifest, next.blockedReason));
             if (next.state.status === "downloading") {
               setDownloadProgress({ adapterId, downloaded: next.state.downloadedBytes, total: next.state.totalBytes });
             } else if (next.state.status === "verifying") {
@@ -458,6 +461,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
       if (!downloadPollingActiveRef.current) break;
       try {
         const status = await client.getLocalModelStatus();
+        setLocalModelDisplayName(resolveLocalModelDisplayName(status.manifest, status.blockedReason));
         if (status.state.status === "downloading") {
           setDownloadProgress({
             adapterId,
@@ -766,12 +770,14 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                 const diagnosticText = formatConnectionDiagnostic(adapter.diagnostic);
                 const isLoading = localModelLoading === adapter.id;
                 const canSelect = stableConnected && adapter.available;
+                const isLocalModelGpuBlocked =
+                  Boolean(localModelBlockedReason && adapter.id === "local-gemma");
                 // Not-downloaded state: the Download button alone is enough — suppress the badge.
                 const isNotDownloaded =
                   stableConnected &&
                   !adapter.available &&
                   !isLoading &&
-                  !(localModelBlockedReason && adapter.id === "local-gemma") &&
+                  !isLocalModelGpuBlocked &&
                   (adapter.diagnostic?.code === "not_installed" || !adapter.diagnostic);
                 // Failed state: Retry button is self-explanatory — suppress the redundant badge.
                 const isFailedState =
@@ -779,7 +785,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                   !adapter.available &&
                   !isLoading &&
                   adapter.diagnostic?.severity === "error" &&
-                  !(localModelBlockedReason && adapter.id === "local-gemma");
+                  !isLocalModelGpuBlocked;
 
                 return (
                   <GlassCard
@@ -811,11 +817,11 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                         )}
                         <Label
                           htmlFor={`radio-${adapter.id}`}
-                          className="writer-home-text writer-home-agent-label min-w-0 truncate font-extralight leading-snug tracking-normal"
+                          className="writer-home-text writer-home-agent-label shrink-0 whitespace-nowrap font-extralight leading-snug tracking-normal"
                         >
-                          {adapter.displayName}
+                          {localModelDisplayName}
                         </Label>
-                        {localModelSizeBytes ? (
+                        {localModelSizeBytes && !isLocalModelGpuBlocked ? (
                           <span className="shrink-0 text-xs text-[#e5f1ff]/40">
                             {formatBytes(localModelSizeBytes)}
                           </span>
@@ -847,7 +853,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
                             </WriterPrimaryButton>
                           )
                         ) : null}
-                        {!isNotDownloaded && !isFailedState && (
+                        {!isNotDownloaded && !isFailedState && !isLocalModelGpuBlocked && (
                           <Badge variant={tagVariant(status.type)} className={hugWidth}>
                             {status.label}
                           </Badge>
