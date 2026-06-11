@@ -124,6 +124,7 @@ export async function createFigmaReviewSession(state: DaemonState, input: unknow
     description: parsed.description,
     mode: parsed.mode,
     scope: {
+      ...(parsed.url ? { url: parsed.url } : {}),
       fileKey: parsed.fileKey,
       suggestedScope: {
         kind: "flow",

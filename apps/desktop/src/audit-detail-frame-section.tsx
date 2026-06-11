@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { ReviewChange, ReviewSession } from "@writer/contracts";
-import { AuditDetailEditModal } from "./audit-detail-edit-modal";
+import { Textarea } from "@/components/ui/textarea";
 import { AuditDetailRuleModal } from "./audit-detail-rule-modal";
 import type { DaemonClient } from "./daemon-client";
 import { WorkflowGlassPanel } from "./layout/workflow-screen-shell";
@@ -12,6 +12,7 @@ type AuditDetailFrameSectionProps = {
   frameId: string;
   frameLabel: string;
   changes: ReviewChange[];
+  editsLocked?: boolean;
   onEditsChange: (edits: Record<string, string>) => void;
 };
 
@@ -21,12 +22,10 @@ type RuleModalState = {
   rationale?: string;
 };
 
-type EditModalState = {
-  changeId: string;
-  original: string;
-  aiSuggestion: string;
-  value: string;
-};
+function userOverrideText(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 
 export function AuditDetailFrameSection({
   client,
@@ -34,13 +33,11 @@ export function AuditDetailFrameSection({
   frameId,
   frameLabel,
   changes,
+  editsLocked = false,
   onEditsChange
 }: AuditDetailFrameSectionProps) {
-  const [edits, setEdits] = useState<Record<string, string>>(() =>
-    Object.fromEntries(changes.map((change) => [change.id, change.after]))
-  );
+  const [edits, setEdits] = useState<Record<string, string>>({});
   const [ruleModal, setRuleModal] = useState<RuleModalState | null>(null);
-  const [editModal, setEditModal] = useState<EditModalState | null>(null);
 
   const screenshotUrl = useMemo(
     () => client.sessionScreenshotUrl(session.id, frameId),
@@ -48,7 +45,14 @@ export function AuditDetailFrameSection({
   );
 
   function updateEdit(changeId: string, value: string) {
-    const next = { ...edits, [changeId]: value };
+    const next = { ...edits };
+
+    if (userOverrideText(value)) {
+      next[changeId] = value;
+    } else {
+      delete next[changeId];
+    }
+
     setEdits(next);
     onEditsChange(next);
   }
@@ -88,7 +92,7 @@ export function AuditDetailFrameSection({
             </tr>
           ) : null}
           {changes.map((change, index) => {
-            const currentEdit = edits[change.id] ?? change.after;
+            const userEdit = edits[change.id] ?? "";
 
             return (
               <tr key={change.id} className="writer-audit-findings-table__row">
@@ -110,21 +114,25 @@ export function AuditDetailFrameSection({
                     View rule
                   </button>
                 </td>
-                <td className="writer-audit-findings-table__actions">
-                  <button
-                    type="button"
-                    className="writer-text-action-link"
-                    onClick={() =>
-                      setEditModal({
-                        changeId: change.id,
-                        original: change.before,
-                        aiSuggestion: change.after,
-                        value: currentEdit
-                      })
-                    }
-                  >
-                    Edit
-                  </button>
+                <td
+                  className={
+                    editsLocked
+                      ? "writer-audit-findings-table__cell"
+                      : "writer-audit-findings-table__edit-cell"
+                  }
+                >
+                  {editsLocked ? (
+                    userOverrideText(userEdit) ?? "—"
+                  ) : (
+                    <Textarea
+                      value={userEdit}
+                      onChange={(event) => updateEdit(change.id, event.target.value)}
+                      rows={3}
+                      placeholder="Optional override"
+                      className="writer-audit-findings-table__edit-input rounded-[2px] text-sm"
+                      aria-label={`Your edit for row ${index + 1}`}
+                    />
+                  )}
                 </td>
               </tr>
             );
@@ -145,22 +153,6 @@ export function AuditDetailFrameSection({
         rationale={ruleModal?.rationale}
       />
 
-      <AuditDetailEditModal
-        open={Boolean(editModal)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditModal(null);
-          }
-        }}
-        original={editModal?.original ?? ""}
-        aiSuggestion={editModal?.aiSuggestion ?? ""}
-        value={editModal?.value ?? ""}
-        onSave={(value) => {
-          if (editModal) {
-            updateEdit(editModal.changeId, value);
-          }
-        }}
-      />
     </WorkflowGlassPanel>
   );
 }

@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { ListPageFramesResponse } from "@writer/contracts";
@@ -19,6 +19,8 @@ export type WorkflowSubmitPayload = {
   fileKey: string;
   nodeIds: string[];
   nodeNames?: Record<string, string>;
+  /** Figma page URL from All in one; stored on the session for session details. */
+  url?: string;
 };
 
 type WorkflowFrame = {
@@ -58,6 +60,16 @@ type FigmaAuditWorkflowTabsProps = {
 };
 
 const EMPTY_MANUAL_STEP: ManualStepRow = { url: "" };
+
+export const MIN_MANUAL_WORKFLOW_STEPS = 2;
+
+export function removeManualRowAt(rows: ManualStepRow[], index: number): ManualStepRow[] {
+  if (rows.length <= MIN_MANUAL_WORKFLOW_STEPS || index < 0 || index >= rows.length) {
+    return rows;
+  }
+
+  return rows.filter((_, rowIndex) => rowIndex !== index);
+}
 
 function useScrollContentToBottomOnListGrow(
   listLength: number,
@@ -222,7 +234,7 @@ export function FigmaAuditWorkflowTabs({
   onListPageFrames,
   onRequestScrollToBottom
 }: FigmaAuditWorkflowTabsProps) {
-  const [method, setMethod] = useState<WorkflowInputMethod>("manual");
+  const [method, setMethod] = useState<WorkflowInputMethod>("page");
   const [manualRows, setManualRows] = useState<ManualStepRow[]>([
     { ...EMPTY_MANUAL_STEP },
     { ...EMPTY_MANUAL_STEP }
@@ -334,6 +346,12 @@ export function FigmaAuditWorkflowTabs({
     });
   }
 
+  function removeManualRow(index: number) {
+    setManualRows((current) => removeManualRowAt(current, index));
+  }
+
+  const canRemoveManualSteps = manualRows.length > MIN_MANUAL_WORKFLOW_STEPS;
+
   async function detectPage() {
     setError(null);
     setPageLoading(true);
@@ -393,7 +411,8 @@ export function FigmaAuditWorkflowTabs({
     onSubmit({
       fileKey: detectedFileKey,
       nodeIds: selectedFrames.map((frame) => frame.nodeId),
-      nodeNames: Object.fromEntries(selectedFrames.map((frame) => [frame.nodeId, frame.name]))
+      nodeNames: Object.fromEntries(selectedFrames.map((frame) => [frame.nodeId, frame.name])),
+      url: pageUrl.trim()
     });
   }
 
@@ -412,18 +431,18 @@ export function FigmaAuditWorkflowTabs({
     >
       <WriterMinimalTabsList>
         <TabsTrigger
-          value="manual"
-          disabled={controlsDisabled}
-          className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
-        >
-          Page by Page
-        </TabsTrigger>
-        <TabsTrigger
           value="page"
           disabled={controlsDisabled}
           className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
         >
           All in one
+        </TabsTrigger>
+        <TabsTrigger
+          value="manual"
+          disabled={controlsDisabled}
+          className={WRITER_MINIMAL_TAB_TRIGGER_CLASS}
+        >
+          Page by Page
         </TabsTrigger>
       </WriterMinimalTabsList>
 
@@ -476,6 +495,19 @@ export function FigmaAuditWorkflowTabs({
                 >
                   <ChevronDown className="size-4" strokeWidth={1.5} aria-hidden />
                 </Button>
+                {canRemoveManualSteps ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="writer-pill-ghost writer-pill-ghost--icon writer-pill-ghost--orange shrink-0 border border-white/20"
+                    disabled={controlsDisabled}
+                    aria-label={`Remove step ${index + 1}`}
+                    onClick={() => removeManualRow(index)}
+                  >
+                    <X className="size-4" strokeWidth={1.5} aria-hidden />
+                  </Button>
+                ) : null}
                 </div>
               </div>
             </div>

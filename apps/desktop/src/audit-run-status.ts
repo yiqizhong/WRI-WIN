@@ -116,6 +116,13 @@ export function deriveWritebackDisplay(session: ReviewSession): WritebackDisplay
   return { label: "—" };
 }
 
+/** Audit detail is read-only once writeback finished with nothing left to approve. */
+export function isAuditWritebackFinalized(session: ReviewSession): boolean {
+  const label = deriveWritebackDisplay(session).label;
+
+  return label === "Written back" || label === "Nothing to update";
+}
+
 export function isFigmaAuditSession(session: ReviewSession): boolean {
   const scope = session.scope as Record<string, unknown> | undefined;
   if (scope?.workflow === "figma_guideline_generation") {

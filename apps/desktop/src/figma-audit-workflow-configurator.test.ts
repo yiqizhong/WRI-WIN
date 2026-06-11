@@ -5,7 +5,9 @@ import {
   detectWorkflowFromPage,
   frameNameFromParsedUrl,
   looksLikeFigmaFrameUrl,
-  manualStepLabel
+  manualStepLabel,
+  MIN_MANUAL_WORKFLOW_STEPS,
+  removeManualRowAt
 } from "./figma-audit-workflow-tabs";
 
 describe("detectWorkflowFromPage", () => {
@@ -59,6 +61,21 @@ describe("manual step frame labels", () => {
       nodeId: "1:2",
       suggestedScope: { kind: "frame", fileKey: "file123", nodeId: "1:2", frameName: "Login" }
     })).toBe("Login");
+  });
+});
+
+describe("removeManualRowAt", () => {
+  const rows = [{ url: "a" }, { url: "b" }, { url: "c" }];
+
+  it("keeps at least two steps", () => {
+    expect(MIN_MANUAL_WORKFLOW_STEPS).toBe(2);
+    expect(removeManualRowAt([{ url: "a" }, { url: "b" }], 0)).toEqual([{ url: "a" }, { url: "b" }]);
+  });
+
+  it("removes the selected step when more than two remain", () => {
+    expect(removeManualRowAt(rows, 1)).toEqual([{ url: "a" }, { url: "c" }]);
+    expect(removeManualRowAt(rows, 0)).toEqual([{ url: "b" }, { url: "c" }]);
+    expect(removeManualRowAt(rows, 2)).toEqual([{ url: "a" }, { url: "b" }]);
   });
 });
 
