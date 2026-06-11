@@ -572,7 +572,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
   }
 
   return (
-    <WriterPageStack fill>
+    <WriterPageStack gap={4}>
       {(statusView.tone !== "ready" || anyRefreshing) && (
         <GlassCard className={classNames(fillWidth, "flex flex-wrap items-center justify-between gap-3 p-3")}>
           <div className="flex min-w-0 items-center gap-2">
@@ -603,8 +603,8 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
         </GlassCard>
       )}
 
-      <WriterPageGrid className="min-h-0 flex-1 overflow-visible grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
-        <WriterPageGridHalf fillHeight>
+      <WriterPageGrid className="min-h-0 overflow-visible grid-cols-1 auto-rows-min gap-10 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:gap-x-14 lg:gap-y-8">
+        <WriterPageGridHalf>
           <WriterPageStack gap={3}>
             <WriterSectionHeader
               title="Cloud LLM"
@@ -901,7 +901,7 @@ export function AgentsPanel({ client, connected, statusView }: AgentsPanelProps)
           className="writer-home-divider-vertical hidden justify-self-center self-start lg:block"
         />
 
-        <WriterPageGridHalf fillHeight>
+        <WriterPageGridHalf>
           <WriterPageStack gap={3}>
             <WriterSectionHeader
               title="MCP"

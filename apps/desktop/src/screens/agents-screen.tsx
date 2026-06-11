@@ -5,12 +5,10 @@ export function AgentsScreen() {
   const workspace = useWorkspace();
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <AgentsPanel
-        client={workspace.daemonClient}
-        connected={workspace.daemonConnected}
-        statusView={workspace.statusView}
-      />
-    </div>
+    <AgentsPanel
+      client={workspace.daemonClient}
+      connected={workspace.daemonConnected}
+      statusView={workspace.statusView}
+    />
   );
 }
