@@ -17,6 +17,7 @@ export type DetectOptions = {
 export type AgentRunRequest = {
   sessionId: string;
   prompt: string;
+  reasoning?: boolean;
 };
 
 export type AgentRunHandle = {

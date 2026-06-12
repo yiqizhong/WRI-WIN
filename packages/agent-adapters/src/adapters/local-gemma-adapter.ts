@@ -371,7 +371,7 @@ async function tryRunResident(
 
   let response: string;
   try {
-    response = await runtime.runTurn(system, user, request.sessionId);
+    response = await runtime.runTurn(system, user, request.sessionId, request.reasoning ?? false);
   } catch {
     // Could not start or the turn failed — let the caller cold-spawn instead.
     return null;
@@ -476,6 +476,7 @@ async function run(
     process.env["WRITER_LOCAL_DRAFT_MODEL"],
     { enabled: false, path: null }  // settings unavailable on cold-spawn fallback
   );
+  const reasoning = request.reasoning ?? false;
 
   const args = [
     "--model", modelPath,
@@ -485,12 +486,7 @@ async function run(
     "--single-turn",
     "--simple-io",
     "--log-disable",
-    // This Gemma build is a thinking model. Left unrestricted it generates a
-    // long [Start thinking]...[End thinking] trace before the (usually short)
-    // rewrite — hundreds of wasted tokens at ~50 tok/s, the main cause of
-    // perceived slowness. Disable reasoning so it answers directly. Cap output
-    // so a runaway generation can't hang the request.
-    "--reasoning", "off",
+    "--reasoning", reasoning ? "on" : "off",
     "-fa", resolveFlashAttn(process.env["WRITER_LOCAL_FLASH_ATTN"]),
     "-ub", String(resolveUbatch(process.env["WRITER_LOCAL_UBATCH"])),
     ...(kvType !== "f16" ? ["--cache-type-k", kvType, "--cache-type-v", kvType] : []),

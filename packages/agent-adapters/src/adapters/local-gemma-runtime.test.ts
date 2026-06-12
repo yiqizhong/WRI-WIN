@@ -59,7 +59,7 @@ describe("resolveKvType", () => {
 });
 
 describe("buildSpawnArgs", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const, reasoning: false };
 
   it("carries the resolved ctx-size", () => {
     const args = buildSpawnArgs({ ...base, kvType: "f16" });
@@ -86,7 +86,8 @@ describe("buildSpawnArgs", () => {
 describe("shouldReuseProcess", () => {
   const ok = {
     resident: true, currentSystem: "S", system: "S",
-    currentSessionId: "c1", sessionId: "c1", turnsHandled: 3, maxTurns: 50
+    currentSessionId: "c1", sessionId: "c1", turnsHandled: 3, maxTurns: 50,
+    currentReasoning: false, reasoning: false
   };
   it("reuses when everything matches", () => {
     expect(shouldReuseProcess(ok)).toBe(true);
@@ -102,6 +103,9 @@ describe("shouldReuseProcess", () => {
   });
   it("restarts when no process is resident", () => {
     expect(shouldReuseProcess({ ...ok, resident: false })).toBe(false);
+  });
+  it("restarts when reasoning mode changes", () => {
+    expect(shouldReuseProcess({ ...ok, reasoning: true })).toBe(false);
   });
 });
 
@@ -133,7 +137,7 @@ describe("resolveUbatch", () => {
 });
 
 describe("buildSpawnArgs flash-attn + ubatch", () => {
-  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const };
+  const base = { modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const, system: "", draftModelPath: null as string | null, specType: "ngram-simple" as const, reasoning: false };
 
   it("carries -fa and -ub with defaults", () => {
     const args = buildSpawnArgs({ ...base, flashAttn: "on", ubatch: 1024 });
@@ -238,7 +242,7 @@ describe("buildSpawnArgs draft model", () => {
   const base = {
     modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const,
     flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null,
-    specType: "ngram-simple" as const
+    specType: "ngram-simple" as const, reasoning: false
   };
   it("appends --model-draft when set", () => {
     const args = buildSpawnArgs({ ...base, draftModelPath: "/d.gguf" });
@@ -289,7 +293,7 @@ describe("buildSpawnArgs specType", () => {
   const base = {
     modelPath: "/m.gguf", ctxSize: 16384, gpuLayers: "99", kvType: "f16" as const,
     flashAttn: "on" as const, ubatch: 1024, system: "", draftModelPath: null as string | null,
-    specType: "ngram-simple" as const
+    specType: "ngram-simple" as const, reasoning: false
   };
   it("appends --spec-type when not none", () => {
     const args = buildSpawnArgs(base);

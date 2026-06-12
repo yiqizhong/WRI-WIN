@@ -197,6 +197,7 @@ type RewriteJob = {
   prompt: string;
   userText: string;
   adapterId?: string;
+  reasoning?: boolean;
 };
 
 async function updateAssistantMessage(
@@ -227,7 +228,8 @@ async function startPasteTextRewrite(
   const { run, completion } = await launchAgentRun(state, {
     sessionId: job.sessionId,
     prompt: job.prompt,
-    adapterId: job.adapterId
+    adapterId: job.adapterId,
+    reasoning: job.reasoning
   });
 
   await updateAssistantMessage(state, job, {
@@ -258,9 +260,21 @@ async function finishPasteTextRewrite(
 
     const conversation = getPasteTextConversation(state, job.conversationId);
     const message = conversation.messages.find((item) => item.id === job.assistantMessageId);
-    const priorVariants = message?.variants ?? [];
+    // Fall back to suggestedText if variants was somehow lost (e.g. store race).
+    const priorVariants =
+      message?.variants ??
+      (message?.suggestedText && message.suggestedText !== "Rewriting…"
+        ? [message.suggestedText]
+        : []);
     const variants =
       priorVariants.length > 0 ? [...priorVariants, suggestedText] : [suggestedText];
+
+    console.log("[finishPasteTextRewrite]", {
+      assistantMessageId: job.assistantMessageId,
+      messageVariantsBeforeFinish: message?.variants,
+      priorVariantsLength: priorVariants.length,
+      newVariantsLength: variants.length
+    });
 
     await updateAssistantMessage(state, job, {
       status: "complete",
@@ -483,6 +497,12 @@ export async function regeneratePasteTextAssistantMessage(
       ? [assistantMessage.suggestedText ?? assistantMessage.text]
       : []);
 
+  console.log("[regeneratePasteTextAssistantMessage]", {
+    assistantMessageId,
+    assistantVariants: assistantMessage.variants,
+    existingVariantsLength: existingVariants.length
+  });
+
   const prompt = await buildRewritePromptForTurn(state, conversation, assistantIndex, userMessage);
 
   const job: RewriteJob = {
@@ -491,7 +511,8 @@ export async function regeneratePasteTextAssistantMessage(
     sessionId: conversation.sessionId!,
     prompt,
     userText: userMessage.text,
-    adapterId: parsed.adapterId
+    adapterId: parsed.adapterId,
+    reasoning: true
   };
 
   const shortCircuitHint = shouldShortCircuitCopywriterInput(userMessage.text);

@@ -110,6 +110,7 @@ export function buildSpawnArgs(input: {
   draftModelPath: string | null;
   specType: SpecType;
   system: string;
+  reasoning: boolean;
 }): string[] {
   const args = [
     "--model", input.modelPath,
@@ -117,7 +118,7 @@ export function buildSpawnArgs(input: {
     "-ngl", input.gpuLayers,
     "-cnv",
     "--simple-io",
-    "--reasoning", "off",
+    "--reasoning", input.reasoning ? "on" : "off",
     "-fa", input.flashAttn,
     "-ub", String(input.ubatch),
     "-n", "1024",
@@ -146,12 +147,15 @@ export function shouldReuseProcess(input: {
   sessionId: string;
   turnsHandled: number;
   maxTurns: number;
+  currentReasoning: boolean;
+  reasoning: boolean;
 }): boolean {
   return (
     input.resident &&
     input.currentSystem === input.system &&
     input.currentSessionId === input.sessionId &&
-    input.turnsHandled < input.maxTurns
+    input.turnsHandled < input.maxTurns &&
+    input.currentReasoning === input.reasoning
   );
 }
 
@@ -173,6 +177,7 @@ export class LocalGemmaRuntime {
   private child: ChildProcessWithoutNullStreams | null = null;
   private currentSystem: string | null = null;
   private currentSessionId: string | null = null;
+  private currentReasoning: boolean = false;
   private kvType: KvCacheType = resolveKvType(process.env["WRITER_LOCAL_KV_TYPE"]);
   private kvFallbackUsed = false;
   private stderrBuf = "";
@@ -227,6 +232,7 @@ export class LocalGemmaRuntime {
     this.child = null;
     this.currentSystem = null;
     this.currentSessionId = null;
+    this.currentReasoning = false;
     this.stdoutBuf = "";
     if (child && child.exitCode === null) {
       try {
@@ -243,7 +249,7 @@ export class LocalGemmaRuntime {
     this.evict();
   }
 
-  private spawnProcess(system: string, sessionId: string): void {
+  private spawnProcess(system: string, sessionId: string, reasoning: boolean): void {
     const { binary, modelPath, gpuLayers, contextSize } = this.opts;
     const ctxSize = resolveCtxSize(process.env["WRITER_LOCAL_CTX_SIZE"], contextSize);
     const args = buildSpawnArgs({
@@ -255,7 +261,8 @@ export class LocalGemmaRuntime {
       ubatch: resolveUbatch(process.env["WRITER_LOCAL_UBATCH"]),
       draftModelPath: this.effectiveDraftPath(),
       specType: resolveSpecType(process.env["WRITER_LOCAL_SPEC_TYPE"]),
-      system
+      system,
+      reasoning
     });
     const child = spawn(binary, args, { cwd: dirname(binary), stdio: ["pipe", "pipe", "pipe"] });
     child.stdout.setEncoding("utf8");
@@ -268,12 +275,14 @@ export class LocalGemmaRuntime {
         this.child = null;
         this.currentSystem = null;
         this.currentSessionId = null;
+        this.currentReasoning = false;
         this.stdoutBuf = "";
       }
     });
     this.child = child;
     this.currentSystem = system;
     this.currentSessionId = sessionId;
+    this.currentReasoning = reasoning;
     this.stdoutBuf = "";
   }
 
@@ -291,8 +300,8 @@ export class LocalGemmaRuntime {
     throw new Error("Local Gemma process did not become ready in time.");
   }
 
-  /** Ensure a process is alive for the given system prompt. */
-  private async ensureProcess(system: string, sessionId: string): Promise<void> {
+  /** Ensure a process is alive for the given system prompt and reasoning mode. */
+  private async ensureProcess(system: string, sessionId: string, reasoning: boolean): Promise<void> {
     if (
       shouldReuseProcess({
         resident: this.resident,
@@ -301,14 +310,16 @@ export class LocalGemmaRuntime {
         currentSessionId: this.currentSessionId,
         sessionId,
         turnsHandled: this.turnsHandled,
-        maxTurns: LocalGemmaRuntime.MAX_TURNS
+        maxTurns: LocalGemmaRuntime.MAX_TURNS,
+        currentReasoning: this.currentReasoning,
+        reasoning
       })
     ) {
       return;
     }
     if (this.resident) this.evict();
     this.turnsHandled = 0;
-    this.spawnProcess(system, sessionId);
+    this.spawnProcess(system, sessionId, reasoning);
     try {
       await this.waitForReady(turnTimeoutMs());
     } catch (err) {
@@ -322,7 +333,7 @@ export class LocalGemmaRuntime {
       ) {
         this.draftFallbackUsed = true;
         if (this.resident) this.evict();
-        this.spawnProcess(system, sessionId);
+        this.spawnProcess(system, sessionId, reasoning);
         await this.waitForReady(turnTimeoutMs());
         console.error("[local-gemma] draft model disabled: load failed (insufficient VRAM)");
         return;
@@ -331,7 +342,7 @@ export class LocalGemmaRuntime {
         this.kvFallbackUsed = true;
         this.kvType = "q8_0";
         if (this.resident) this.evict();
-        this.spawnProcess(system, sessionId);
+        this.spawnProcess(system, sessionId, reasoning);
         await this.waitForReady(turnTimeoutMs());
         return;
       }
@@ -360,10 +371,10 @@ export class LocalGemmaRuntime {
    * Run one turn. Returns the model's response text for this turn (already
    * stripped of the footer). Throws on timeout or process death.
    */
-  async runTurn(system: string, userText: string, sessionId: string): Promise<string> {
+  async runTurn(system: string, userText: string, sessionId: string, reasoning = false): Promise<string> {
     await this.acquire();
     try {
-      await this.ensureProcess(system, sessionId);
+      await this.ensureProcess(system, sessionId, reasoning);
       this.clearIdleTimer();
 
       // Send the user turn. --simple-io does NOT echo input back, so the

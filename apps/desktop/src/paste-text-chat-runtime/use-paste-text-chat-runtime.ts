@@ -46,6 +46,7 @@ export function usePasteTextChatRuntime({
     Record<string, number>
   >({});
   const [optimisticTurn, setOptimisticTurn] = useState<OptimisticTurn | null>(null);
+  const [rewritingId, setRewritingId] = useState<string | null>(null);
   const [forceWelcome, setForceWelcome] = useState(false);
   const [welcomeSendTransition, setWelcomeSendTransition] = useState(false);
   const [welcomeThinkingVisible, setWelcomeThinkingVisible] = useState(true);
@@ -410,6 +411,7 @@ export function usePasteTextChatRuntime({
       }
 
       setError(null);
+      setRewritingId(assistantMessageId);
 
       try {
         const updated = await client.regeneratePasteTextAssistantMessage(
@@ -431,6 +433,8 @@ export function usePasteTextChatRuntime({
               ? err.message
               : "Could not regenerate suggestion."
         );
+      } finally {
+        setRewritingId(null);
       }
     },
     [
@@ -462,6 +466,7 @@ export function usePasteTextChatRuntime({
     displayMessages,
     pendingAssistant,
     pendingRewrite,
+    rewritingId,
     submitting,
     attaching,
     streamingText,

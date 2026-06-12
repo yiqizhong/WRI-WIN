@@ -335,4 +335,63 @@ Brand only.
     expect(assistant?.variantIndex).toBe(1);
     expect(assistant?.suggestedText).toBe(assistant?.variants?.[1]);
   });
+
+  it("accumulates variants correctly via the async (non-sync) path", { timeout: 15_000 }, async () => {
+    await seedGuidelinesTree();
+    const state = await createTestState();
+    const project = await createProject(state, { name: "Demo", rootPath: "/tmp/demo" });
+
+    const conversation = await createPasteTextConversation(state, {
+      projectId: project.id,
+      productId: "checkout"
+    });
+
+    // Async initial send (no sync flag)
+    await sendPasteTextMessage(state, conversation.id, {
+      text: "Click here",
+      adapterId: "echo"
+    });
+
+    // Wait for finishPasteTextRewrite to complete
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+
+    const afterFirst = getPasteTextConversation(state, conversation.id);
+    const assistantId = afterFirst.messages.find((m) => m.role === "assistant")!.id;
+    const afterFirstAssistant = afterFirst.messages.find((m) => m.id === assistantId)!;
+
+    expect(afterFirstAssistant.status).toBe("complete");
+    expect(afterFirstAssistant.variants).toHaveLength(1);
+
+    // Async regenerate (no sync flag)
+    await regeneratePasteTextAssistantMessage(state, conversation.id, assistantId, {
+      adapterId: "echo"
+    });
+
+    // Wait for finishPasteTextRewrite to complete
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+
+    const afterSecond = getPasteTextConversation(state, conversation.id);
+    const afterSecondAssistant = afterSecond.messages.find((m) => m.id === assistantId)!;
+
+    expect(afterSecondAssistant.status).toBe("complete");
+    // Should have original + 1 regeneration = 2 variants
+    expect(afterSecondAssistant.variants).toHaveLength(2);
+    expect(afterSecondAssistant.variantIndex).toBe(1);
+
+    // Async second regenerate (no sync flag)
+    await regeneratePasteTextAssistantMessage(state, conversation.id, assistantId, {
+      adapterId: "echo"
+    });
+
+    // Wait for finishPasteTextRewrite to complete
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+
+    const afterThird = getPasteTextConversation(state, conversation.id);
+    const afterThirdAssistant = afterThird.messages.find((m) => m.id === assistantId)!;
+
+    expect(afterThirdAssistant.status).toBe("complete");
+    // Should have original + 2 regenerations = 3 variants
+    expect(afterThirdAssistant.variants).toHaveLength(3);
+    expect(afterThirdAssistant.variantIndex).toBe(2);
+  });
 });

@@ -46,6 +46,12 @@ export function usePasteTextRunSync({
         const assistant = fresh.messages.find((message) => message.id === messageId);
 
         if (!assistant || assistant.status !== "pending") {
+          console.log("[usePasteTextRunSync] early delivery (non-pending)", {
+            messageId,
+            assistantStatus: assistant?.status,
+            variantsLength: assistant?.variants?.length,
+            variantIndex: assistant?.variantIndex
+          });
           onConversationChange(fresh);
           setStreamingText(null);
           setRunStatus(undefined);
@@ -74,10 +80,22 @@ export function usePasteTextRunSync({
         if (isTerminalRunStatus(detail.run.status)) {
           const completed = await client.getPasteTextConversation(conversationId);
           if (!cancelled && completed.id === conversationId) {
-            onConversationChange(completed);
-            setStreamingText(null);
-            setRunStatus(undefined);
-            setRunEvents([]);
+            const completedAssistant = completed.messages.find((m) => m.id === messageId);
+            console.log("[usePasteTextRunSync] terminal delivery", {
+              messageId,
+              assistantStatus: completedAssistant?.status,
+              variantsLength: completedAssistant?.variants?.length,
+              variantIndex: completedAssistant?.variantIndex
+            });
+            // If finishPasteTextRewrite hasn't committed yet the message is
+            // still "pending". Skip delivery and let the poller tick again —
+            // the early-exit path will fire once the store is updated.
+            if (!completedAssistant || completedAssistant.status !== "pending") {
+              onConversationChange(completed);
+              setStreamingText(null);
+              setRunStatus(undefined);
+              setRunEvents([]);
+            }
           }
         }
       } catch {

@@ -79,6 +79,7 @@ export function TextCopyChat({
     displayMessages,
     pendingAssistant,
     pendingRewrite,
+    rewritingId,
     attaching,
     streamingText,
     runStatus,
@@ -168,8 +169,9 @@ export function TextCopyChat({
         const isAssistant = message.role === "assistant";
         const isPending = message.status === "pending";
         const isFailed = message.status === "failed";
+        const isRewriting = message.id === rewritingId;
         const showStream = isPending && message.id === pendingAssistant?.id;
-        const showPendingRibbon = showStream && !streamingText;
+        const showPendingRibbon = (showStream || isRewriting) && !streamingText;
         const variantIndex = resolveMessageVariantIndex(message);
         const variants = getMessageVariants(message);
         const body = messagePreview(message, showStream ? streamingText : null, {
@@ -220,7 +222,7 @@ export function TextCopyChat({
                 {showCursor ? "▍" : null}
               </p>
             )}
-            {isAssistant && !isPending ? (
+            {isAssistant && !isPending && !isRewriting ? (
               <div className="writer-chat-message-actions flex w-full max-w-full items-center justify-between gap-3">
                 <div className="flex items-center gap-0.5">
                   <Button

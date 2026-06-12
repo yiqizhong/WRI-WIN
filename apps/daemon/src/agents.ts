@@ -42,7 +42,8 @@ import { detectNvidiaVram } from "@writer/agent-adapters";
 const createAgentRunInputSchema = z.object({
   sessionId: z.string().min(1),
   adapterId: z.string().min(1).optional(),
-  prompt: z.string().min(1)
+  prompt: z.string().min(1),
+  reasoning: z.boolean().optional()
 });
 
 const setActiveAdapterInputSchema = z.object({
@@ -346,7 +347,8 @@ export async function launchAgentRun(state: DaemonState, input: unknown): Promis
 
   const handle = await impl.run({
     sessionId: parsed.sessionId,
-    prompt: parsed.prompt
+    prompt: parsed.prompt,
+    reasoning: parsed.reasoning
   });
 
   const run = handle.run;
