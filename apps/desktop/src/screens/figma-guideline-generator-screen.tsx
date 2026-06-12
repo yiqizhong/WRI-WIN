@@ -123,26 +123,26 @@ export function FigmaGuidelineGeneratorScreen() {
             <div className={showBlockingAlert ? "pointer-events-none opacity-40 select-none" : undefined}>
               <div className="flex flex-col gap-4">
                 <p className="writer-home-section-description">
-                  Generate background, glossary, and writing-guide files from Figma. After you start a run, progress
-                  appears in the Guidelines Log (often 16 minutes with AI).
+                  Create background, glossary, and writing-guide files from your Figma designs. Start a run to track
+                  progress in the Guidelines Log—AI runs usually take around 20 minutes.
                 </p>
-
-                <WriterFormField label="Product name" htmlFor="guide-product-name">
-                  <WriterFormInput
-                    id="guide-product-name"
-                    value={productName}
-                    onChange={(event) => setProductName(event.target.value)}
-                    placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
-                    disabled={starting}
-                  />
-                </WriterFormField>
 
                 {error ? (
                   <InlineAlert kind="error" title="Request failed" subtitle={error} onClose={() => setError(null)} />
                 ) : null}
 
-                <WorkflowGlassPanel title="Figma source">
-                  <div className="grid gap-4">
+                <WorkflowGlassPanel title="Session">
+                  <div className="flex flex-col gap-4">
+                    <WriterFormField label="Product name" htmlFor="guide-product-name">
+                      <WriterFormInput
+                        id="guide-product-name"
+                        value={productName}
+                        onChange={(event) => setProductName(event.target.value)}
+                        placeholder={PRODUCT_NAME_PLACEHOLDERS[productNamePlaceholderIndex]}
+                        disabled={starting}
+                      />
+                    </WriterFormField>
+
                     <WriterFormField label="Figma frame URL" htmlFor="guide-figma-url">
                       <WriterFormInput
                         id="guide-figma-url"
@@ -152,6 +152,7 @@ export function FigmaGuidelineGeneratorScreen() {
                         disabled={starting}
                       />
                     </WriterFormField>
+
                     <div className="flex justify-end">
                       <WriterPrimaryButton disabled={!canSubmit} onClick={() => void handleGenerate()}>
                         {starting ? "Starting…" : "Generate starter pack"}

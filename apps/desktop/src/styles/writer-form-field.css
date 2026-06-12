@@ -39,6 +39,8 @@
   display: flex;
   width: 100%;
   min-width: 0;
+  height: 100%;
+  align-items: center;
 }
 
 .writer-form-select-trigger-btn {
@@ -75,6 +77,8 @@
 }
 
 .writer-form-select-trigger-chevron {
+  flex-shrink: 0;
+  align-self: center;
   color: rgb(229 241 255 / 55%);
   transition: color 200ms ease;
 }

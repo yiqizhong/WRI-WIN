@@ -331,7 +331,7 @@ export function TextCopyChat({
                   <Button
                     type="button"
                     variant="ghost"
-                    className="writer-chat-welcome-product-trigger h-auto gap-1 px-1 py-0 font-[inherit] text-[length:inherit] leading-[inherit] tracking-[inherit] hover:bg-transparent dark:hover:bg-transparent aria-expanded:bg-transparent dark:aria-expanded:bg-transparent"
+                    className="writer-chat-welcome-product-trigger h-auto items-center gap-1 px-1 py-0 font-[inherit] text-[length:inherit] leading-[inherit] tracking-[inherit] hover:bg-transparent dark:hover:bg-transparent aria-expanded:bg-transparent dark:aria-expanded:bg-transparent"
                   >
                     <span className="writer-chat-welcome-product-label">{productName}</span>
                     <ChevronDown className="writer-chat-welcome-product-chevron size-4 shrink-0" aria-hidden />

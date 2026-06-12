@@ -276,10 +276,10 @@
   color: rgb(229 241 255 / 0.88);
 }
 
-/* Thinking ribbon — accent blue, flowing gradient on label + icon */
+/* Thinking ribbon — lighter accent for legibility on dark chat chrome */
 :root {
-  --writer-thinking-accent: var(--writer-accent-blue);
-  --writer-thinking-accent-dim: color-mix(in srgb, var(--writer-accent-blue) 52%, rgb(8 18 36));
+  --writer-thinking-accent: #6db8ff;
+  --writer-thinking-accent-dim: color-mix(in srgb, #6db8ff 68%, rgb(229 241 255 / 0.55));
 }
 
 .writer-chat-thinking-ribbon--enter {
@@ -300,7 +300,7 @@
 
 .writer-chat-thinking-icon {
   display: inline-flex;
-  color: var(--writer-accent-blue);
+  color: var(--writer-thinking-accent);
 }
 
 .writer-chat-thinking-label {
@@ -342,7 +342,7 @@
     background-image: none;
     background-clip: unset;
     -webkit-background-clip: unset;
-    color: var(--writer-accent-blue);
+    color: var(--writer-thinking-accent);
   }
 }
 
@@ -415,6 +415,8 @@
 }
 
 .writer-chat-welcome-product-trigger {
+  display: inline-flex;
+  align-items: center;
   color: inherit;
   background: transparent !important;
 }
@@ -443,8 +445,11 @@
 }
 
 .writer-chat-welcome-product-chevron {
+  flex-shrink: 0;
+  align-self: center;
   color: rgb(229 241 255 / 0.65);
   transition: color 160ms ease;
+  transform: translateY(0.08em);
 }
 
 .writer-chat-welcome-product-trigger:hover .writer-chat-welcome-product-chevron,
