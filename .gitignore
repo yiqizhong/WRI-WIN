@@ -12,3 +12,6 @@ dist-electron/
 # Desktop build outputs
 apps/desktop/dist-electron/
 apps/desktop/build/
+
+# CodeGraph local index
+.codegraph/
